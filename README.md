@@ -156,13 +156,39 @@ git push -u origin tv2
 
 Những lần bổ sung code tiếp theo trên cùng nhánh đó, bạn chỉ cần chạy `git push` là đủ.
 
-### Bước 4: Tạo Pull Request để gộp code vào main
+### Bước 4: Tạo Pull Request lên nhánh main
 
 1. Mở trang https://github.com/gmaanx/firefly-project trên trình duyệt.
 2. Bấm nút **Compare & pull request** hiện ra ở đầu trang ứng với nhánh vừa đẩy lên.
-3. Đặt tiêu đề rõ tên thành viên, ví dụ `TV2 hoan thanh FAParameters`, rồi bấm **Create pull request** để nhóm trưởng duyệt và gộp vào `main`.
+3. Đặt tiêu đề rõ tên thành viên, ví dụ `TV2 hoan thanh FAParameters`, rồi bấm **Create pull request**.
 
-## 6. Một số lệnh xử lý tình huống thường gặp
+## 6. Hướng dẫn gộp code Merge vào nhánh main
+
+Tất cả thành viên được thêm vào mục Collaborators đều có quyền thực hiện gộp code, tuy nhiên nên báo trước trong nhóm hoặc để nhóm trưởng duyệt trước khi bấm gộp nhằm tránh đè code ở các file dùng chung.
+
+### Cách 1: Gộp trực tiếp trên web GitHub qua Pull Request
+
+Đây là cách an toàn và trực quan nhất, khuyến khích cả nhóm sử dụng:
+
+1. Mở mục **Pull requests** tại https://github.com/gmaanx/firefly-project/pulls và bấm vào Pull Request cần gộp.
+2. Chuyển sang thẻ **Files changed** để rà soát các dòng thêm mới màu xanh và dòng xóa đi màu đỏ, đảm bảo không xóa nhầm phần hàm của thành viên khác.
+3. Quay lại thẻ **Conversation**:
+   Nếu hiện thông báo xanh **This branch has no conflicts with the base branch** thì bấm **Merge pull request** rồi bấm **Confirm merge**.
+   Nếu hiện cảnh báo xung đột thì bấm nút **Resolve conflicts** ngay trên web, giữ lại đúng phần code của các thành viên và xóa các dòng ký hiệu `<<<<<<<`, `=======`, `>>>>>>>`, sau đó bấm **Mark as resolved** rồi **Commit merge** và tiến hành **Merge pull request**.
+
+### Cách 2: Gộp bằng dòng lệnh Git trên máy tính
+
+Nếu muốn kiểm tra và chạy thử trực tiếp trên máy trước khi đẩy lên `main`, dùng chuỗi lệnh sau, ví dụ gộp nhánh `tv2` vào `main`:
+
+```bash
+git fetch origin
+git switch main
+git pull origin main
+git merge origin/tv2
+git push origin main
+```
+
+## 7. Một số lệnh xử lý tình huống thường gặp
 
 1. Thành viên khác vừa được gộp code lên `main` và bạn muốn cập nhật phần đó về nhánh đang làm:
    ```bash
