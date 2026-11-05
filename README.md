@@ -1,170 +1,179 @@
-# Firefly Algorithm — Project Skeleton
+# Dự án Thuật toán Đom đóm Firefly Algorithm
 
-Bộ khung mã nguồn (Project Skeleton) cho bài tập nhóm cài đặt, thực nghiệm và trực quan hóa **Thuật toán Đom đóm (Firefly Algorithm - FA)** bằng Python.
+Bộ khung mã nguồn Python cho bài tập nhóm cài đặt, thực nghiệm và trực quan hóa Thuật toán Đom đóm.
 
----
-
-## 1. Cấu trúc thư mục dự án
+## 1. Cấu trúc thư mục
 
 ```text
 firefly-project/
 ├── core/
 │   ├── __init__.py
-│   ├── problems.py        # TV1 & TV7: Định nghĩa bài toán tối ưu f(x) & hàm phạt Π(x)
-│   ├── parameters.py      # TV2: Tính khoảng cách r_ij, độ hấp dẫn β, giảm hệ số α
-│   ├── population.py      # TV3: Khởi tạo quần thể, kẹp biên (find_limits), xếp hạng (rank_fireflies)
-│   └── engine.py          # TV4 & TV5: Phương trình di chuyển & Vòng lặp chính + Lưu lịch sử
+│   ├── problems.py        # TV1 và TV7: Bài toán tối ưu f(x) và hàm phạt Π(x)
+│   ├── parameters.py      # TV2: Khoảng cách r_ij, độ hấp dẫn β, giảm hệ số α
+│   ├── population.py      # TV3: Khởi tạo quần thể, kẹp biên, xếp hạng
+│   └── engine.py          # TV4 và TV5: Phương trình di chuyển và vòng lặp chính
 ├── simulations/
 │   ├── __init__.py
-│   ├── demos.py           # TV6 & TV7: Bài toán tính tay (Worked Example 13.5) & Demo có ràng buộc
-│   └── experiments.py     # TV8, TV9, TV10: Thực nghiệm hội tụ, độ nhạy tham số & đa cực trị
-├── data_exports/          # Thư mục chứa 6 file JSON xuất ra cho Web
+│   ├── demos.py           # TV6 và TV7: Bài toán mẫu mục 13.5 và bài toán có ràng buộc
+│   └── experiments.py     # TV8, TV9, TV10: Hội tụ, độ nhạy tham số và đa cực trị
+├── data_exports/          # Thư mục lưu 6 file JSON xuất ra cho giao diện Web
 ├── web_ui/                # TV11: Giao diện Web trực quan thay thế Slide
-├── main_export.py         # TV10: Script tổng hợp xuất bộ file JSON chuẩn cho Web
-├── requirements.txt       # Thư viện phụ thuộc (numpy)
-├── .gitignore             # Bỏ qua __pycache__, .venv, .DS_Store
-└── README.md              # Tài liệu hướng dẫn làm việc nhóm & Git
+├── main_export.py         # TV10: Script tổng hợp xuất 6 file JSON chuẩn
+├── requirements.txt       # Thư viện cần cài đặt
+├── .gitignore             # Danh sách thư mục và file Git tự động bỏ qua
+└── README.md              # Tài liệu hướng dẫn làm việc nhóm
 ```
 
----
+## 2. Phân công nhiệm vụ và thứ tự ghép nối
 
-## 2. Phân công nhiệm vụ (TV1 → TV11) & Thứ tự ghép nối
+Bên trong mỗi hàm hiện đặt sẵn lệnh `raise NotImplementedError`. Khi làm phần việc của mình, thành viên xóa dòng này và viết thuật toán trả về đúng định dạng Output mẫu ghi trong hàm.
 
-Mỗi hàm hiện đang đặt chốt `raise NotImplementedError("TODO: Phụ trách bởi TV...")`. Khi code phần của mình, thành viên **xóa dòng `raise NotImplementedError(...)`** và viết logic trả về **đúng kiểu dữ liệu & cấu trúc Output mẫu** đã ghi chú trong docstring của hàm.
+| Thành viên | Nhánh gợi ý | File phụ trách | Class và hàm cần hoàn thiện | Giai đoạn |
+| :--- | :--- | :--- | :--- | :--- |
+| **TV1** | `tv1` | `core/problems.py` | Class `UnconstrainedProblem` | Giai đoạn 1 |
+| **TV2** | `tv2` | `core/parameters.py` | Class `FAParameters` | Giai đoạn 1 |
+| **TV3** | `tv3` | `core/population.py` | `init_population`, `find_limits`, `rank_fireflies` | Giai đoạn 1 |
+| **TV4** | `tv4` | `core/engine.py` | Hàm `move_firefly_pair` | Giai đoạn 2 |
+| **TV5** | `tv5` | `core/engine.py` | Class `FireflySolver` | Giai đoạn 2 |
+| **TV6** | `tv6` | `simulations/demos.py` | Hàm `run_worked_example_13_5` | Giai đoạn 3 |
+| **TV7** | `tv7` | `core/problems.py`, `simulations/demos.py` | Class `ConstrainedProblem`, hàm `run_constrained_demo` | Giai đoạn 2 và 3 |
+| **TV8** | `tv8` | `simulations/experiments.py` | Hàm `exp_convergence_benchmark` | Giai đoạn 3 |
+| **TV9** | `tv9` | `simulations/experiments.py` | Hàm `exp_parameter_sensitivity` | Giai đoạn 3 |
+| **TV10** | `tv10` | `simulations/experiments.py`, `main_export.py` | Hàm `exp_multimodal_optimization`, hàm `export_all_to_json` | Giai đoạn 3 và 4 |
+| **TV11** | `tv11` | `web_ui/` | Giao diện Web đọc 6 file JSON trong `data_exports/` | Giai đoạn 5 |
 
-| Thành viên | File phụ trách | Class / Hàm cần hoàn thiện | Giai đoạn Pipeline |
-| :--- | :--- | :--- | :--- |
-| **TV1** | `core/problems.py` | Class `UnconstrainedProblem` (`__init__`, `evaluate`) | Giai đoạn 1 (Nền tảng) |
-| **TV2** | `core/parameters.py` | Class `FAParameters` (`__init__`, `calc_distance`, `calc_attractiveness`, `update_alpha`) | Giai đoạn 1 (Nền tảng) |
-| **TV3** | `core/population.py` | `init_population`, `find_limits`, `rank_fireflies` | Giai đoạn 1 (Nền tảng) |
-| **TV4** | `core/engine.py` | Hàm `move_firefly_pair` | Giai đoạn 2 (Động cơ FA) |
-| **TV5** | `core/engine.py` | Class `FireflySolver` (`__init__`, `run`) | Giai đoạn 2 (Động cơ FA) |
-| **TV6** | `simulations/demos.py` | Hàm `run_worked_example_13_5` | Giai đoạn 3 (Mô phỏng) |
-| **TV7** | `core/problems.py` & `simulations/demos.py` | Class `ConstrainedProblem` & hàm `run_constrained_demo` | Giai đoạn 2 & 3 |
-| **TV8** | `simulations/experiments.py` | Hàm `exp_convergence_benchmark` | Giai đoạn 3 (Thực nghiệm) |
-| **TV9** | `simulations/experiments.py` | Hàm `exp_parameter_sensitivity` | Giai đoạn 3 (Thực nghiệm) |
-| **TV10** | `simulations/experiments.py` & `main_export.py` | Hàm `exp_multimodal_optimization` & hàm `export_all_to_json` | Giai đoạn 3 & 4 (Xuất JSON) |
-| **TV11** | `web_ui/` | Giao diện Web đọc 6 file JSON từ `data_exports/` để trình chiếu | Giai đoạn 5 (Trực quan hóa) |
+Lưu ý quan trọng khi viết code:
+1. Không tự ý đổi tên class, tên hàm, tên tham số đầu vào hoặc tên key trong `dict` trả về để đảm bảo ghép nối mượt với các thành viên sau.
+2. Chỉ sửa đúng hàm và class được giao, đặc biệt tại các file có nhiều thành viên dùng chung gồm `core/problems.py`, `core/engine.py`, `simulations/demos.py` và `simulations/experiments.py`.
 
-> **Quy tắc bắt buộc khi code:**
-> - **KHÔNG** tự ý đổi tên class, tên hàm, thứ tự/tên tham số đầu vào hoặc các key trong `dict` trả về (để không làm gãy code của thành viên ghép nối phía sau).
-> - **CHỈ** chỉnh sửa đúng class/hàm được phân công cho mình, đặc biệt trong các file có nhiều thành viên làm chung (`core/problems.py`, `core/engine.py`, `simulations/demos.py`, `simulations/experiments.py`).
+## 3. Clone dự án và cài đặt môi trường lần đầu
 
----
+### Bước 1: Tải mã nguồn về máy
 
-## 3. Hướng dẫn Clone dự án & Cài đặt môi trường (Làm lần đầu)
-
-### Bước 1: Clone repository về máy
-
-Mở Terminal / PowerShell tại thư mục muốn lưu bài và chạy:
+Mở Terminal hoặc PowerShell tại thư mục muốn lưu dự án rồi chạy:
 
 ```bash
 git clone https://github.com/gmaanx/firefly-project.git
 cd firefly-project
 ```
 
-### Bước 2: Tạo môi trường ảo (`.venv`) và cài thư viện
+### Bước 2: Tạo môi trường ảo và cài thư viện
 
-- **Trên Windows (PowerShell):**
-  ```powershell
-  python -m venv .venv
-  .\.venv\Scripts\Activate.ps1
-  pip install -r requirements.txt
-  ```
-  *(Nếu PowerShell báo lỗi quyền chạy script khi activate, chạy lệnh sau rồi thử lại: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`)*
+File `.gitignore` đã cấu hình tự động bỏ qua cả `.venv` lẫn `venv`, nên thư mục môi trường ảo sẽ không bị đẩy nhầm lên GitHub.
 
-- **Trên Windows (CMD):**
-  ```cmd
-  python -m venv .venv
-  .venv\Scripts\activate.bat
-  pip install -r requirements.txt
-  ```
+Trên Windows PowerShell:
 
-- **Trên macOS / Linux:**
-  ```bash
-  python3 -m venv .venv
-  source .venv/bin/activate
-  pip install -r requirements.txt
-  ```
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
----
+Trên Windows CMD:
 
-## 4. Hướng dẫn thao tác Git cho các thành viên (Chuẩn quy trình nhóm)
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
 
-Để **tránh ghi đè code của nhau** trên nhánh `main`, mỗi thành viên làm việc trên **nhánh (branch) riêng** theo quy trình 5 bước dưới đây:
-
-### Bước 1: Luôn cập nhật code mới nhất từ `main` trước khi bắt đầu
+Trên macOS hoặc Linux:
 
 ```bash
-git checkout main
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## 4. Hướng dẫn phân nhánh cho thành viên
+
+Tuyệt đối không viết code trực tiếp trên nhánh `main`. Mỗi thành viên tạo một nhánh riêng để làm việc độc lập.
+
+### Bước 1: Chuyển về nhánh main và kéo bản mới nhất
+
+```bash
+git switch main
 git pull origin main
 ```
 
-### Bước 2: Tạo nhánh riêng theo mã thành viên
+### Bước 2: Tạo nhánh mới bằng cờ `-c` hoặc `-b`
 
-Đặt tên nhánh theo cú pháp `feat/tv<số>-<tên-ngắn>` (ví dụ cho TV2):
+Bạn có thể chọn 1 trong 2 lệnh tương đương dưới đây để vừa tạo nhánh mới vừa chuyển sang nhánh đó. Ví dụ cho thành viên TV2 với tên nhánh `tv2`:
+
+Cách 1 dùng lệnh `git switch` đời mới kèm cờ `-c` viết tắt của create:
 
 ```bash
-git checkout -b feat/tv2-parameters
+git switch -c tv2
 ```
 
-*(Tương tự: `feat/tv1-problems`, `feat/tv3-population`, `feat/tv4-move`, `feat/tv5-solver`, `feat/tv6-example-13-5`, `feat/tv7-constrained`, `feat/tv8-convergence`, `feat/tv9-sensitivity`, `feat/tv10-multimodal-export`, `feat/tv11-web-ui`)*
+Cách 2 dùng lệnh `git checkout` truyền thống kèm cờ `-b` viết tắt của branch:
 
-### Bước 3: Viết code & Kiểm tra các file đã thay đổi
+```bash
+git checkout -b tv2
+```
 
-Sau khi hoàn thành phần code của mình, kiểm tra lại xem mình có vô tình sửa nhầm file của người khác không:
+### Bước 3: Chuyển đổi qua lại giữa các nhánh đã tạo
+
+Cờ `-c` và `-b` chỉ dùng duy nhất một lần lúc mới tạo nhánh. Những lần làm việc tiếp theo, khi nhánh đã tồn tại trên máy, chỉ cần gõ tên nhánh mà không có `-c` hay `-b`:
+
+```bash
+# Chuyển sang nhánh tv2 đã có sẵn
+git switch tv2
+# Hoặc dùng lệnh tương đương
+git checkout tv2
+
+# Kiểm tra xem mình đang đứng ở nhánh nào, nhánh hiện tại có dấu sao phía trước
+git branch
+```
+
+## 5. Quy trình lưu code và đẩy lên GitHub
+
+Sau khi đã đứng đúng trên nhánh cá nhân và hoàn thành phần code được giao, thực hiện tuần tự 4 bước sau:
+
+### Bước 1: Kiểm tra các file vừa thay đổi
 
 ```bash
 git status
 git diff
 ```
 
-### Bước 4: Lưu thay đổi (Stage & Commit)
+### Bước 2: Đưa file của mình vào vùng chờ và tạo commit
 
-Chỉ `git add` đúng các file thuộc phần việc của mình (không dùng `git add .` bừa bãi nếu đang có file nháp chạy thử):
+Chỉ `git add` đúng file mình phụ trách để tránh đẩy nhầm file nháp:
 
 ```bash
-# Ví dụ cho TV2:
 git add core/parameters.py
-git commit -m "feat(tv2): cai dat FAParameters tinh khoang cach, do hap dan va giam alpha"
+git commit -m "Hoan thanh class FAParameters cua TV2"
 ```
 
-### Bước 5: Đồng bộ với `main` và Push nhánh lên GitHub
-
-Trước khi push, kéo code mới nhất từ `origin/main` về để đảm bảo không xung đột:
+### Bước 3: Cập nhật code mới nhất từ nhánh main và đẩy nhánh lên GitHub
 
 ```bash
 git fetch origin
-git rebase origin/main
-git push -u origin feat/tv2-parameters
+git merge origin/main
+git push -u origin tv2
 ```
 
-*(Thay `feat/tv2-parameters` bằng tên nhánh của bạn).*
+Những lần bổ sung code tiếp theo trên cùng nhánh đó, bạn chỉ cần chạy `git push` là đủ.
 
-### Bước 6: Tạo Pull Request (PR) trên GitHub
+### Bước 4: Tạo Pull Request để gộp code vào main
 
-1. Truy cập `https://github.com/gmaanx/firefly-project`.
-2. Nhấn nút **Compare & pull request** xuất hiện trên đầu trang.
-3. Ghi rõ tiêu đề (ví dụ: `[TV2] Hoàn thành FAParameters`) → Nhấn **Create pull request** để nhóm trưởng kiểm tra và **Merge** vào `main`.
+1. Mở trang https://github.com/gmaanx/firefly-project trên trình duyệt.
+2. Bấm nút **Compare & pull request** hiện ra ở đầu trang ứng với nhánh vừa đẩy lên.
+3. Đặt tiêu đề rõ tên thành viên, ví dụ `TV2 hoan thanh FAParameters`, rồi bấm **Create pull request** để nhóm trưởng duyệt và gộp vào `main`.
 
----
+## 6. Một số lệnh xử lý tình huống thường gặp
 
-## 5. Các lệnh Git thường dùng & Xử lý tình huống
-
-- **Khi thành viên khác vừa được merge code lên `main` và bạn muốn lấy code đó về nhánh đang làm:**
-  ```bash
-  git fetch origin
-  git merge origin/main
-  ```
-- **Xem mình đang đứng ở nhánh nào:**
-  ```bash
-  git branch
-  ```
-- **Lỡ sửa nhầm vào file của thành viên khác và muốn khôi phục file đó về như cũ:**
-  ```bash
-  git checkout -- duong_dan/ten_file.py
-  ```
-- **Xuất toàn bộ 6 file JSON cho Web UI (sau khi TV1 → TV10 đã hoàn tất):**
-  ```bash
-  python main_export.py
-  ```
+1. Thành viên khác vừa được gộp code lên `main` và bạn muốn cập nhật phần đó về nhánh đang làm:
+   ```bash
+   git fetch origin
+   git merge origin/main
+   ```
+2. Lỡ tay sửa nhầm vào file của thành viên khác và muốn khôi phục file đó về nguyên trạng:
+   ```bash
+   git restore duong_dan/ten_file.py
+   ```
+3. Chạy xuất toàn bộ 6 file JSON cho giao diện Web sau khi từ TV1 đến TV10 đã hoàn tất:
+   ```bash
+   python main_export.py
+   ```

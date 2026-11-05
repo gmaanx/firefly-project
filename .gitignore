@@ -1,4 +1,23 @@
+# Bytecode va cache Python
 __pycache__/
 *.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Moi truong ao Python
 .venv/
+venv/
+env/
+ENV/
+
+# Cau hinh IDE va bien moi truong cuc bo
+.vscode/
+.idea/
+.env
+
+# File rac he dieu hanh
 .DS_Store
+Thumbs.db
+Desktop.ini
