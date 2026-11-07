@@ -106,6 +106,20 @@ Câu trả lời là **KHÔNG cần clone lại**. Khi các thành viên ở gia
 
 Chuyển về nhánh `main`, kéo toàn bộ code mới nhất mà các bạn giai đoạn trước vừa hoàn thành về máy, sau đó mới tách nhánh riêng cho mình:
 
+```text
+Tren GitHub (origin/main):  o-------o-------o-------o  (TV1 den TV5 da gop code xong)
+                                                    |
+                                                    |  1. git switch main
+                                                    |  2. git pull origin main
+                                                    v
+Tren may ban (main):        o.......................o  (May ban da co du code moi nhat)
+                                                     \
+                                                      +---> o---o  nhanh tv6
+                                                      3. git switch -c tv6
+```
+
+Lệnh thực hiện:
+
 ```bash
 git switch main
 git pull origin main
@@ -116,7 +130,20 @@ Thay `tv6` bằng tên nhánh của bạn theo bảng phân công ở Mục 2. N
 
 ### Trường hợp 2: Bạn đã tạo nhánh cá nhân từ trước hoặc làm nhiệm vụ ở nhiều giai đoạn như TV7 và TV10
 
-Nếu bạn đã lỡ tạo nhánh cá nhân từ mấy hôm trước khi `main` chưa có code mới, hoặc nay bạn bước sang làm nhiệm vụ thứ hai ở giai đoạn sau, hãy cập nhật code mới nhất từ `main` đắp sang nhánh của bạn bằng 4 lệnh sau:
+Nếu bạn đã lỡ tạo nhánh cá nhân từ mấy hôm trước khi `main` chưa có code mới, hoặc nay bạn bước sang làm nhiệm vụ thứ hai ở giai đoạn sau, hãy cập nhật code mới nhất từ `main` đắp sang nhánh của bạn:
+
+```text
+Tren may ban (main):   o--------------------o  (1. git switch main -> 2. git pull origin main)
+                        \                    \
+                         \                    \  3. git switch tv7
+                          \                    \ 4. git merge main
+                           \                    v
+Nhanh ca nhan (tv7):        o---------o----------o-------o---> (Code tiep giai doan sau)
+                            (Code cu cua TV7     (Vua giu nguyen code cu cua TV7,
+                             van an toan)         vua co them code moi tu main)
+```
+
+Lệnh thực hiện:
 
 ```bash
 git switch main
@@ -125,11 +152,49 @@ git switch tv7
 git merge main
 ```
 
-Sau lệnh này, nhánh `tv7` của bạn vừa giữ nguyên code cũ bạn đã viết, vừa có thêm toàn bộ code mới nhất từ nhánh `main`.
+## 5. Hướng dẫn trực quan cách phân nhánh và chuyển nhánh
 
-## 5. Hướng dẫn chi tiết cách tạo nhánh và chuyển nhánh
+Tuyệt đối không viết code trực tiếp khi đang đứng ở nhánh `main`. Hãy nhìn sơ đồ luồng phân nhánh tổng thể của cả nhóm dưới đây:
 
-Tuyệt đối không viết code trực tiếp khi đang đứng ở nhánh `main`.
+```mermaid
+gitGraph
+   commit id: "Khung du an"
+   branch tv1
+   checkout tv1
+   commit id: "TV1 code problems"
+   checkout main
+   branch tv2
+   checkout tv2
+   commit id: "TV2 code parameters"
+   checkout main
+   merge tv1 id: "Gop tv1"
+   merge tv2 id: "Gop tv2"
+   branch tv5
+   checkout tv5
+   commit id: "TV5 code solver"
+   checkout main
+   merge tv5 id: "Gop tv5"
+   branch tv6
+   checkout tv6
+   commit id: "TV6 code demo 13.5"
+   checkout main
+   merge tv6 id: "Gop tv6"
+```
+
+Tương ứng với từng lệnh Git bạn gõ trên máy:
+
+```text
+                    git switch -c tv1       git commit       Pull Request
+                          +-------------o----------------o----------------+
+                         /              (TV1 tu code rieng)                \
+                        /                                                   v
+nhanh main:  o---------o--------------------------------------o--------------o--->
+          (Khung        \                                     ^              (main da co
+           du an)        \                                   /                TV1 va TV2)
+                          +---------o----------------o------+
+                    git switch -c tv2   git commit   Pull Request
+                                    (TV2 tu code rieng)
+```
 
 ### Tạo nhánh mới bằng cờ `-c` hoặc `-b`
 
@@ -151,7 +216,14 @@ Luôn chạy lệnh dưới đây trước khi sửa file:
 git branch
 ```
 
-Màn hình sẽ liệt kê các nhánh trên máy bạn. Phải chắc chắn dấu sao `*` đang nằm trước tên nhánh cá nhân của bạn như `* tv2` chứ không nằm trước `main`.
+Màn hình sẽ hiện danh sách nhánh trên máy bạn như sau:
+
+```text
+  main
+* tv2
+```
+
+Phải chắc chắn dấu sao `*` đang nằm trước tên nhánh cá nhân của bạn như `* tv2` chứ không nằm trước `main`.
 
 ### Chuyển qua lại giữa các nhánh đã tạo sẵn
 
@@ -206,7 +278,11 @@ Trên GitHub, thao tác xin gộp nhánh của bạn vào `main` được gọi 
 3. **Cách làm nếu không thấy khung màu vàng**:
    * Bấm vào thẻ **Pull requests** trên thanh menu ngang hoặc vào thẳng https://github.com/gmaanx/firefly-project/pulls.
    * Bấm nút màu xanh **New pull request** ở góc phải.
-   * Nhìn hai ô chọn nhánh có mũi tên chỉ từ phải sang trái `base: main` và `compare: ...`: giữ nguyên ô bên trái **base** là **`main`**, bấm vào ô bên phải **compare** và chọn đúng nhánh của bạn như **`tv2`**.
+   * Nhìn hai ô chọn nhánh có mũi tên chỉ từ phải sang trái như hình minh họa dưới đây, giữ nguyên ô bên trái **base** là **`main`** và bấm chọn ô bên phải **compare** là nhánh của bạn như **`tv2`**:
+     ```text
+     [ base: main ]   <--- gop vao ---   [ compare: tv2 ]
+     (Nhanh goc nhan code)               (Nhanh ca nhan cua ban)
+     ```
    * Kéo xuống dưới xem lại phần code thay đổi rồi bấm nút xanh **Create pull request**.
 4. Tại trang điền thông tin:
    * Ô tiêu đề ghi rõ mã thành viên và nội dung đã làm, ví dụ `TV2 hoan thanh class FAParameters`.
