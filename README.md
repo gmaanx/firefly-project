@@ -46,20 +46,33 @@ Lưu ý quan trọng khi viết code:
 1. Không tự ý đổi tên class, tên hàm, tên tham số đầu vào hoặc tên key trong `dict` trả về để đảm bảo ghép nối mượt với các thành viên sau.
 2. Chỉ sửa đúng hàm và class được giao, đặc biệt tại các file có nhiều thành viên dùng chung gồm `core/problems.py`, `core/engine.py`, `simulations/demos.py` và `simulations/experiments.py`.
 
-## 3. Clone dự án và cài đặt môi trường lần đầu
+## 3. Lần đầu tham gia: Clone dự án và cài môi trường
 
-### Bước 1: Tải mã nguồn về máy
+Lệnh `git clone` **chỉ thực hiện đúng một lần duy nhất** lúc mới bắt đầu tải dự án về máy. Những ngày sau hoặc khi chờ tới giai đoạn nhiệm vụ của mình, bạn **không cần xóa thư mục đi để clone lại**.
 
-Mở Terminal hoặc PowerShell tại thư mục muốn lưu dự án rồi chạy:
+### Bước 1: Chấp nhận lời mời cộng tác trên GitHub
+
+Trước khi thao tác, mở email hoặc truy cập https://github.com/gmaanx/firefly-project/invitations và bấm **Accept invitation** để tài khoản của bạn có quyền đẩy nhánh lên kho mã nguồn chung.
+
+### Bước 2: Tải dự án về máy tính
+
+Mở Terminal hoặc PowerShell tại thư mục muốn lưu bài rồi chạy:
 
 ```bash
 git clone https://github.com/gmaanx/firefly-project.git
 cd firefly-project
 ```
 
-### Bước 2: Tạo môi trường ảo và cài thư viện
+Mặc định sau khi `git clone`, máy bạn sẽ tải về nhánh gốc `main`. Nếu muốn tải thêm một nhánh cụ thể của thành viên khác đã có trên GitHub về máy để xem hoặc chạy thử, dùng lệnh:
 
-File `.gitignore` đã cấu hình tự động bỏ qua cả `.venv` lẫn `venv`, nên thư mục môi trường ảo sẽ không bị đẩy nhầm lên GitHub.
+```bash
+git fetch origin
+git switch ten_nhanh
+```
+
+### Bước 3: Tạo môi trường ảo và cài thư viện
+
+File `.gitignore` đã tự động bỏ qua cả `.venv` lẫn `venv`, nên thư mục môi trường ảo sẽ không bị đẩy nhầm lên GitHub.
 
 Trên Windows PowerShell:
 
@@ -85,68 +98,96 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 4. Hướng dẫn phân nhánh cho thành viên
+## 4. Khi tới lượt nhiệm vụ của bạn: Có cần clone lại không?
 
-Tuyệt đối không viết code trực tiếp trên nhánh `main`. Mỗi thành viên tạo một nhánh riêng để làm việc độc lập.
+Câu trả lời là **KHÔNG cần clone lại**. Khi các thành viên ở giai đoạn trước đã gộp code xong vào `main` và báo tới lượt bạn làm, bạn chỉ cần mở lại thư mục `firefly-project` đã có sẵn trên máy và làm theo một trong hai trường hợp dưới đây:
 
-### Bước 1: Chuyển về nhánh main và kéo bản mới nhất
+### Trường hợp 1: Bạn bắt đầu nhiệm vụ lần đầu và chưa tạo nhánh cá nhân
+
+Chuyển về nhánh `main`, kéo toàn bộ code mới nhất mà các bạn giai đoạn trước vừa hoàn thành về máy, sau đó mới tách nhánh riêng cho mình:
 
 ```bash
 git switch main
 git pull origin main
+git switch -c tv6
 ```
 
-### Bước 2: Tạo nhánh mới bằng cờ `-c` hoặc `-b`
+Thay `tv6` bằng tên nhánh của bạn theo bảng phân công ở Mục 2. Nhờ tạo nhánh sau khi `git pull origin main`, nhánh `tv6` của bạn sẽ có sẵn đầy đủ code của TV1 đến TV5 để chạy ghép nối.
 
-Bạn có thể chọn 1 trong 2 lệnh tương đương dưới đây để vừa tạo nhánh mới vừa chuyển sang nhánh đó. Ví dụ cho thành viên TV2 với tên nhánh `tv2`:
+### Trường hợp 2: Bạn đã tạo nhánh cá nhân từ trước hoặc làm nhiệm vụ ở nhiều giai đoạn như TV7 và TV10
 
-Cách 1 dùng lệnh `git switch` đời mới kèm cờ `-c` viết tắt của create:
+Nếu bạn đã lỡ tạo nhánh cá nhân từ mấy hôm trước khi `main` chưa có code mới, hoặc nay bạn bước sang làm nhiệm vụ thứ hai ở giai đoạn sau, hãy cập nhật code mới nhất từ `main` đắp sang nhánh của bạn bằng 4 lệnh sau:
 
 ```bash
+git switch main
+git pull origin main
+git switch tv7
+git merge main
+```
+
+Sau lệnh này, nhánh `tv7` của bạn vừa giữ nguyên code cũ bạn đã viết, vừa có thêm toàn bộ code mới nhất từ nhánh `main`.
+
+## 5. Hướng dẫn chi tiết cách tạo nhánh và chuyển nhánh
+
+Tuyệt đối không viết code trực tiếp khi đang đứng ở nhánh `main`.
+
+### Tạo nhánh mới bằng cờ `-c` hoặc `-b`
+
+Sau khi đã đứng ở bản `main` mới nhất, dùng một trong hai lệnh tương đương dưới đây để vừa tạo nhánh mới vừa chuyển sang nhánh đó. Ví dụ cho TV2:
+
+```bash
+# Cách 1 dùng lệnh git switch kèm cờ -c viết tắt của create
 git switch -c tv2
-```
 
-Cách 2 dùng lệnh `git checkout` truyền thống kèm cờ `-b` viết tắt của branch:
-
-```bash
+# Cách 2 dùng lệnh git checkout kèm cờ -b viết tắt của branch
 git checkout -b tv2
 ```
 
-### Bước 3: Chuyển đổi qua lại giữa các nhánh đã tạo
+### Kiểm tra nhánh hiện tại trước khi gõ code
 
-Cờ `-c` và `-b` chỉ dùng duy nhất một lần lúc mới tạo nhánh. Những lần làm việc tiếp theo, khi nhánh đã tồn tại trên máy, chỉ cần gõ tên nhánh mà không có `-c` hay `-b`:
+Luôn chạy lệnh dưới đây trước khi sửa file:
 
 ```bash
-# Chuyển sang nhánh tv2 đã có sẵn
-git switch tv2
-# Hoặc dùng lệnh tương đương
-git checkout tv2
-
-# Kiểm tra xem mình đang đứng ở nhánh nào, nhánh hiện tại có dấu sao phía trước
 git branch
 ```
 
-## 5. Quy trình lưu code và đẩy lên GitHub
+Màn hình sẽ liệt kê các nhánh trên máy bạn. Phải chắc chắn dấu sao `*` đang nằm trước tên nhánh cá nhân của bạn như `* tv2` chứ không nằm trước `main`.
 
-Sau khi đã đứng đúng trên nhánh cá nhân và hoàn thành phần code được giao, thực hiện tuần tự 4 bước sau:
+### Chuyển qua lại giữa các nhánh đã tạo sẵn
 
-### Bước 1: Kiểm tra các file vừa thay đổi
+Cờ `-c` và `-b` chỉ dùng duy nhất một lần lúc khởi tạo nhánh mới. Những ngày làm việc tiếp theo, khi nhánh đã có sẵn trên máy, chỉ gõ tên nhánh mà không thêm `-c` hay `-b`:
+
+```bash
+git switch tv2
+# Hoặc
+git checkout tv2
+```
+
+Lưu ý trước khi chuyển sang nhánh khác, bạn nhớ lưu và `git commit` những gì đang sửa dở ở nhánh hiện tại.
+
+## 6. Lưu code, đẩy nhánh lên GitHub và gửi yêu cầu Request Merge
+
+Sau khi viết xong code trên nhánh cá nhân và chạy thử ổn định, thực hiện lần lượt các bước sau để gửi yêu cầu gộp code vào `main`:
+
+### Bước 1: Kiểm tra lại các file đã sửa
 
 ```bash
 git status
 git diff
 ```
 
-### Bước 2: Đưa file của mình vào vùng chờ và tạo commit
+Đảm bảo chỉ có đúng file thuộc nhiệm vụ của bạn bị thay đổi, không sửa nhầm sang phần của thành viên khác.
 
-Chỉ `git add` đúng file mình phụ trách để tránh đẩy nhầm file nháp:
+### Bước 2: Đóng gói thay đổi bằng git add và git commit
+
+Chỉ `git add` đúng tên file bạn phụ trách để không đẩy nhầm các file nháp chạy thử:
 
 ```bash
 git add core/parameters.py
-git commit -m "Hoan thanh class FAParameters cua TV2"
+git commit -m "TV2 hoan thanh class FAParameters"
 ```
 
-### Bước 3: Cập nhật code mới nhất từ nhánh main và đẩy nhánh lên GitHub
+### Bước 3: Đồng bộ với main lần cuối và đẩy nhánh lên GitHub
 
 ```bash
 git fetch origin
@@ -154,31 +195,41 @@ git merge origin/main
 git push -u origin tv2
 ```
 
-Những lần bổ sung code tiếp theo trên cùng nhánh đó, bạn chỉ cần chạy `git push` là đủ.
+Thay `tv2` bằng tên nhánh của bạn. Từ lần đẩy thứ hai trở đi trên cùng nhánh đó, chỉ cần gõ ngắn gọn `git push` là đủ.
 
-### Bước 4: Tạo Pull Request lên nhánh main
+### Bước 4: Tạo yêu cầu gộp code Pull Request trên GitHub
 
-1. Mở trang https://github.com/gmaanx/firefly-project trên trình duyệt.
-2. Bấm nút **Compare & pull request** hiện ra ở đầu trang ứng với nhánh vừa đẩy lên.
-3. Đặt tiêu đề rõ tên thành viên, ví dụ `TV2 hoan thanh FAParameters`, rồi bấm **Create pull request**.
+Trên GitHub, thao tác xin gộp nhánh của bạn vào `main` được gọi là tạo **Pull Request**. Thực hiện chi tiết như sau:
 
-## 6. Hướng dẫn gộp code Merge vào nhánh main
+1. Mở trình duyệt truy cập https://github.com/gmaanx/firefly-project.
+2. **Cách nhanh ngay sau khi vừa push**: Ở đầu trang sẽ xuất hiện khung màu vàng hiện tên nhánh bạn vừa đẩy lên, bấm ngay nút màu xanh **Compare & pull request**.
+3. **Cách làm nếu không thấy khung màu vàng**:
+   * Bấm vào thẻ **Pull requests** trên thanh menu ngang hoặc vào thẳng https://github.com/gmaanx/firefly-project/pulls.
+   * Bấm nút màu xanh **New pull request** ở góc phải.
+   * Nhìn hai ô chọn nhánh có mũi tên chỉ từ phải sang trái `base: main` và `compare: ...`: giữ nguyên ô bên trái **base** là **`main`**, bấm vào ô bên phải **compare** và chọn đúng nhánh của bạn như **`tv2`**.
+   * Kéo xuống dưới xem lại phần code thay đổi rồi bấm nút xanh **Create pull request**.
+4. Tại trang điền thông tin:
+   * Ô tiêu đề ghi rõ mã thành viên và nội dung đã làm, ví dụ `TV2 hoan thanh class FAParameters`.
+   * Ô mô tả bên dưới ghi ngắn gọn kết quả chạy thử nếu cần.
+   * Bấm nút xanh **Create pull request** để hoàn tất gửi yêu cầu gộp code, sau đó nhắn lên nhóm chat để nhóm trưởng kiểm tra.
 
-Tất cả thành viên được thêm vào mục Collaborators đều có quyền thực hiện gộp code, tuy nhiên nên báo trước trong nhóm hoặc để nhóm trưởng duyệt trước khi bấm gộp nhằm tránh đè code ở các file dùng chung.
+Mẹo quan trọng: Nếu sau khi đã gửi Pull Request mà nhóm trưởng góp ý cần sửa lại vài dòng code, bạn **không cần đóng hay tạo lại Pull Request mới**. Bạn chỉ việc mở lại nhánh cá nhân dưới máy, sửa code, chạy lại `git add`, `git commit` và `git push` thì trang Pull Request cũ trên GitHub sẽ tự động cập nhật theo code mới nhất của bạn.
 
-### Cách 1: Gộp trực tiếp trên web GitHub qua Pull Request
+## 7. Hướng dẫn duyệt và gộp code Merge vào nhánh main
 
-Đây là cách an toàn và trực quan nhất, khuyến khích cả nhóm sử dụng:
+Tất cả thành viên trong danh sách Collaborators đều có nút bấm gộp code, tuy nhiên cả nhóm thống nhất báo nhóm trưởng kiểm tra trước khi bấm gộp để tránh đè code ở các file dùng chung.
 
-1. Mở mục **Pull requests** tại https://github.com/gmaanx/firefly-project/pulls và bấm vào Pull Request cần gộp.
-2. Chuyển sang thẻ **Files changed** để rà soát các dòng thêm mới màu xanh và dòng xóa đi màu đỏ, đảm bảo không xóa nhầm phần hàm của thành viên khác.
+### Cách 1: Duyệt và gộp trực tiếp trên web GitHub
+
+1. Mở danh sách yêu cầu tại https://github.com/gmaanx/firefly-project/pulls và bấm vào Pull Request của thành viên.
+2. Mở thẻ **Files changed** để rà soát các dòng thêm mới màu xanh và dòng xóa đi màu đỏ, đảm bảo chỉ xóa đúng dòng `raise NotImplementedError` của thành viên đó chứ không xóa nhầm hàm của người khác.
 3. Quay lại thẻ **Conversation**:
-   Nếu hiện thông báo xanh **This branch has no conflicts with the base branch** thì bấm **Merge pull request** rồi bấm **Confirm merge**.
-   Nếu hiện cảnh báo xung đột thì bấm nút **Resolve conflicts** ngay trên web, giữ lại đúng phần code của các thành viên và xóa các dòng ký hiệu `<<<<<<<`, `=======`, `>>>>>>>`, sau đó bấm **Mark as resolved** rồi **Commit merge** và tiến hành **Merge pull request**.
+   * Nếu hiện thông báo xanh **This branch has no conflicts with the base branch** thì bấm **Merge pull request** rồi bấm **Confirm merge**.
+   * Nếu hiện cảnh báo xung đột thì bấm nút **Resolve conflicts** ngay trên web, giữ lại phần code đúng của cả hai thành viên, xóa các dòng đánh dấu `<<<<<<<`, `=======`, `>>>>>>>`, sau đó bấm **Mark as resolved** rồi **Commit merge** và tiến hành **Merge pull request**.
 
-### Cách 2: Gộp bằng dòng lệnh Git trên máy tính
+### Cách 2: Gộp bằng dòng lệnh trên máy tính
 
-Nếu muốn kiểm tra và chạy thử trực tiếp trên máy trước khi đẩy lên `main`, dùng chuỗi lệnh sau, ví dụ gộp nhánh `tv2` vào `main`:
+Nếu muốn kéo nhánh của thành viên về chạy thử trên máy trước khi gộp vào `main`, dùng chuỗi lệnh sau:
 
 ```bash
 git fetch origin
@@ -188,18 +239,17 @@ git merge origin/tv2
 git push origin main
 ```
 
-## 7. Một số lệnh xử lý tình huống thường gặp
+## 8. Một số lệnh cứu nguy thường gặp
 
-1. Thành viên khác vừa được gộp code lên `main` và bạn muốn cập nhật phần đó về nhánh đang làm:
-   ```bash
-   git fetch origin
-   git merge origin/main
-   ```
-2. Lỡ tay sửa nhầm vào file của thành viên khác và muốn khôi phục file đó về nguyên trạng:
+1. Lỡ tay sửa nhầm vào file của thành viên khác khi chưa commit và muốn khôi phục file đó về nguyên trạng ban đầu:
    ```bash
    git restore duong_dan/ten_file.py
    ```
-3. Chạy xuất toàn bộ 6 file JSON cho giao diện Web sau khi từ TV1 đến TV10 đã hoàn tất:
+2. Muốn kiểm tra xem lịch sử các lần lưu commit trên nhánh hiện tại đã có những gì:
+   ```bash
+   git log --oneline -n 5
+   ```
+3. Xuất toàn bộ 6 file JSON cho giao diện Web sau khi từ TV1 đến TV10 đã hoàn tất và gộp hết vào `main`:
    ```bash
    python main_export.py
    ```
