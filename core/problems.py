@@ -13,13 +13,22 @@ class UnconstrainedProblem:
         """Input: d (int), lb (float), ub (float).
         Output: Khởi tạo self.d, self.Lb (d,), self.Ub (d,), self.scale (d,).
         """
-        raise NotImplementedError("TODO: Phụ trách bởi TV1")
+        self.d = d
+        # Khởi tạo vector cận dưới nhân rộng ra d chiều
+        self.Lb = lb * np.ones(d, dtype=float)
+        # Khởi tạo vector cận trên nhân rộng ra d chiều
+        self.Ub = ub * np.ones(d, dtype=float)
+        # Tính độ rộng miền tìm kiếm theo tài liệu Firefly Algorithm
+        self.scale = np.abs(self.Ub - self.Lb)
 
     def evaluate(self, x: np.ndarray) -> float:
         """Input: x (np.ndarray, shape=(d,)).
         Output: Giá trị hàm mục tiêu cost f(x) (float).
         """
-        raise NotImplementedError("TODO: Phụ trách bởi TV1")
+        # Hàm mục tiêu chuẩn Sphere function: f(x) = sum((x_i - 1)^2)
+        # Nghiệm tối ưu lý thuyết là x = [1, 1, ..., 1]
+        x = np.asarray(x, dtype=float)
+        return float(np.sum((x - 1.0) ** 2))
 
 
 class ConstrainedProblem(UnconstrainedProblem):
