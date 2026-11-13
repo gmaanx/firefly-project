@@ -24,7 +24,47 @@ def move_firefly_pair(
         "random_step": np.ndarray (d,),
     }
     """
-    raise NotImplementedError("TODO: Phụ trách bởi TV4")
+    xi_arr = np.asarray(xi, dtype=float)
+    xj_arr = np.asarray(xj, dtype=float)
+    scale_arr = np.asarray(scale, dtype=float)
+
+    if xi_arr.shape != xj_arr.shape:
+        raise ValueError(f"Shape mismatch: xi {xi_arr.shape} vs xj {xj_arr.shape}")
+    if scale_arr.shape != xi_arr.shape:
+        raise ValueError(f"Shape mismatch: scale {scale_arr.shape} vs xi {xi_arr.shape}")
+
+    d = xi_arr.shape[0]
+
+    r_ij = params.calc_distance(xi_arr, xj_arr)
+    beta = params.calc_attractiveness(r_ij)
+
+    if float(light_j) < float(light_i):
+        attraction_step = beta * (xj_arr - xi_arr)
+
+        if custom_eps is not None:
+            eps = np.asarray(custom_eps, dtype=float)
+            if eps.shape != xi_arr.shape:
+                raise ValueError(
+                    f"Shape mismatch: custom_eps {eps.shape} vs xi {xi_arr.shape}"
+                )
+        else:
+            eps = np.random.uniform(-0.5, 0.5, size=d)
+
+        random_step = params.alpha * scale_arr * eps
+
+        new_pos = xi_arr + attraction_step + random_step
+    else:
+        attraction_step = np.zeros(d, dtype=float)
+        random_step = np.zeros(d, dtype=float)
+        new_pos = xi_arr.copy()
+
+    return {
+        "new_pos": new_pos,
+        "r_ij": float(r_ij),
+        "beta": float(beta),
+        "attraction_step": attraction_step,
+        "random_step": random_step,
+    }
 
 
 class FireflySolver:
