@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from core.engine import move_firefly_pair
+from core.engine import FireflySolver, move_firefly_pair
 from core.parameters import FAParameters
 from core.population import find_limits
-from core.problems import UnconstrainedProblem
+from core.problems import ConstrainedProblem, UnconstrainedProblem
 
 
 def run_worked_example_13_5() -> dict:
@@ -140,4 +140,31 @@ def run_constrained_demo() -> dict:
         "history": [{"t": int, "fbest": float, "nbest": list[float]}],
     }
     """
-    raise NotImplementedError("TODO: Phụ trách bởi TV7")
+    d = 3
+    penalty_lambda = 1e3
+    problem = ConstrainedProblem(d=d, lb=-5.0, ub=5.0, penalty_lambda=penalty_lambda)
+    params = FAParameters(alpha0=1.0, beta0=1.0, gamma=1.0 / (10.0**2), theta=0.97)
+
+    # Cố định seed để kết quả tái lập được khi TV10 xuất JSON
+    np.random.seed(42)
+    solver = FireflySolver(problem=problem, params=params, n_fireflies=25)
+    result = solver.run(t_max=300)
+
+    nbest = np.asarray(result["nbest"], dtype=float)
+    history = [
+        {
+            "t": int(h["t"]),
+            "fbest": float(h["fbest"]),
+            "nbest": [float(v) for v in h["nbest"]],
+        }
+        for h in result["history"]
+    ]
+
+    return {
+        "penalty_lambda": float(penalty_lambda),
+        "nbest": [float(v) for v in nbest],
+        "fbest_penalized": float(result["fbest"]),
+        "fbest_objective": float(problem.objective(nbest)),
+        "is_feasible": problem.is_feasible(nbest),
+        "history": history,
+    }
