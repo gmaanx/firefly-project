@@ -134,13 +134,69 @@ def exp_convergence_benchmark() -> dict:
 
 
 def exp_parameter_sensitivity() -> dict:
-    """Input: Không có (khảo sát độ nhạy tham số gamma và theta).
-    Output mẫu: {
-        "gamma_sweep": [{"gamma": float, "fbest": float, "curve": list[float]}],
-        "theta_sweep": [{"theta": float, "fbest": float, "curve": list[float]}],
-    }
+    """Khảo sát 15 cặp (gamma, theta) bằng FireflySolver của TV5.
+
+    Mỗi cặp chạy 500 vòng trên Sphere dịch tâm (D=10, [-5, 5]^10,
+    n=20, alpha0=beta0=1). Vì nghiệm tối ưu có f*=0 nên `curve` chứa
+    sai số mục tiêu fbest(t) - f* và `fbest` là sai số ở vòng cuối.
+
+    `grid` chứa gamma, theta, fbest, curve, dispersion và history cho
+    mỗi cặp. `dispersion` là trung bình khoảng cách Euclid của các cặp
+    đom đóm phân biệt tại mỗi vòng. `curve` và `dispersion` dùng cùng
+    thứ tự với `history`. TV5 xếp vị trí theo fitness ở mỗi vòng nên
+    cùng chỉ số hàng có thể chỉ hai cá thể khác nhau ở hai vòng.
+
+    `gamma_sweep` giữ theta=0.97 và `theta_sweep` giữ gamma=0.1.
+    Đặt np.random.seed(seed) trước khi gọi để tái lập kết quả. Mọi cặp
+    bắt đầu từ cùng trạng thái RNG và hàm khôi phục trạng thái khi thoát.
     """
-    raise NotImplementedError("TODO: Phụ trách bởi TV9")
+    gamma_values = (1e-5, 0.01, 0.1, 1.0, 50.0)
+    theta_values = (0.9, 0.97, 1.0)
+    n_fireflies, dimension, t_max = 20, 10, 500
+    pair_i, pair_j = np.triu_indices(n_fireflies, k=1)
+    initial_rng_state = np.random.get_state()
+
+    def run_one(gamma: float, theta: float) -> dict:
+        np.random.set_state(initial_rng_state)
+        problem = UnconstrainedProblem(d=dimension, lb=-5.0, ub=5.0)
+        params = FAParameters(alpha0=1.0, beta0=1.0, gamma=gamma, theta=theta)
+        solver = FireflySolver(problem=problem, params=params, n_fireflies=n_fireflies)
+        result = solver.run(t_max=t_max)
+        history = result["history"]
+        if len(history) != t_max:
+            raise ValueError(f"Thiếu snapshot cho gamma={gamma}, theta={theta}")
+
+        fbest = float(result["fbest"])
+        curve = [float(step["fbest"]) for step in history]
+        positions = np.asarray([step["positions"] for step in history], dtype=float)
+        pair_distances = np.linalg.norm(positions[:, pair_i] - positions[:, pair_j], axis=-1)
+        dispersion = pair_distances.mean(axis=1).tolist()
+
+        return {
+            "gamma": gamma,
+            "theta": theta,
+            "fbest": fbest,
+            "curve": curve,
+            "dispersion": dispersion,
+            "history": history,
+        }
+
+    try:
+        grid = [run_one(gamma, theta) for gamma in gamma_values for theta in theta_values]
+    finally:
+        np.random.set_state(initial_rng_state)
+
+    return {
+        "grid": grid,
+        "gamma_sweep": [
+            {key: run[key] for key in ("gamma", "fbest", "curve")}
+            for run in grid if run["theta"] == 0.97
+        ],
+        "theta_sweep": [
+            {key: run[key] for key in ("theta", "fbest", "curve")}
+            for run in grid if run["gamma"] == 0.1
+        ],
+    }
 
 
 def exp_multimodal_optimization() -> dict:
