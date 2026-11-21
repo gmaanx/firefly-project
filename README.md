@@ -2,6 +2,12 @@
 
 Bộ khung mã nguồn Python cho bài tập nhóm cài đặt, thực nghiệm và trực quan hóa Thuật toán Đom đóm.
 
+Phần TV10 được triển khai cùng `simulations/experiments.py` và
+`main_export.py`. Chạy `python main_export.py` để xuất toàn bộ dữ liệu JSON;
+luồng này chỉ cần NumPy và không phụ thuộc matplotlib. Các file TV10 gồm
+`multimodal_optimization.json`, `tv10_complexity.json` và
+`tv10_alpha_hybrid.json` trong `data_exports/`.
+
 ## 1. Cấu trúc thư mục
 
 ```text
@@ -16,9 +22,9 @@ firefly-project/
 │   ├── __init__.py
 │   ├── demos.py           # TV6 và TV7: Bài toán mẫu mục 13.5 và bài toán có ràng buộc
 │   └── experiments.py     # TV8, TV9, TV10: Hội tụ, độ nhạy tham số và đa cực trị
-├── data_exports/          # Thư mục lưu 6 file JSON xuất ra cho giao diện Web
+├── data_exports/          # Dữ liệu JSON của TV6–TV10
 ├── web_ui/                # TV11: Giao diện Web trực quan thay thế Slide
-├── main_export.py         # TV10: Script tổng hợp xuất 6 file JSON chuẩn
+├── main_export.py         # Script tổng hợp xuất dữ liệu JSON
 ├── requirements.txt       # Thư viện cần cài đặt
 ├── .gitignore             # Danh sách thư mục và file Git tự động bỏ qua
 └── README.md              # Tài liệu hướng dẫn làm việc nhóm
