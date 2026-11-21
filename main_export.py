@@ -6,7 +6,11 @@ import numpy as np
 
 from simulations.demos import run_constrained_demo, run_worked_example_13_5
 from simulations.experiments import (
-    exp_convergence_benchmark, exp_parameter_sensitivity, exp_multimodal_optimization,
+    exp_alpha_comparison,
+    exp_complexity,
+    exp_convergence_benchmark,
+    exp_multimodal_optimization,
+    exp_parameter_sensitivity,
 )
 
 EXPORT_DIR: Path = Path(__file__).resolve().parent / "data_exports"
@@ -18,6 +22,8 @@ EXPECTED_JSON_FILES: tuple[str, ...] = (
     "scalability_nd.json",
     "parameter_sensitivity.json",
     "multimodal_optimization.json",
+    "tv10_complexity.json",
+    "tv10_alpha_hybrid.json",
 )
 
 
@@ -32,8 +38,6 @@ def export_all_to_json(output_dir: Path | str = EXPORT_DIR) -> dict[str, str]:
         "multimodal_optimization": "data_exports/multimodal_optimization.json",
     }
     """
-    from export_tv10 import export_tv10_results
-
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     state = np.random.get_state()
@@ -57,7 +61,10 @@ def export_all_to_json(output_dir: Path | str = EXPORT_DIR) -> dict[str, str]:
         save("parameter_sensitivity", exp_parameter_sensitivity())
         multimodal = exp_multimodal_optimization()
         save("multimodal_optimization", multimodal)
-        export_tv10_results(output_dir / "tv10", multimodal=multimodal)
+        # TV10's numerical results are JSON-first. Plot generation is optional
+        # and intentionally outside this shared export path.
+        save("tv10_complexity", exp_complexity())
+        save("tv10_alpha_hybrid", exp_alpha_comparison())
     finally:
         np.random.set_state(state)
     return paths

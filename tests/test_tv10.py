@@ -9,7 +9,7 @@ import numpy as np
 from core.engine import FireflySolver
 from core.parameters import FAParameters
 from core.problems import UnconstrainedProblem
-from simulations.tv10 import (
+from simulations.experiments import (
     MultimodalProblem, detect_subswarms, population_metrics, run_seeded,
     run_multimodal_experiment, exp_complexity, exp_alpha_comparison,
     hybrid_local_search, seeded,
@@ -26,12 +26,12 @@ class TV10Tests(unittest.TestCase):
                 patch.object(main_export, 'exp_convergence_benchmark', return_value={'by_iterations': [], 'by_scale': []}), \
                 patch.object(main_export, 'exp_parameter_sensitivity', return_value={'grid': []}), \
                 patch.object(main_export, 'exp_multimodal_optimization', return_value={'history': []}), \
-                patch('export_tv10.export_tv10_results') as extra:
+                patch.object(main_export, 'exp_complexity', return_value={'runs': [], 'summary': []}), \
+                patch.object(main_export, 'exp_alpha_comparison', return_value={'runs': [], 'hybrid_runs': []}):
             paths = main_export.export_all_to_json(tmp)
             self.assertEqual({Path(p).name for p in paths.values()}, set(main_export.EXPECTED_JSON_FILES))
             self.assertEqual(json.loads(Path(paths['convergence_iterations']).read_text()), {'by_iterations': []})
             self.assertEqual(json.loads(Path(paths['scalability_nd']).read_text()), {'by_scale': []})
-            extra.assert_called_once()
             with patch.object(main_export, 'exp_convergence_benchmark', side_effect=RuntimeError('test')):
                 with self.assertRaises(RuntimeError):
                     main_export.export_all_to_json(tmp)
@@ -93,7 +93,6 @@ class TV10Tests(unittest.TestCase):
         self.assertEqual(hybrid_local_search(UnconstrainedProblem(d=2), [1, 1], steps=0)['fbest'], 0)
 
     def test_complexity_and_export_artifacts(self):
-        from export_tv10 import export_tv10_results
         multimodal = run_multimodal_experiment(gammas=(0.01, 1.0), seeds=(0,), n=6, t_max=2)
         complexity = exp_complexity(sizes=(4, 8), seeds=(0,), t_max=2)
         alpha = exp_alpha_comparison(seeds=(0,), n=5, t_max=2, local_steps=3)
@@ -101,14 +100,11 @@ class TV10Tests(unittest.TestCase):
             self.assertEqual(row['pair_checks_per_generation'], row['n']**2)
             self.assertGreaterEqual(row['objective_evaluations'], row['n'])
             self.assertGreater(row['runtime_ms'], 0)
-        with tempfile.TemporaryDirectory() as tmp:
-            paths = export_tv10_results(tmp, multimodal=multimodal, complexity=complexity, alpha=alpha)
-            for path in map(Path, paths):
-                self.assertGreater(path.stat().st_size, 0)
-                if path.suffix == '.json':
-                    json.loads(path.read_text(encoding='utf-8'))
-                if path.suffix == '.png':
-                    self.assertEqual(path.read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
+        # The shared exporter serializes numerical TV10 results directly as JSON;
+        # this assertion is deliberately independent of optional plotting tools.
+        for data in (multimodal, complexity, alpha):
+            encoded = json.dumps(data, allow_nan=False)
+            self.assertGreater(len(encoded), 0)
 
 
 if __name__ == '__main__':
