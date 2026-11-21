@@ -2,6 +2,15 @@
 
 Bộ khung mã nguồn Python cho bài tập nhóm cài đặt, thực nghiệm và trực quan hóa Thuật toán Đom đóm.
 
+Phần TV10 đã triển khai trong `simulations/tv10.py`, tích hợp qua
+`simulations/experiments.py` và `main_export.py`. Chạy `python firefly_tv10.py`
+để xuất riêng các thực nghiệm đa cực trị, độ phức tạp và alpha/Hybrid;
+chạy `python main_export.py` để xuất toàn nhóm. Cài thư viện bằng
+`python -m pip install -r requirements.txt` (NumPy và Matplotlib).
+Xem [TV10_NOTES.md](TV10_NOTES.md) để biết cấu hình, schema, cách đọc chỉ số,
+giới hạn thực nghiệm và hướng phát triển. Các JSON/CSV/PNG sinh tự động được
+Git bỏ qua; có thể tạo lại bằng hai lệnh trên.
+
 ## 1. Cấu trúc thư mục
 
 ```text

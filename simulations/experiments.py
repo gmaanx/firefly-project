@@ -210,4 +210,6 @@ def exp_multimodal_optimization() -> dict:
         "history": [{"t": int, "positions": list[list[float]], "fitness": list[float]}],
     }
     """
-    raise NotImplementedError("TODO: Phụ trách bởi TV10")
+    from simulations.tv10 import run_multimodal_experiment
+
+    return run_multimodal_experiment()

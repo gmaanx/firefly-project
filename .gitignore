@@ -11,6 +11,15 @@ __pycache__/
 venv/
 env/
 ENV/
+.runtime/
+.mplconfig/
+
+# Ket qua tai lap bang main_export.py / firefly_tv10.py
+data_exports/*.json
+data_exports/tv10/
+results/
+integration_run.log
+test_run.log
 
 # Cau hinh IDE va bien moi truong cuc bo
 .vscode/
