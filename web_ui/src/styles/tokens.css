@@ -1,0 +1,83 @@
+:root {
+  /* ==========================================================================
+     LUXURY COLOR ARCHITECTURE v5 —
+     "BOTANICAL OBSIDIAN × LANDO OLIVE × MUSEUM ALABASTER"
+     93% ultra-refined architectural neutrals + 6% restrained nocturnal botanical
+     sage-chartreuse + 1% whispered twilight iris (data strokes & glass tints only).
+     0% neon on #F3F2EC (Alabaster). Zero solid neon-purple buttons anywhere.
+     ========================================================================== */
+
+  /* === ARCHITECTURAL SURFACES (93% of visual area) === */
+  --bg-obsidian: #101110;          /* Warm deep gallery obsidian (Hero, /demo) */
+  --bg-obsidian-card: #161815;     /* Elevated dark slate-charcoal card */
+  --bg-obsidian-elevated: #1d201b; /* Hover/inset dark surface */
+  --bg-olive: #24281e;             /* Rich matte Lando deep moss olive (Manifesto, Subpage Heroes, Footer) */
+  --bg-olive-deep: #1c2017;        /* Subtle depth layer inside olive sections */
+  --bg-alabaster: #f3f2ec;         /* Warm fine-art paper (Light editorial bands — 0% NEON!) */
+  --bg-stone: #e7e6dd;             /* Muted recessed surface on light */
+
+  /* === INK & HAIRLINE HIERARCHY === */
+  --ink-light: #efefe8;            /* Crisp warm ivory text on dark (AAA contrast) */
+  --ink-light-secondary: #b9bdb0;  /* Readable body copy on dark (>= 7:1 contrast) */
+  --ink-light-muted: #939889;      /* Quiet metadata, axis ticks, labels (>= 4.8:1 contrast on #101110/#24281E) */
+  --ink-dark: #141513;             /* Deep charcoal ink on alabaster */
+  --ink-olive: #24281e;            /* Deep botanical olive ink on alabaster */
+  --ink-dark-secondary: #42453d;   /* Editorial body on alabaster */
+  --ink-dark-muted: #5f6358;       /* Subtle captions on alabaster (>= 5.2:1 contrast on #F3F2EC) */
+
+  --line-on-dark: rgba(239, 239, 232, 0.11);
+  --line-on-dark-strong: rgba(239, 239, 232, 0.24);
+  --line-on-light: rgba(20, 21, 19, 0.13);
+  --line-on-light-strong: rgba(20, 21, 19, 0.28);
+
+  /* === TOPOGRAPHIC CONTOUR BACKDROP TOKENS === */
+  --contour-light: #d2d2c4;
+  --wake-light-bg: #e7e6dd;
+  --wake-light-fg: #cbccc0;
+  --contour-olive: rgba(239, 239, 232, 0.065);
+  --contour-sage: rgba(36, 40, 30, 0.12);
+  --contour-dark: rgba(239, 239, 232, 0.055);
+
+  /* === REFINED BOTANICAL ACCENTS (NEVER loud radioactive gamer neon!) === */
+  --accent-jade: #8fb88d;          /* Tailor'd Hero sculpted jade-sage wordmark tint */
+  --accent-sage-gold: #b6c96e;     /* Large editorial serif display accent on dark olive (#24281E) */
+  --accent-lime: #c5e84d;          /* Surgical micro-accent ONLY: LIVE DEMO CTA, active firefly cores, primary FA curve */
+  --accent-iris: #8d7ae6;          /* Tamed twilight iris — DATA STROKES & SUBTLE GLASS TINTS ONLY! */
+  --accent-iris-muted: rgba(141, 122, 230, 0.14);
+  --accent-slate: #5a5f52;         /* Museum slate baseline series */
+  --accent-amber: #d98c4a;         /* Restrained warm terracotta-amber for rejected penalty steps */
+
+  /* Semantic aliases */
+  --accent-olive-lime: var(--accent-sage-gold);
+  --accent-violet-soft: var(--accent-iris);
+
+  /* === PROGRESSIVE OKLAB GRADIENT INTERPOLATION FALLBACK === */
+  --in-oklab: ;
+
+  /* === CLEAN VIETNAMESE PRESENTATION TYPOGRAPHY SYSTEM ===
+     Be Vietnam Pro (native Vietnamese display & body) + JetBrains Mono (formulas, code & metrics) */
+  --font-display: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif-italic: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* === LAYOUT & MOTION TOKENS === */
+  --container-max: 1400px;
+  --gutter: clamp(1.25rem, 3.6vw, 3.25rem);
+  --nav-height: 4.5rem;
+  --radius-sm: 0.45rem;
+  --radius-md: 0.78rem;
+  --radius-lg: 1.1rem;
+  --radius-footer: 2.1rem;
+  --radius-pill: 999px;
+
+  --ease-lando: cubic-bezier(0.65, 0.05, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@supports (background: linear-gradient(in oklab, white, black)) {
+  :root {
+    --in-oklab: in oklab;
+  }
+}
