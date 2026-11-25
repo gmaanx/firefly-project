@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { useSectionReveal } from '../../lib/useEditorialMotion';
 import { BlockReveal } from '../shared/BlockReveal';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
-import { LandoSignatureFlourish } from '../shared/LandoSignatureFlourish';
 import { MathFormula } from '../shared/MathFormula';
 
 export interface ManifestoSectionProps {
@@ -22,14 +21,6 @@ export function ManifestoSection({ reducedMotion }: ManifestoSectionProps) {
       data-surface="olive"
       aria-labelledby="manifesto-heading"
     >
-      {/* Lando Hero -> Section 2 Calligraphic Signature Bridge (draws across lower edge of framed Hero window) */}
-      <div className="lando-hero-bridge__sig-wrap" aria-hidden="true">
-        <LandoSignatureFlourish
-          variant="hero-bridge"
-          reducedMotion={reducedMotion}
-        />
-      </div>
-
       <div className="manifesto-solid-backdrop">
         <ContourBackdrop variant="olive" />
 

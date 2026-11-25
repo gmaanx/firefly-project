@@ -255,6 +255,15 @@ h3[id] {
   }
 }
 
+@keyframes marquee-scroll-reverse {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 .contour-backdrop {
   position: absolute;
   inset: 0;
@@ -1347,39 +1356,139 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
 }
 
 /* ==========================================================================
-   ROUTE 1 (`/`): NEAR-3D WRECKED-CAR & ROSE-MEADOW FIREFLY SANCTUARY HERO
+   ROUTE 1 (`/`): LANDO NORRIS STICKY HERO -> CENTER WINDOW + 2-ROW MARQUEE
    ========================================================================== */
-.hero-manifesto-stage {
+.lando-hero-sticky-track {
+  --hero-px: 0;
+  --hero-py: 0;
   position: relative;
+  z-index: 3;
+  height: 208svh;
   background-color: var(--bg-olive);
-  overflow-x: clip;
+  color: var(--ink-light);
 }
 
-.lando-hero-bridge__marquee-wrap {
+@media (max-width: 767px) {
+  .lando-hero-sticky-track {
+    height: 192svh;
+  }
+}
+
+.lando-hero-sticky-item {
   position: sticky;
-  top: 9svh;
+  top: 0;
+  width: 100%;
+  height: 100svh;
+  overflow: clip;
+  background-color: var(--bg-olive);
+}
+
+/* Layer 1A: Top-center Lando Emblem + Eyebrow (`y ~ 16.5%`) */
+.lando-bridge-top-eyebrow {
+  position: absolute;
+  top: clamp(4.8rem, 15.8svh, 9.8rem);
+  left: 50%;
   z-index: 1;
-  height: 0;
-  overflow: visible;
+  transform: translate3d(-50%, 14px, 0);
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.62rem;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.lando-bridge-top-eyebrow__mark {
+  width: 42px;
+  height: auto;
+  color: #d2ff00;
+}
+
+.lando-bridge-top-eyebrow__label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: #f4f4ed;
+  white-space: nowrap;
+}
+
+/* Layer 1B: Full-Width 2-Row Horizontal Marquee fixed at vertical 50% of sticky stage
+   (Stays stationary right behind the shrinking Hero box, then scrolls UP together on scroll!) */
+.lando-bridge-marquee {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  transform: translate3d(0, -50%, 0);
+  display: flex;
+  flex-direction: column;
+  gap: 0.06em;
   pointer-events: none;
   user-select: none;
 }
 
-.lando-hero-bridge__marquee {
-  display: block;
-  white-space: nowrap;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(3.4rem, 7.6vw, 7.2rem);
-  letter-spacing: -0.03em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: rgba(239, 239, 232, 0.14);
-  will-change: transform;
+.lando-bridge-marquee__row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+  padding-block: 0.08em;
 }
 
+.lando-bridge-marquee__track {
+  display: flex;
+  justify-content: center;
+  width: max-content;
+  white-space: nowrap;
+}
+
+.lando-bridge-marquee__chunk {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.lando-bridge-marquee__track--serif {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(2.8rem, 6.1vw, 5.8rem);
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #b8cc4d;
+}
+
+.lando-bridge-marquee__track--sans {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.7rem, 5.8vw, 5.5rem);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  color: #eaebe2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lando-bridge-marquee__track--serif,
+  .lando-bridge-marquee__track--sans {
+    animation: none !important;
+  }
+}
+
+html[data-reduced-motion='true'] .lando-bridge-marquee__track--serif,
+html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
+  animation: none !important;
+}
+
+/* Layer 2: 3D Firefly Sanctuary WebGL Canvas (`position: absolute` inside sticky item!) */
 .orchestrated-hero-canvas-wrap {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -1387,7 +1496,8 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   pointer-events: none;
   opacity: 1;
   visibility: visible;
-  will-change: clip-path, transform, opacity;
+  background-color: #2b3024;
+  will-change: clip-path, opacity;
   transition:
     opacity 0.28s var(--ease-out),
     visibility 0.28s;
@@ -1403,10 +1513,12 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   width: 100%;
   height: 100%;
   display: block;
+  transform-origin: 50% 52%;
+  will-change: transform;
 }
 
 .orchestrated-hero-fallback {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
@@ -1415,27 +1527,13 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
     #050708;
 }
 
-.section-hero {
-  --hero-px: 0;
-  --hero-py: 0;
-  position: relative;
-  z-index: 3;
-  min-height: 152svh;
-  background: transparent;
-  color: var(--ink-light);
-}
-
-@media (max-width: 767px) {
-  .section-hero {
-    min-height: 138svh;
-  }
-}
-
+/* Layer 3: Hero HUD + CRT screen overlay */
 .orchestrated-hero-hud {
-  position: sticky;
-  top: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   width: 100%;
-  height: 100svh;
+  height: 100%;
   pointer-events: none;
   overflow: hidden;
 }
@@ -1620,25 +1718,26 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   }
 }
 
+/* Layer 4: Bold #D2FF00 Neon-Lime Calligraphic Signature Stage over the 472x306 window */
+.lando-bridge-signature-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
 /* ==========================================================================
-   SECTION 2 (`/`): LANDO SIGNATURE BRIDGE -> MATTE OLIVE MANIFESTO (`#24281E`)
+   SECTION 2 (`/`): MATTE OLIVE MANIFESTO (`#24281E`)
    ========================================================================== */
 .section-manifesto {
   position: relative;
   z-index: 4;
-  background: transparent;
+  background: var(--bg-olive);
   color: var(--ink-light);
-  margin-top: -34svh;
-}
-
-.lando-hero-bridge__sig-wrap {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  margin-bottom: -1.8rem;
-  padding-inline: var(--gutter);
+  margin-top: 0;
 }
 
 .lando-sig {
@@ -1648,10 +1747,10 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
 }
 
 .lando-sig--hero-bridge {
-  width: min(560px, 78vw);
+  width: min(760px, 84vw);
   height: auto;
-  color: var(--accent-lime);
-  filter: drop-shadow(0 6px 18px rgba(10, 12, 8, 0.48));
+  color: #d2ff00;
+  filter: drop-shadow(0 6px 20px rgba(10, 12, 8, 0.34));
 }
 
 .lando-sig--editorial-signoff {

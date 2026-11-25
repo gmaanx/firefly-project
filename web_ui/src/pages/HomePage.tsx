@@ -43,11 +43,11 @@ function ChamferTopRightBorder() {
 }
 
 export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
-  const heroStageRef = useRef<HTMLDivElement>(null);
+  const heroStageRef = useRef<HTMLElement>(null);
   const heroHudRef = useRef<HTMLDivElement>(null);
   const heroHudFrameRef = useRef<HTMLDivElement>(null);
   const heroCrtOverlayRef = useRef<HTMLDivElement>(null);
-  const bridgeMarqueeRef = useRef<HTMLDivElement>(null);
+  const heroEyebrowRef = useRef<HTMLDivElement>(null);
   const heroScrollProgressRef = useRef<number>(0);
   const [heroStageActive, setHeroStageActive] = useState<boolean>(true);
 
@@ -60,7 +60,7 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
     convState.data?.by_iterations[convState.data.by_iterations.length - 1] ??
     null;
 
-  // Zero-layout-thrash Hero -> Manifesto scroll driver + IntersectionObserver RAF gate
+  // Zero-layout-thrash Lando Sticky-Track Hero -> Manifesto scroll driver + IO RAF gate
   useEffect(() => {
     const stageEl = heroStageRef.current;
     if (!stageEl) return;
@@ -70,17 +70,14 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
 
     const applyHeroScroll = () => {
       const sy = window.scrollY;
-      // Calibrated 1.02vh Lando window-framing runway inside 152svh Hero stage
+      // 1.02vh shrink/signature runway inside 2.08svh sticky track:
+      // 0 -> 1.08svh stays pinned while Hero shrinks 4-sided into centered 472x306 frame & signature draws;
+      // 1.08svh -> 2.08svh unpins & scrolls UP together (marquee + Hero frame + signature) into Section 2!
       const heroRunway = vh * 1.02;
       const p = Math.max(0, Math.min(1, sy / heroRunway));
       heroScrollProgressRef.current = p;
 
-      const mq = bridgeMarqueeRef.current;
-      if (mq && !reducedMotion) {
-        mq.style.transform = `translate3d(${(8 - p * 22).toFixed(2)}%, 0, 0)`;
-      }
-
-      const shouldBeActive = sy < vh * 1.65;
+      const shouldBeActive = sy < vh * 2.25;
       if (shouldBeActive !== lastActive) {
         lastActive = shouldBeActive;
         setHeroStageActive(shouldBeActive);
@@ -224,38 +221,101 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
     },
   ];
 
+  const marqueeRow1Text =
+    'TỐI ƯU BẦY ĐÀN · THUẬT TOÁN ĐOM ĐÓM · XIN-SHE YANG 2008 · TỐI ƯU BẦY ĐÀN';
+  const marqueeRow2Text =
+    'TỰ CHIA NHÓM ĐA CỰC TRỊ · KHÔNG CẦN ĐẠO HÀM · HỘI TỤ TOÀN CỤC · ĐA CỰC TRỊ';
+
   return (
     <>
-      {/* Cohesive Top 3D Stage: Keep fixed WebGL canvas outside content-visibility containment */}
-      <OrchestratedFireflyHeroCanvas
-        reducedMotion={reducedMotion}
-        scrollProgressRef={heroScrollProgressRef}
-        hudContentRef={heroHudRef}
-        hudFrameRef={heroHudFrameRef}
-        crtOverlayRef={heroCrtOverlayRef}
-        stageActive={heroStageActive}
-        onActivatePortal={() => navigateWithCurtain('/demo')}
-      />
+      {/* 1. Lando Norris 2.08svh Sticky Hero -> Center Window + Fixed-In-Stage 2-Row Marquee + Neon-Lime Signature */}
+      <section
+        id="hero"
+        ref={heroStageRef}
+        className="lando-hero-sticky-track section-hero surface-dark"
+        data-surface="dark"
+        aria-labelledby="hero-heading"
+      >
+        <div className="lando-hero-sticky-item">
+          <ContourBackdrop variant="olive" />
 
-      <div ref={heroStageRef} className="hero-manifesto-stage">
-        <ContourBackdrop variant="olive" />
+          {/* Top-center Lando Emblem + Eyebrow unveiled above the shrunk 472x306 center window */}
+          <div
+            ref={heroEyebrowRef}
+            className="lando-bridge-top-eyebrow"
+            aria-hidden="true"
+          >
+            <svg
+              className="lando-bridge-top-eyebrow__mark"
+              viewBox="0 0 56 32"
+              fill="none"
+            >
+              <path
+                d="M6 27 L11.5 5 H28 L26.7 10.2 H15.6 L14.1 16.2 H23.8 L22.5 21.2 H12.8 L11.4 27 H6 Z"
+                fill="currentColor"
+              />
+              <path
+                d="M27.2 27 L38.4 5 H44.8 L49.6 27 H44.1 L43.2 22.2 H34.8 L32.5 27 H27.2 Z M37.1 17.4 H42.3 L40.9 10.5 L37.1 17.4 Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span className="lando-bridge-top-eyebrow__label">
+              THUẬT TOÁN ĐOM ĐÓM · XIN-SHE YANG
+            </span>
+          </div>
 
-        {/* Lando Background Typographic Band revealed BEHIND the shrinking 3D Hero portrait window */}
-        <div className="lando-hero-bridge__marquee-wrap" aria-hidden="true">
-          <div ref={bridgeMarqueeRef} className="lando-hero-bridge__marquee">
-            FIREFLY ALGORITHM · SWARM INTELLIGENCE · XIN-SHE YANG
+          {/* 2-Row Full-Bleed Horizontal Band: stationary in place during shrink, scrolls UP together on scroll! */}
+          <div className="lando-bridge-marquee" aria-hidden="true">
+            <div className="lando-bridge-marquee__row">
+              <div className="lando-bridge-marquee__track lando-bridge-marquee__track--serif">
+                <span className="lando-bridge-marquee__chunk">
+                  {marqueeRow1Text}
+                </span>
+              </div>
+            </div>
+
+            <div className="lando-bridge-marquee__row">
+              <div className="lando-bridge-marquee__track lando-bridge-marquee__track--sans">
+                <span className="lando-bridge-marquee__chunk">
+                  {marqueeRow2Text}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3D Firefly Sanctuary WebGL Canvas: shrinks from 4 edges + scales into 472x306 center window */}
+          <OrchestratedFireflyHeroCanvas
+            reducedMotion={reducedMotion}
+            scrollProgressRef={heroScrollProgressRef}
+            hudContentRef={heroHudRef}
+            hudFrameRef={heroHudFrameRef}
+            crtOverlayRef={heroCrtOverlayRef}
+            eyebrowRef={heroEyebrowRef}
+            stageActive={heroStageActive}
+            onActivatePortal={() => navigateWithCurtain('/demo')}
+          />
+
+          {/* Hero Centerpiece HUD + CRT screen overlay */}
+          <HeroSection
+            hudRef={heroHudRef}
+            hudFrameRef={heroHudFrameRef}
+            crtOverlayRef={heroCrtOverlayRef}
+            onScrollToManifesto={() => onScrollToSection('boi-canh')}
+          />
+
+          {/* Bold #D2FF00 Neon-Lime Calligraphic Signature slashing across the centered 472x306 Hero window */}
+          <div className="lando-bridge-signature-stage" aria-hidden="true">
+            <LandoSignatureFlourish
+              variant="hero-bridge"
+              triggerRef={heroStageRef}
+              reducedMotion={reducedMotion}
+            />
           </div>
         </div>
+      </section>
 
-        <HeroSection
-          hudRef={heroHudRef}
-          hudFrameRef={heroHudFrameRef}
-          crtOverlayRef={heroCrtOverlayRef}
-          onScrollToManifesto={() => onScrollToSection('boi-canh')}
-        />
-
-        <ManifestoSection reducedMotion={reducedMotion} />
-      </div>
+      {/* 2. Matte-Olive Editorial Manifesto (`#24281E`) rising cleanly right underneath the sticky stage */}
+      <ManifestoSection reducedMotion={reducedMotion} />
 
       {/* 3. Lando Navier-Stokes Hard-Cutout Fluid-Ribbon Split Duality (#F3F2EC) */}
       <ExplorationSplitSection reducedMotion={reducedMotion} />

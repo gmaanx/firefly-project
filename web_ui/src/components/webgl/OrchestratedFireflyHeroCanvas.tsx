@@ -29,6 +29,8 @@ export interface OrchestratedFireflyHeroCanvasProps {
   hudFrameRef?: RefObject<HTMLDivElement | null>;
   /** Optional ref to Hero CRT screen overlay for frame-locked scroll fade */
   crtOverlayRef?: RefObject<HTMLDivElement | null>;
+  /** Optional ref to Lando top-center bridge eyebrow for synchronized reveal */
+  eyebrowRef?: RefObject<HTMLDivElement | null>;
   /** True while the Hero + Manifesto top stage is active */
   stageActive: boolean;
   /** Optional handler (kept for prop compatibility) */
@@ -115,23 +117,21 @@ const NocturnalFinishingShader = {
         0.52 * crtAmt
       );
 
-      float vignette = clamp(1.0 - pow(edgeDist, 1.72) * 2.45 * (1.0 - uFloor), 0.0, 1.0);
+      float vignette = clamp(1.0 - pow(edgeDist, 1.72) * 2.45 * (1.0 - uFloor * 0.72), 0.0, 1.0);
       col *= vignette;
 
-      // Silky-smooth directional rising #24281E nocturnal mist horizon (sweeps bottom -> top with scroll!)
-      float mistWave =
-        sin(vUv.x * 5.1 + uTime * 0.22) * 0.032 +
-        cos(vUv.x * 11.3 - uTime * 0.16) * 0.016;
-      float horizonY = mix(-0.34, 1.36, smoothstep(0.04, 0.96, uFloor)) + mistWave;
-      float preMist =
-        (1.0 - smoothstep(horizonY - 0.08, horizonY + 0.54, vUv.y)) *
-        smoothstep(0.02, 0.42, uFloor);
-      float directionalVeil = 1.0 - smoothstep(horizonY - 0.30, horizonY + 0.16, vUv.y);
-      float fullLock = smoothstep(0.88, 0.99, uFloor);
-      float coverAlpha = clamp(max(directionalVeil, fullLock), 0.0, 1.0);
-
-      col = mix(col, col * 0.52 + uFloorColor * 0.48, preMist * 0.68);
-      col = mix(col, uFloorColor, coverAlpha);
+      // Lando center-window atmospheric olive-duotone plate grade:
+      // Keeps the 3D Firefly Sanctuary clearly visible inside the shrunk 472x306 center frame
+      // while lifting deep blacks to #3C4233 matte olive-grey so the #D2FF00 signature pops cleanly.
+      float sceneLuma = clamp(dot(col, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
+      float liftedLuma = pow(sceneLuma, 0.72);
+      vec3 oliveDuotone = mix(
+        vec3(0.235, 0.258, 0.200),
+        vec3(0.575, 0.604, 0.502),
+        liftedLuma
+      );
+      vec3 gradedPlate = mix(col * 0.58 + vec3(0.135, 0.150, 0.115), oliveDuotone, 0.74);
+      col = mix(col, gradedPlate, clamp(uFloor, 0.0, 1.0));
 
       // Sub-LSB triangle dithering + subtle CRT phosphor micro-grain
       col += triangleNoise(gl_FragCoord.xy + fract(uTime * 11.3) * 89.0) * (uNoiseAmount + 0.0038 * crtAmt);
@@ -147,6 +147,7 @@ export function OrchestratedFireflyHeroCanvas({
   hudContentRef,
   hudFrameRef,
   crtOverlayRef,
+  eyebrowRef,
   stageActive,
 }: OrchestratedFireflyHeroCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -165,6 +166,9 @@ export function OrchestratedFireflyHeroCanvas({
 
   const crtRefLatest = useRef(crtOverlayRef);
   crtRefLatest.current = crtOverlayRef;
+
+  const eyebrowRefLatest = useRef(eyebrowRef);
+  eyebrowRefLatest.current = eyebrowRef;
 
   const [webglFailed, setWebglFailed] = useState<boolean>(false);
 
@@ -355,8 +359,6 @@ export function OrchestratedFireflyHeroCanvas({
     let running = false;
     let elapsed = 0;
     let introProgress = 0;
-    let rushPhase = 0;
-    let dispersed = false;
     let smoothScrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
 
     const stepFrame = (timestamp: number) => {
@@ -383,13 +385,13 @@ export function OrchestratedFireflyHeroCanvas({
       }
       const scrollP = smoothScrollP;
 
-      // Synchronize Lando Portrait-Window Clip + Hero HUD + CRT screen overlay to damped 60fps scrollP
+      // Synchronize Lando 4-sided symmetric center-frame shrink + scale + HUD + eyebrow
       const hudEl = hudRefLatest.current?.current;
       if (hudEl) {
-        const hudFade = smoothstep(0.0, 0.44, scrollP);
+        const hudFade = smoothstep(0.0, 0.34, scrollP);
         const hudOpacity = 1.0 - hudFade;
-        const hudTy = reducedMotionRef.current ? 0.0 : -34.0 * hudFade;
-        const hudScale = reducedMotionRef.current ? 1.0 : 1.0 - 0.06 * hudFade;
+        const hudTy = reducedMotionRef.current ? 0.0 : -24.0 * hudFade;
+        const hudScale = reducedMotionRef.current ? 1.0 : 1.0 - 0.08 * hudFade;
         hudEl.style.opacity = hudOpacity.toFixed(3);
         hudEl.style.transform = `translate3d(0, ${hudTy.toFixed(2)}px, 0) scale(${hudScale.toFixed(4)})`;
         hudEl.style.pointerEvents = hudOpacity < 0.05 ? 'none' : '';
@@ -397,67 +399,62 @@ export function OrchestratedFireflyHeroCanvas({
 
       const wrapEl = wrapRef.current;
       const hudFrameEl = hudFrameRefLatest.current?.current;
-      if (!reducedMotionRef.current) {
-        if (scrollP <= 0.002) {
-          if (wrapEl) {
-            wrapEl.style.clipPath = 'none';
-            wrapEl.style.transform = 'none';
-          }
-          if (hudFrameEl) {
-            hudFrameEl.style.clipPath = 'none';
-            hudFrameEl.style.transform = 'none';
-          }
-        } else {
-          // Lando Norris 2-phase Hero -> Manifesto framing:
-          // Phase 1 (0 -> 0.62): Fullscreen 100vw x 100vh frames inward into a centered 36vw portrait window at top-center
-          // Phase 2 (0.58 -> 0.99): Portrait window lifts & closes upward so 0px of Hero remains visible in Section 2
-          const framePhase = smoothstep(0.01, 0.62, scrollP);
-          const exitPhase = smoothstep(0.58, 0.99, scrollP);
-          const maxInsetX = camera.aspect >= 1.05 ? 31.5 : 8.5;
-          const insetX = maxInsetX * framePhase;
-          const insetBottom = Math.min(100.0, 44.0 * framePhase + 56.0 * exitPhase);
-          const radiusPx = 10.0 * framePhase * (1.0 - exitPhase * 0.5);
-          const liftVh = -18.0 * exitPhase;
-          const clipVal = `inset(0% ${insetX.toFixed(2)}% ${insetBottom.toFixed(2)}% ${insetX.toFixed(2)}% round 0px 0px ${radiusPx.toFixed(1)}px ${radiusPx.toFixed(1)}px)`;
-          const tfVal = `translate3d(0, ${liftVh.toFixed(2)}vh, 0)`;
+      const eyebrowEl = eyebrowRefLatest.current?.current;
+      const framePhase = smoothstep(0.005, 0.78, scrollP);
 
-          if (wrapEl) {
-            wrapEl.style.clipPath = clipVal;
-            wrapEl.style.transform = tfVal;
-          }
-          if (hudFrameEl) {
-            hudFrameEl.style.clipPath = clipVal;
-            hudFrameEl.style.transform = tfVal;
-          }
+      if (!reducedMotionRef.current) {
+        if (framePhase <= 0.001) {
+          if (wrapEl) wrapEl.style.clipPath = 'none';
+          if (hudFrameEl) hudFrameEl.style.clipPath = 'none';
+          canvas.style.transform = 'none';
+        } else {
+          // Exact Lando Norris 4-sided symmetric shrink into centered 472x306 landscape frame:
+          // Desktop (1440x900): left/right 33.6% (-> 32.8vw = 472px), top/bottom 33.0% (-> 34.0vh = 306px)
+          const isWide = camera.aspect >= 1.05;
+          const insetX = (isWide ? 33.6 : 9.5) * framePhase;
+          const insetY = (isWide ? 33.0 : 34.0) * framePhase;
+          const canvasScale = 1.0 - (isWide ? 0.56 : 0.36) * framePhase;
+          const clipVal = `inset(${insetY.toFixed(2)}% ${insetX.toFixed(2)}% ${insetY.toFixed(2)}% ${insetX.toFixed(2)}%)`;
+
+          if (wrapEl) wrapEl.style.clipPath = clipVal;
+          if (hudFrameEl) hudFrameEl.style.clipPath = clipVal;
+          canvas.style.transform = `scale(${canvasScale.toFixed(4)})`;
         }
       } else {
-        if (wrapEl) {
-          wrapEl.style.clipPath = 'none';
-          wrapEl.style.transform = 'none';
-        }
-        if (hudFrameEl) {
-          hudFrameEl.style.clipPath = 'none';
-          hudFrameEl.style.transform = 'none';
-        }
+        // Reduced motion: instant/clean framed plate without continuous scale sweep
+        const isWide = camera.aspect >= 1.05;
+        const insetX = (isWide ? 33.6 : 9.5) * (scrollP > 0.25 ? 1 : 0);
+        const insetY = (isWide ? 33.0 : 34.0) * (scrollP > 0.25 ? 1 : 0);
+        const clipVal =
+          scrollP > 0.25
+            ? `inset(${insetY.toFixed(2)}% ${insetX.toFixed(2)}% ${insetY.toFixed(2)}% ${insetX.toFixed(2)}%)`
+            : 'none';
+        if (wrapEl) wrapEl.style.clipPath = clipVal;
+        if (hudFrameEl) hudFrameEl.style.clipPath = clipVal;
+        canvas.style.transform = 'none';
+      }
+
+      if (eyebrowEl) {
+        const ebReveal = smoothstep(0.46, 0.82, framePhase);
+        eyebrowEl.style.opacity = ebReveal.toFixed(3);
+        eyebrowEl.style.transform = reducedMotionRef.current
+          ? 'translate3d(-50%, 0, 0)'
+          : `translate3d(-50%, ${((1.0 - ebReveal) * 14.0).toFixed(2)}px, 0)`;
       }
 
       const crtEl = crtRefLatest.current?.current;
       if (crtEl) {
-        const crtOp = 1.0 - smoothstep(0.28, 0.78, scrollP);
+        const crtOp = 1.0 - smoothstep(0.18, 0.66, scrollP);
         crtEl.style.opacity = crtOp.toFixed(3);
       }
 
-      dispersed = dispersed ? scrollP >= 0.26 : scrollP > 0.29;
-      rushPhase = dispersed
-        ? Math.min(1.0, rushPhase + dt / 0.88)
-        : Math.max(0.0, rushPhase - dt / 0.38);
-      const rush = rushPhase * rushPhase;
+      const rush = 0.0;
 
       const ptrFollow = 1.0 - Math.exp(-dt * 5.8);
       smoothPtrX += (pointerNdcX - smoothPtrX) * ptrFollow;
       smoothPtrY += (pointerNdcY - smoothPtrY) * ptrFollow;
       smoothPointerActive +=
-        (pointerActive * (1.0 - scrollP * 0.85) - smoothPointerActive) *
+        (pointerActive * (1.0 - framePhase * 0.85) - smoothPointerActive) *
         (1.0 - Math.exp(-dt * 4.5));
 
       if (heroEl) {
@@ -465,24 +462,24 @@ export function OrchestratedFireflyHeroCanvas({
         heroEl.style.setProperty('--hero-py', smoothPtrY.toFixed(4));
       }
 
-      // True 3D Near-Mid-Far Perspective Camera Parallax (`xa gan`)
+      // Keep both cars, glowing verdigris pipe & roses squarely centered inside the shrinking frame
       const { baseZ } = computeCameraBase(camera.aspect);
       const idleSwayX = Math.sin(elapsed * 0.30) * 0.11 * motionScale;
       const idleSwayY = Math.cos(elapsed * 0.24) * 0.04 * motionScale;
 
-      const camX = (smoothPtrX * 0.88 + idleSwayX) * (1.0 - scrollP * 0.65);
-      const camZ = baseZ - scrollP * 1.35;
+      const camX = (smoothPtrX * 0.88 + idleSwayX) * (1.0 - framePhase * 0.72);
+      const camZ = baseZ + framePhase * 0.45;
       const groundUnderCam = terrainAndParticles.sampleHeight(camX, camZ);
       const camY = Math.max(
         groundUnderCam + 0.85,
-        0.48 + (-smoothPtrY * 0.30 + idleSwayY) * (1.0 - scrollP * 0.65) - scrollP * 0.52
+        0.48 + (-smoothPtrY * 0.30 + idleSwayY) * (1.0 - framePhase * 0.72) + framePhase * 0.06
       );
 
       camera.position.set(camX, camY, camZ);
       camLookTarget.set(
-        smoothPtrX * 0.16 * (1.0 - scrollP * 0.6),
-        -0.32 - scrollP * 2.05,
-        0.35 - scrollP * 1.15
+        smoothPtrX * 0.16 * (1.0 - framePhase * 0.7),
+        -0.30 - framePhase * 0.06,
+        0.35
       );
       camera.lookAt(camLookTarget);
       camera.updateMatrixWorld();
@@ -541,6 +538,8 @@ export function OrchestratedFireflyHeroCanvas({
         pointerActive > 0.5 && scrollP < 0.35
       );
 
+      const gentleSceneScroll = framePhase * 0.24;
+
       // Step GPGPU Firefly Simulation + Splat 256x256 Ground LightMap
       terrainAndParticles.stepAndSplat(
         renderer,
@@ -549,7 +548,7 @@ export function OrchestratedFireflyHeroCanvas({
         elapsed,
         motionScale,
         introEased,
-        scrollP,
+        gentleSceneScroll,
         rush,
         cursorWorld,
         smoothPointerActive,
@@ -558,7 +557,7 @@ export function OrchestratedFireflyHeroCanvas({
 
       wreckSanctuary.updateUniforms(
         elapsed,
-        scrollP,
+        gentleSceneScroll,
         camera.position,
         cursorWorld,
         smoothPointerActive * introEased
@@ -566,15 +565,13 @@ export function OrchestratedFireflyHeroCanvas({
       terrainAndParticles.grassMeadow.update(
         elapsed,
         0.0001,
-        scrollP,
+        gentleSceneScroll,
         wreckSanctuary.practicalPositions
       );
 
       finishPass.uniforms.uTime.value = elapsed * motionScale;
       finishPass.uniforms.uCrtStrength.value = reducedMotionRef.current ? 0.65 : 1.0;
-      finishPass.uniforms.uFloor.value = reducedMotionRef.current
-        ? smoothstep(0.06, 0.96, scrollP)
-        : smoothstep(0.76, 0.995, scrollP) * 0.45;
+      finishPass.uniforms.uFloor.value = smoothstep(0.18, 0.78, scrollP);
 
       // Render 3D PBR Scene + Shadows + Selective HDR Bloom + ACES Output + Cinema Finish
       composer.render(dt);

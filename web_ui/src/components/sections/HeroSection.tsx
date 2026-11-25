@@ -24,22 +24,19 @@ export function HeroSection({
   onScrollToManifesto,
 }: HeroSectionProps) {
   return (
-    <section
-      id="hero"
-      className="section-hero surface-dark"
-      data-surface="dark"
-      aria-labelledby="hero-heading"
+    <div
+      ref={hudFrameRef}
+      className="orchestrated-hero-hud"
     >
-      <div ref={hudFrameRef} className="orchestrated-hero-hud">
-        {/* Stationary 1:1 tailord.design CRT scanline (1px/3px) + fractalNoise phosphor screen overlay */}
-        <div
-          ref={crtOverlayRef}
-          className="tailord-crt-overlay hero-crt-overlay"
-          aria-hidden="true"
-        />
+      {/* Stationary 1:1 tailord.design CRT scanline (1px/3px) + fractalNoise phosphor screen overlay */}
+      <div
+        ref={crtOverlayRef}
+        className="tailord-crt-overlay hero-crt-overlay"
+        aria-hidden="true"
+      />
 
-        <div ref={hudRef} className="orchestrated-hero-hud__content">
-          <div className="hero-centerpiece">
+      <div ref={hudRef} className="orchestrated-hero-hud__content">
+        <div className="hero-centerpiece">
           <h1 id="hero-heading" tabIndex={-1} className="hero-centerpiece__title">
             <svg
               className="hero-centerpiece__monogram"
@@ -97,10 +94,9 @@ export function HeroSection({
             <span className="orchestrated-scroll-cue__track" aria-hidden="true">
               <span className="orchestrated-scroll-cue__line" />
             </span>
-            </button>
-          </div>
+          </button>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
