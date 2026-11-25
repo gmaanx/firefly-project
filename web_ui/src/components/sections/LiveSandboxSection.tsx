@@ -47,41 +47,91 @@ const PROBLEM_TABS: ReadonlyArray<{
   id: ExtendedSandboxProblemId;
   label: string;
   headerTitle: string;
+  formulaTex: string;
 }> = [
   {
     id: 'sphere2d',
     label: 'Mặt cầu 2D',
     headerTitle: 'Hàm mặt cầu dịch tâm 2D · x* = (1, 1)',
+    formulaTex: 'f(\\mathbf{x}) = (x_1 - 1)^2 + (x_2 - 1)^2, \\quad \\mathbf{x}^* = (1, 1)',
   },
   {
     id: 'sphere10d',
     label: 'Mặt cầu 10D',
     headerTitle: 'Hàm mặt cầu dịch tâm 10 chiều · Chiếu (x₁, x₂)',
+    formulaTex: 'f(\\mathbf{x}) = \\sum_{k=1}^{10}(x_k - 1)^2, \\quad \\mathbf{x}^* = (1, \\dots, 1)',
   },
   {
     id: 'rosenbrock2d',
     label: 'Rosenbrock',
     headerTitle: 'Thung lũng Rosenbrock 2D · x* = (1, 1)',
+    formulaTex: 'f(x_1, x_2) = (1 - x_1)^2 + 100(x_2 - x_1^2)^2, \\quad \\mathbf{x}^* = (1, 1)',
   },
   {
     id: 'rastrigin2d',
     label: 'Rastrigin',
     headerTitle: 'Đa cực trị Rastrigin 2D · x* = (0, 0)',
+    formulaTex:
+      'f(\\mathbf{x}) = 20 + \\sum_{k=1}^{2}\\!\\left[x_k^2 - 10\\cos(2\\pi x_k)\\right], \\quad \\mathbf{x}^* = (0, 0)',
   },
   {
     id: 'ackley2d',
     label: 'Ackley',
     headerTitle: 'Phễu sóng Ackley 2D · x* = (0, 0)',
+    formulaTex:
+      'f(\\mathbf{x}) = -20e^{-0.2\\sqrt{0.5(x_1^2+x_2^2)}} - e^{0.5(\\cos 2\\pi x_1 + \\cos 2\\pi x_2)} + e + 20',
   },
   {
     id: 'himmelblau2d',
     label: 'Himmelblau (4 đỉnh)',
     headerTitle: 'Hàm Himmelblau · 4 cực tiểu toàn cục',
+    formulaTex:
+      'f(x_1, x_2) = (x_1^2 + x_2 - 11)^2 + (x_1 + x_2^2 - 7)^2 \\;\\; (4\\text{ đỉnh } f^* = 0)',
   },
   {
     id: 'constrained2d',
     label: 'Có ràng buộc',
     headerTitle: 'Tối ưu có ràng buộc · Hàm phạt tĩnh',
+    formulaTex:
+      '\\Pi(\\mathbf{x}) = \\sum_{k=1}^{2}(x_k - 1)^2 + 10^5\\!\\left[(x_1+x_2-1)^2 + \\sum \\max(0, -x_k)^2\\right]',
+  },
+];
+
+const QUICK_SCENARIOS: ReadonlyArray<{
+  id: string;
+  label: string;
+  problemId: ExtendedSandboxProblemId;
+  n: number;
+  gamma: number;
+  alpha0: number;
+  theta: number;
+}> = [
+  {
+    id: 'fast-converge',
+    label: 'Chuẩn (hội tụ nhanh)',
+    problemId: 'sphere2d',
+    n: 25,
+    gamma: 0.1,
+    alpha0: 0.25,
+    theta: 0.97,
+  },
+  {
+    id: 'split-clusters',
+    label: 'γ lớn (tách 4 cụm)',
+    problemId: 'himmelblau2d',
+    n: 40,
+    gamma: 1.0,
+    alpha0: 0.05,
+    theta: 0.97,
+  },
+  {
+    id: 'no-cooling',
+    label: 'θ = 1.0 (không tắt nhiễu)',
+    problemId: 'sphere2d',
+    n: 25,
+    gamma: 0.1,
+    alpha0: 0.35,
+    theta: 1.0,
   },
 ];
 
@@ -350,13 +400,15 @@ export function LiveSandboxSection({
       ctx.fillStyle = '#101110';
       ctx.fillRect(0, 0, w, h);
 
-      const pad = 26;
-      const plotSize = Math.max(120, Math.min(w, h) - pad * 2);
-      const ox = (w - plotSize) / 2;
-      const oy = (h - plotSize) / 2;
+      const padX = 22;
+      const padY = 22;
+      const plotW = Math.max(160, w - padX * 2);
+      const plotH = Math.max(160, h - padY * 2 - 4);
+      const ox = padX;
+      const oy = padY;
 
       if (backdropCacheRef.current) {
-        ctx.drawImage(backdropCacheRef.current, ox, oy, plotSize, plotSize);
+        ctx.drawImage(backdropCacheRef.current, ox, oy, plotW, plotH);
       }
 
       const problem = EXTENDED_SANDBOX_PROBLEMS[config.problemId];
@@ -365,24 +417,24 @@ export function LiveSandboxSection({
       const ubX = problem.Ub[0];
       const ubY = problem.Ub[1];
       const toCanvas = (x: number, y: number): [number, number] => [
-        ox + ((x - lbX) / (ubX - lbX)) * plotSize,
-        oy + ((ubY - y) / (ubY - lbY)) * plotSize,
+        ox + ((x - lbX) / (ubX - lbX)) * plotW,
+        oy + ((ubY - y) / (ubY - lbY)) * plotH,
       ];
 
       const [zeroX, zeroY] = toCanvas(0, 0);
       ctx.strokeStyle = 'rgba(239, 239, 232, 0.14)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(ox, oy, plotSize, plotSize);
-      if (zeroX >= ox && zeroX <= ox + plotSize) {
+      ctx.strokeRect(ox, oy, plotW, plotH);
+      if (zeroX >= ox && zeroX <= ox + plotW) {
         ctx.beginPath();
         ctx.moveTo(zeroX, oy);
-        ctx.lineTo(zeroX, oy + plotSize);
+        ctx.lineTo(zeroX, oy + plotH);
         ctx.stroke();
       }
-      if (zeroY >= oy && zeroY <= oy + plotSize) {
+      if (zeroY >= oy && zeroY <= oy + plotH) {
         ctx.beginPath();
         ctx.moveTo(ox, zeroY);
-        ctx.lineTo(ox + plotSize, zeroY);
+        ctx.lineTo(ox + plotW, zeroY);
         ctx.stroke();
       }
 
@@ -459,12 +511,12 @@ export function LiveSandboxSection({
         const rankRatio = 1 - i / Math.max(1, total - 1);
 
         if (isBest) {
-          const halo = ctx.createRadialGradient(px, py, 0, px, py, 15);
-          halo.addColorStop(0, 'rgba(197, 232, 77, 0.65)');
+          const halo = ctx.createRadialGradient(px, py, 0, px, py, 18);
+          halo.addColorStop(0, 'rgba(197, 232, 77, 0.68)');
           halo.addColorStop(1, 'rgba(197, 232, 77, 0)');
           ctx.fillStyle = halo;
           ctx.beginPath();
-          ctx.arc(px, py, 15, 0, Math.PI * 2);
+          ctx.arc(px, py, 18, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -472,19 +524,19 @@ export function LiveSandboxSection({
           ? '#C5E84D'
           : rankRatio > 0.65
             ? '#B6C96E'
-            : 'rgba(239, 239, 232, 0.82)';
+            : 'rgba(239, 239, 232, 0.88)';
         ctx.beginPath();
-        ctx.arc(px, py, isBest ? 5.6 : 3.6, 0, Math.PI * 2);
+        ctx.arc(px, py, isBest ? 5.8 : 4.7, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#101110';
-        ctx.lineWidth = 1.1;
+        ctx.lineWidth = 1.2;
         ctx.stroke();
       }
 
-      ctx.fillStyle = 'rgba(239, 239, 232, 0.56)';
+      ctx.fillStyle = 'rgba(239, 239, 232, 0.62)';
       ctx.font = '11px "JetBrains Mono", monospace';
-      ctx.fillText(`x1 [${lbX}, ${ubX}]`, ox + 6, oy + plotSize + 17);
-      ctx.fillText(`x2 [${lbY}, ${ubY}]`, ox + 6, oy - 8);
+      ctx.fillText(`x1 [${lbX}, ${ubX}]`, ox + 6, oy + plotH + 16);
+      ctx.fillText(`x2 [${lbY}, ${ubY}]`, ox + 6, oy - 7);
     };
 
     draw();
@@ -567,6 +619,44 @@ export function LiveSandboxSection({
                     onClick={() => handleSelectProblem(pt.id)}
                   >
                     {pt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              className="sandbox-quick-presets"
+              role="group"
+              aria-label="Chọn nhanh kịch bản tham số"
+            >
+              <span className="sandbox-quick-presets__label">Thử nhanh:</span>
+              {QUICK_SCENARIOS.map((sc) => {
+                const isScenarioActive =
+                  config.problemId === sc.problemId &&
+                  config.n === sc.n &&
+                  Math.abs(config.gamma - sc.gamma) < 1e-6 &&
+                  Math.abs(config.alpha0 - sc.alpha0) < 1e-6 &&
+                  Math.abs(config.theta - sc.theta) < 1e-6;
+                return (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    aria-pressed={isScenarioActive}
+                    className={`sandbox-quick-btn ${
+                      isScenarioActive ? 'sandbox-quick-btn--active' : ''
+                    }`}
+                    onClick={() =>
+                      applyConfigImmediate({
+                        ...config,
+                        problemId: sc.problemId,
+                        n: sc.n,
+                        gamma: sc.gamma,
+                        alpha0: sc.alpha0,
+                        theta: sc.theta,
+                      })
+                    }
+                  >
+                    {sc.label}
                   </button>
                 );
               })}
@@ -743,6 +833,18 @@ export function LiveSandboxSection({
                     ? 'ĐANG CHẠY'
                     : 'SẴN SÀNG'}
               </span>
+            </div>
+
+            <div className="sandbox-formula-strip">
+              <div className="sandbox-formula-strip__math">
+                <MathFormula
+                  tex={activeTabMeta.formulaTex}
+                  ariaLabel={activeProblem.subtitle}
+                />
+              </div>
+              <p className="sandbox-formula-strip__note">
+                {activeProblem.scopeNote}
+              </p>
             </div>
 
             <div className="sandbox-canvas-box">

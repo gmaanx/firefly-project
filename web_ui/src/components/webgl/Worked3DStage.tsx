@@ -121,7 +121,7 @@ export function Worked3DStage({
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [labels, setLabels] = useState<ProjectedLabel[]>([]);
-  const { shouldMount, isReady } = useDeferredWebGLMount();
+  const { shouldMount, isReady } = useDeferredWebGLMount(wrapRef, '560px');
 
   const stateRef = useRef({ mode, activeStep, workedData, constrainedData, reducedMotion });
   stateRef.current = { mode, activeStep, workedData, constrainedData, reducedMotion };
@@ -482,16 +482,21 @@ export function Worked3DStage({
         if (projVec.z > 1) continue;
         const px = (projVec.x * 0.5 + 0.5) * width;
         const py = (-projVec.y * 0.5 + 0.5) * height;
-        if (px < 24 || px > width - 24 || py < 24 || py > height - 16) continue;
+        if (px < 28 || px > width - 28 || py < 28 || py > height - 16) continue;
         raw.push({ id: a.id, text: a.text, x: px, y: py, tone: a.tone });
       }
-      raw.sort((p, q) => p.y - q.y);
-      for (let i = 1; i < raw.length; i += 1) {
-        for (let j = 0; j < i; j += 1) {
-          const dx = Math.abs(raw[i].x - raw[j].x);
-          const dy = raw[i].y - raw[j].y;
-          if (dx < 96 && dy < 24) {
-            raw[i].y = Math.min(height - 16, raw[j].y + 24);
+      // 4-pass bidirectional 2D collision relaxation so x1, x3, x*, x2, x2' never overlap
+      for (let pass = 0; pass < 4; pass += 1) {
+        raw.sort((p, q) => p.y - q.y);
+        for (let i = 0; i < raw.length; i += 1) {
+          for (let j = i + 1; j < raw.length; j += 1) {
+            const dx = Math.abs(raw[j].x - raw[i].x);
+            const dy = raw[j].y - raw[i].y;
+            if (dx < 84 && dy < 25) {
+              const push = (25 - dy) * 0.5 + 0.5;
+              raw[i].y = Math.max(26, raw[i].y - push);
+              raw[j].y = Math.min(height - 16, raw[j].y + push);
+            }
           }
         }
       }

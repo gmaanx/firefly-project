@@ -14,6 +14,9 @@ export interface BeforeAfterSliderProps {
   quantizedRgba: Uint8ClampedArray | null;
   kColors: number;
   imageCode: string;
+  iteration?: number;
+  maxIterations?: number;
+  isRunning?: boolean;
 }
 
 export function BeforeAfterSlider({
@@ -23,6 +26,9 @@ export function BeforeAfterSlider({
   quantizedRgba,
   kColors,
   imageCode,
+  iteration = 0,
+  maxIterations = 32,
+  isRunning = false,
 }: BeforeAfterSliderProps) {
   const [splitPct, setSplitPct] = useState<number>(50);
   const [dragging, setDragging] = useState<boolean>(false);
@@ -177,7 +183,17 @@ export function BeforeAfterSlider({
         />
 
         <span className="ba-badge ba-badge--left">24-BIT GỐC</span>
-        <span className="ba-badge ba-badge--right">FA · K = {kColors} MÀU</span>
+        <span
+          className={`ba-badge ba-badge--right ${
+            iteration === 0 && !isRunning ? 'ba-badge--right-idle' : ''
+          }`}
+        >
+          {isRunning
+            ? `ĐANG CHẠY FA · t = ${iteration}/${maxIterations}`
+            : iteration === 0
+              ? `t = 0 · CHƯA NÉN (K = ${kColors})`
+              : `SAU NÉN FA · K = ${kColors} MÀU (t = ${iteration})`}
+        </span>
 
         <div className="ba-divider" style={{ left: `${splitPct}%` }} aria-hidden="true">
           <div className="ba-divider__line" />

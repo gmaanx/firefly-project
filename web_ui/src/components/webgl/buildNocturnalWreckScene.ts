@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { createTaskBudget, yieldToMain } from '../../lib/yieldToMain';
 import { TERRAIN_SPAN } from './orchestratedTerrainAndParticles';
 import {
   applyNocturnalPatina,
@@ -25,11 +26,56 @@ import {
 export interface NocturnalWreckSceneOptions {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
+  camera?: THREE.Camera;
   isMobile: boolean;
   sampleHeight: (wx: number, wz: number) => number;
   particleLightTex: THREE.Texture;
   onLoadProgress?: (loaded: number, total: number, label: string) => void;
   onReady?: () => void;
+}
+
+const sharedGltfLoader = new GLTFLoader();
+const cachedGltfPromises = new Map<string, Promise<GLTF>>();
+
+function loadCachedGltf(url: string): Promise<GLTF> {
+  const existing = cachedGltfPromises.get(url);
+  if (existing) return existing;
+  const req = sharedGltfLoader.loadAsync(url).catch((err) => {
+    cachedGltfPromises.delete(url);
+    throw err;
+  });
+  cachedGltfPromises.set(url, req);
+  return req;
+}
+
+let cachedPatinaBumpTex: THREE.Texture | null = null;
+let cachedDirtyWindshieldTex: THREE.Texture | null = null;
+const cachedWeatheredPanelSets = new Map<string, WeatheredCarTextureSet>();
+
+function getSharedPatinaBumpTexture(): THREE.Texture {
+  if (!cachedPatinaBumpTex) {
+    cachedPatinaBumpTex = createPatinaBumpTexture();
+  }
+  return cachedPatinaBumpTex;
+}
+
+function getSharedDirtyWindshieldTexture(): THREE.Texture {
+  if (!cachedDirtyWindshieldTex) {
+    cachedDirtyWindshieldTex = createDirtyWindshieldTexture();
+  }
+  return cachedDirtyWindshieldTex;
+}
+
+function getSharedWeatheredPanelTextures(
+  variant: Parameters<typeof createWeatheredCarPanelTextures>[0],
+  seed: number
+): WeatheredCarTextureSet {
+  const key = `${variant}:${seed}`;
+  const hit = cachedWeatheredPanelSets.get(key);
+  if (hit) return hit;
+  const built = createWeatheredCarPanelTextures(variant, seed);
+  cachedWeatheredPanelSets.set(key, built);
+  return built;
 }
 
 export interface NocturnalWreckSceneHandle {
@@ -271,7 +317,7 @@ function mergeMetricGeometries(
 export function buildNocturnalWreckScene(
   opts: NocturnalWreckSceneOptions
 ): NocturnalWreckSceneHandle {
-  const { renderer, scene, isMobile, sampleHeight, particleLightTex, onLoadProgress, onReady } = opts;
+  const { renderer, scene, camera, isMobile, sampleHeight, particleLightTex, onLoadProgress, onReady } = opts;
   const group = new THREE.Group();
   let disposed = false;
 
@@ -570,7 +616,6 @@ export function buildNocturnalWreckScene(
      ------------------------------------------------------------------------ */
   const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const texLoader = new THREE.TextureLoader();
-  const gltfLoader = new GLTFLoader();
 
   const loadTex = (url: string, isSRGB: boolean, repeat = 1): THREE.Texture => {
     const t = track(texLoader.load(url));
@@ -612,22 +657,26 @@ export function buildNocturnalWreckScene(
         weedGltf,
         roseGltf,
       ] = await Promise.all([
-        trackAsset(gltfLoader.loadAsync('/models/lada_wrecks.glb'), 'LOADING LADA_WRECKS.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/sedan_opt.glb'), 'LOADING SEDAN_CHASSIS.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/old_tyre.glb'), 'LOADING OLD_TYRE.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/rusted_rim.glb'), 'LOADING RUSTED_RIM.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/power_box.glb'), 'LOADING POWER_BOX.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/pipe_pillar.glb'), 'LOADING PIPE_PILLAR.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/shrub_wild.glb'), 'LOADING SHRUB_WILD.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/shrub_flower.glb'), 'LOADING SHRUB_FLOWER.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/periwinkle.glb'), 'LOADING PERIWINKLE.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/weed_wild.glb'), 'LOADING WEED_WILD.GLB...'),
-        trackAsset(gltfLoader.loadAsync('/models/rose_blossom.glb'), 'LOADING ROSE_BLOSSOM.GLB...'),
+        trackAsset(loadCachedGltf('/models/lada_wrecks.glb'), 'LOADING LADA_WRECKS.GLB...'),
+        trackAsset(loadCachedGltf('/models/sedan_opt.glb'), 'LOADING SEDAN_CHASSIS.GLB...'),
+        trackAsset(loadCachedGltf('/models/old_tyre.glb'), 'LOADING OLD_TYRE.GLB...'),
+        trackAsset(loadCachedGltf('/models/rusted_rim.glb'), 'LOADING RUSTED_RIM.GLB...'),
+        trackAsset(loadCachedGltf('/models/power_box.glb'), 'LOADING POWER_BOX.GLB...'),
+        trackAsset(loadCachedGltf('/models/pipe_pillar.glb'), 'LOADING PIPE_PILLAR.GLB...'),
+        trackAsset(loadCachedGltf('/models/shrub_wild.glb'), 'LOADING SHRUB_WILD.GLB...'),
+        trackAsset(loadCachedGltf('/models/shrub_flower.glb'), 'LOADING SHRUB_FLOWER.GLB...'),
+        trackAsset(loadCachedGltf('/models/periwinkle.glb'), 'LOADING PERIWINKLE.GLB...'),
+        trackAsset(loadCachedGltf('/models/weed_wild.glb'), 'LOADING WEED_WILD.GLB...'),
+        trackAsset(loadCachedGltf('/models/rose_blossom.glb'), 'LOADING ROSE_BLOSSOM.GLB...'),
       ]);
 
       if (disposed) {
         return;
       }
+
+      const maybeYield = createTaskBudget(38);
+      await maybeYield();
+      if (disposed) return;
 
       // Instant GPU PMREM environment (eliminates 1.7 MB night_env.hdr download + CPU RGBE decode!)
       const pmremGen = new THREE.PMREMGenerator(renderer);
@@ -647,18 +696,23 @@ export function buildNocturnalWreckScene(
             - Razor-sharp jagged burnt-sienna & dark rust streaks dripping from
               window sills, handles, fender creases, and lower rocker seams!
          ==================================================================== */
-      const patinaBump = track(createPatinaBumpTexture());
+      const patinaBump = getSharedPatinaBumpTexture();
+      await maybeYield();
+      if (disposed) return;
 
-      // Hand-painted 512x512 Canvas PBR Weathering Maps (`D:\UEH\web\up\src\utils\proceduralTextures.js` technique!)
-      const texChalkDoor = createWeatheredCarPanelTextures('chalk_white', 19842105);
-      const texChalkRear = createWeatheredCarPanelTextures('chalk_rear', 19862107);
-      const texOliveFender = createWeatheredCarPanelTextures('olive_fender', 19820519);
-      const texDetachedDoor = createWeatheredCarPanelTextures('detached_door', 19881124);
-      for (const ts of [texChalkDoor, texChalkRear, texOliveFender, texDetachedDoor]) {
-        track(ts.map);
-        track(ts.bumpMap);
-        track(ts.roughnessMap);
-      }
+      // Hand-painted Canvas PBR Weathering Maps (cached globally + sliced across frames!)
+      const texChalkDoor = getSharedWeatheredPanelTextures('chalk_white', 19842105);
+      await maybeYield();
+      if (disposed) return;
+      const texChalkRear = getSharedWeatheredPanelTextures('chalk_rear', 19862107);
+      await maybeYield();
+      if (disposed) return;
+      const texOliveFender = getSharedWeatheredPanelTextures('olive_fender', 19820519);
+      await maybeYield();
+      if (disposed) return;
+      const texDetachedDoor = getSharedWeatheredPanelTextures('detached_door', 19881124);
+      await maybeYield();
+      if (disposed) return;
 
       const createHeavyWeatheredLadaMaterial = (optsMat: {
         panelTex: WeatheredCarTextureSet;
@@ -841,7 +895,7 @@ export function buildNocturnalWreckScene(
         })
       );
 
-      const dirtyWsTex = track(createDirtyWindshieldTexture());
+      const dirtyWsTex = getSharedDirtyWindshieldTexture();
       // Transparent dusty laminated automotive windshield glass (`kính trước xe vẫn còn, trong suốt để thấy ánh sáng khói đỏ & vô lăng bên trong`)!
       const windshieldGlassMat = track(
         new THREE.MeshPhysicalMaterial({
@@ -925,6 +979,8 @@ export function buildNocturnalWreckScene(
         root.traverse((obj) => {
           if (!(obj as THREE.Mesh).isMesh) return;
           const m = obj as THREE.Mesh;
+          // Clone geometry per scene instance so disposing a scene never corrupts cached GLTF prototypes
+          m.geometry = track(m.geometry.clone());
           m.castShadow = true;
           m.receiveShadow = true;
           const matName = (m.material as THREE.Material)?.name || '';
@@ -1359,6 +1415,8 @@ export function buildNocturnalWreckScene(
         .applyMatrix4(rightCarRoot.matrixWorld);
 
       group.add(rightCarRoot);
+      await maybeYield();
+      if (disposed) return;
 
       /* ====================================================================
          D. PHOTOSCANNED TIRES (`old_tyre.glb`), RUSTED STEEL RIMS (`rusted_rim.glb`)
@@ -1469,6 +1527,8 @@ export function buildNocturnalWreckScene(
 
       if (tyreAsset) applyNocturnalPatina(new THREE.Mesh(tyreAsset.geo, tyreAsset.mat), patinaBump, 0.07);
       if (rimAsset) applyNocturnalPatina(new THREE.Mesh(rimAsset.geo, rimAsset.mat), patinaBump, 0.08);
+      await maybeYield();
+      if (disposed) return;
 
       /* ====================================================================
          E. CENTER TILTED CYAN-VERDIGRIS FLANGED PIPE + HEAVY RUST COLLARS + ROOTS
@@ -1703,6 +1763,8 @@ export function buildNocturnalWreckScene(
       const shrubFlowerSet = collectBakedFoliage(shrubFlowerGltf.scene, 0xd4e684);
       const periwinkleSet = collectBakedFoliage(periwinkleGltf.scene, 0xdcd6f6);
       const weedSet = collectBakedFoliage(weedGltf.scene, 0xc2b260);
+      await maybeYield();
+      if (disposed) return;
 
       // 1. Central Flowering Briar Mound (`shrub_01` + `shrub_02`) + Flanking Car Bushes
       {
@@ -1964,6 +2026,8 @@ export function buildNocturnalWreckScene(
       /* ====================================================================
          G. ORGANIC EARTHEN ROOF SOD CLODS, CURTAIN CREEPER VINES & GROUND MIST
          ==================================================================== */
+      await maybeYield();
+      if (disposed) return;
       group.add(
         buildOrganicRoofSodAndWeeds({
           leftCarMatrix: leftCarRoot.matrixWorld,
@@ -1974,6 +2038,8 @@ export function buildNocturnalWreckScene(
         })
       );
 
+      await maybeYield();
+      if (disposed) return;
       // Authentic Hanging Curtain Creeper Vines (`dây cúc tần rủ`) on BOTH car bodies (clean swung-open door)!
       group.add(
         buildCurtainCreeperVines({
@@ -1984,6 +2050,8 @@ export function buildNocturnalWreckScene(
         })
       );
 
+      await maybeYield();
+      if (disposed) return;
       // Ethereal Dreamy Low-Lying Ground Mist (`khói sương lờ mờ ở dưới đất — mơ màng, ảo ảo`)!
       group.add(
         buildDreamyGroundMist({
@@ -2020,6 +2088,17 @@ export function buildNocturnalWreckScene(
         wInst.instanceMatrix.needsUpdate = true;
         group.add(wInst);
       }
+      if (!disposed && camera && typeof renderer.compileAsync === 'function') {
+        await yieldToMain();
+        if (!disposed) {
+          try {
+            await renderer.compileAsync(scene, camera);
+          } catch {
+            // Non-fatal fallback to standard lazy shader compile
+          }
+        }
+      }
+
       if (!disposed) {
         // Bake static 2048x2048 spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
         renderer.shadowMap.needsUpdate = true;
@@ -2028,6 +2107,17 @@ export function buildNocturnalWreckScene(
       }
     } catch (err) {
       console.error('[buildNocturnalWreckScene] Failed loading 3D sanctuary assets:', err);
+      if (!disposed && camera && typeof renderer.compileAsync === 'function') {
+        await yieldToMain();
+        if (!disposed) {
+          try {
+            await renderer.compileAsync(scene, camera);
+          } catch {
+            // Non-fatal fallback to standard lazy shader compile
+          }
+        }
+      }
+
       if (!disposed) {
         // Bake static 2048x2048 spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
         renderer.shadowMap.needsUpdate = true;

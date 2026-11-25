@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ImageCompressionLab } from '../compression/ImageCompressionLab';
@@ -10,16 +10,13 @@ import { MathFormula } from '../components/shared/MathFormula';
 export interface DemoPageProps {
   reducedMotion: boolean;
   onRegisterSpaceToggle: (fn: (() => void) | null) => void;
-  onScrollToSection: (id: string) => void;
 }
 
 export function DemoPage({
   reducedMotion,
   onRegisterSpaceToggle,
-  onScrollToSection,
 }: DemoPageProps) {
   const headerRef = useRef<HTMLElement>(null);
-  const [activeLab, setActiveLab] = useState<'sandbox' | 'compression'>('sandbox');
 
   useGSAP(
     () => {
@@ -41,22 +38,9 @@ export function DemoPage({
     { scope: headerRef, dependencies: [reducedMotion] }
   );
 
-  useEffect(() => {
-    const onScroll = () => {
-      const compSec = document.getElementById('nen-anh-fa');
-      if (!compSec) return;
-      const rect = compSec.getBoundingClientRect();
-      const next = rect.top <= 240 ? 'compression' : 'sandbox';
-      setActiveLab((prev) => (prev === next ? prev : next));
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
     <>
-      {/* 1. Clean Obsidian Studio Header (#101110) — ONE quiet single-line monospace telemetry strip */}
+      {/* 1. Clean Obsidian Studio Header (#101110) */}
       <section
         ref={headerRef}
         className="demo-studio-header"
@@ -89,46 +73,6 @@ export function DemoPage({
           </div>
         </div>
       </section>
-
-      {/* Ultra-Clean Architectural Hairline Tab Bar (Sharp #C5E84D bottom indicator + #EFEFE8 active text) */}
-      <div
-        className="demo-sticky-switcher"
-        data-surface="dark"
-        role="navigation"
-        aria-label="Chuyển nhanh giữa hai phòng thí nghiệm"
-      >
-        <div className="section-container demo-hairline-tabs">
-          <button
-            type="button"
-            aria-current={activeLab === 'sandbox' ? 'true' : undefined}
-            className={`demo-hairline-tab ${
-              activeLab === 'sandbox' ? 'demo-hairline-tab--active' : ''
-            }`}
-            onClick={() => {
-              setActiveLab('sandbox');
-              onScrollToSection('sandbox-sach');
-            }}
-          >
-            <span className="demo-hairline-tab__num">01</span>
-            <span>Sandbox Toán học</span>
-          </button>
-
-          <button
-            type="button"
-            aria-current={activeLab === 'compression' ? 'true' : undefined}
-            className={`demo-hairline-tab ${
-              activeLab === 'compression' ? 'demo-hairline-tab--active' : ''
-            }`}
-            onClick={() => {
-              setActiveLab('compression');
-              onScrollToSection('nen-anh-fa');
-            }}
-          >
-            <span className="demo-hairline-tab__num">02</span>
-            <span>Ứng dụng Nén ảnh RGB</span>
-          </button>
-        </div>
-      </div>
 
       {/* Lab 1: Live Mathematical Optimization Sandbox (#101110) */}
       <LiveSandboxSection

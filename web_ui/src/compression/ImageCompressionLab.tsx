@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -6,6 +6,8 @@ import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
 import { MathFormula } from '../components/shared/MathFormula';
 import { KineticButton } from '../components/shared/KineticButton';
+import { useRouteCurtain } from '../components/shared/RouteCurtain';
+import { yieldToMain } from '../lib/yieldToMain';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { ConvergenceMiniChart } from './ConvergenceMiniChart';
 import { RgbCubeVisualizer } from './RgbCubeVisualizer';
@@ -37,25 +39,48 @@ const K_MODES: ReadonlyArray<{
   { k: 32, bpp: 5, ratioLabel: '79.2%', tag: '5 BPP · SẮC NÉT CAO' },
 ];
 
+const cachedSampleAssets = new Map<SamplePresetMeta['id'], LoadedImageAsset>();
+
+function getOrCreateSampleAsset(id: SamplePresetMeta['id']): LoadedImageAsset {
+  const hit = cachedSampleAssets.get(id);
+  if (hit) return hit;
+  const built = generateSampleImage(id);
+  cachedSampleAssets.set(id, built);
+  return built;
+}
+
 export interface ImageCompressionLabProps {
   reducedMotion: boolean;
 }
 
 export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps) {
+  const { isTransitioning } = useRouteCurtain();
   const sectionRef = useRef<HTMLElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
 
-  const presetAssets = useMemo(() => {
-    const map = new Map<SamplePresetMeta['id'], LoadedImageAsset>();
-    for (const preset of SAMPLE_PRESETS) {
-      map.set(preset.id, generateSampleImage(preset.id));
-    }
-    return map;
-  }, []);
-
-  const [activeAsset, setActiveAsset] = useState<LoadedImageAsset>(
-    () => presetAssets.get('bioluminescent-canopy')!
+  const [activeAsset, setActiveAsset] = useState<LoadedImageAsset>(() =>
+    getOrCreateSampleAsset('chromatic-sunset')
   );
+  const [, setWarmupTick] = useState<number>(0);
+
+  useEffect(() => {
+    if (isTransitioning) return;
+    let cancelled = false;
+    void (async () => {
+      for (const preset of SAMPLE_PRESETS) {
+        if (cancelled) return;
+        if (!cachedSampleAssets.has(preset.id)) {
+          await yieldToMain();
+          if (cancelled) return;
+          getOrCreateSampleAsset(preset.id);
+          setWarmupTick((n) => n + 1);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isTransitioning]);
   const [params, setParams] = useState<QuantizationParams>({
     kColors: 16,
     populationSize: 12,
@@ -293,7 +318,7 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
             <div className="ba-toolbar">
               <div className="preset-pills-row">
                 {SAMPLE_PRESETS.map((preset) => {
-                  const asset = presetAssets.get(preset.id)!;
+                  const cached = cachedSampleAssets.get(preset.id);
                   const active = activeAsset.id === preset.id;
                   return (
                     <button
@@ -301,9 +326,11 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
                       type="button"
                       aria-pressed={active}
                       className={`preset-btn ${active ? 'preset-btn--active' : ''}`}
-                      onClick={() => setActiveAsset(asset)}
+                      onClick={() => setActiveAsset(getOrCreateSampleAsset(preset.id))}
                     >
-                      <img src={asset.previewDataUrl} alt="" aria-hidden="true" />
+                      {cached ? (
+                        <img src={cached.previewDataUrl} alt="" aria-hidden="true" />
+                      ) : null}
                       <span>
                         {preset.code} · {preset.titleVi}
                       </span>
@@ -343,6 +370,9 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
               quantizedRgba={quantizedRgba}
               kColors={params.kColors}
               imageCode={activeAsset.code}
+              iteration={telemetry?.iteration ?? 0}
+              maxIterations={telemetry?.maxIterations ?? params.maxIterations}
+              isRunning={isRunning}
             />
 
             <div className="hairline-bento hairline-bento--4col">

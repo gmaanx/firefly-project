@@ -96,20 +96,40 @@ export function WorkedTelemetrySection({
     };
   }, [reducedMotion, targetAlphaAtT, targetFAtT]);
 
-  const sparklinePath = useMemo(() => {
+  // Log-residual curve `log10(max(1e-4, h.fbest - finalF + 1e-3))` so gradual 300-gen descent is clearly visible
+  const constrainedChart = useMemo(() => {
     const hist = cData?.history;
-    if (!hist || hist.length === 0) return '';
-    const logs = hist.map((h) => Math.log10(Math.max(0.75, h.fbest)));
+    if (!hist || hist.length === 0 || !cData) return null;
+    const finalF = cData.fbest_penalized;
+    const sampled = hist.filter((_, i) => i % 2 === 0 || i === hist.length - 1);
+    const logs = sampled.map((h) =>
+      Math.log10(Math.max(1e-4, h.fbest - finalF + 1e-3))
+    );
     const minL = Math.min(...logs);
-    const maxL = Math.max(minL + 0.05, ...logs);
-    return logs
-      .filter((_, i) => i % 3 === 0 || i === logs.length - 1)
+    const maxL = Math.max(minL + 0.1, ...logs);
+
+    let endX = 318;
+    let endY = 66;
+    const path = logs
       .map((lv, idx, arr) => {
-        const x = 12 + (idx / Math.max(1, arr.length - 1)) * 316;
-        const y = 58 - ((lv - minL) / (maxL - minL)) * 44;
+        const x = 14 + (idx / Math.max(1, arr.length - 1)) * 532;
+        const y = 74 - ((lv - minL) / (maxL - minL)) * 54;
+        if (idx === arr.length - 1) {
+          endX = x;
+          endY = y;
+        }
         return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(' ');
+
+    return {
+      path,
+      initF: hist[0].fbest,
+      finalF,
+      maxT: hist[hist.length - 1].t,
+      endX,
+      endY,
+    };
   }, [cData]);
 
   return (
@@ -205,6 +225,13 @@ export function WorkedTelemetrySection({
                   />
                 ) : (
                   <>
+                    <div className="worked-subblock-head">
+                      <span className="worked-subblock-head__badge">PHẦN A</span>
+                      <strong>
+                        Ví dụ tính tay 1 vòng (n = 5 — khớp hình 3D bên trái)
+                      </strong>
+                    </div>
+
                     <div
                       className="worked-stepper-tabs"
                       role="group"
@@ -297,99 +324,140 @@ export function WorkedTelemetrySection({
                     ) : null}
 
                     {activeStep === 1 && wData.pair_logs[0] ? (
-                      <div className="hairline-bento">
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Khoảng cách{' '}
-                            <MathFormula tex="r_{21}" ariaLabel="r_21" />
-                          </span>
-                          <span className="hairline-bento__val">
-                            {formatFixed(wData.pair_logs[0].r_ij, 4)}
-                          </span>
+                      <>
+                        <div className="worked-pair-origin-bar">
+                          <span className="worked-pair-origin-bar__tag">Tọa độ gốc:</span>
+                          <code>
+                            x₂ = ({wData.initial_population[1].pos.join(', ')}), f ={' '}
+                            {wData.initial_population[1].f}
+                          </code>
+                          <span aria-hidden="true">→</span>
+                          <code>
+                            x₁ = ({wData.initial_population[0].pos.join(', ')}), f ={' '}
+                            {wData.initial_population[0].f}
+                          </code>
                         </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Độ hấp dẫn{' '}
-                            <MathFormula tex="\beta(r)" ariaLabel="beta(r)" />
-                          </span>
-                          <span className="hairline-bento__val hairline-bento__val--lime">
-                            {formatFixed(wData.pair_logs[0].beta, 4)}
-                          </span>
+
+                        <div className="hairline-bento">
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Khoảng cách{' '}
+                              <MathFormula tex="r_{21}" ariaLabel="r_21" />
+                            </span>
+                            <span className="hairline-bento__val">
+                              {formatFixed(wData.pair_logs[0].r_ij, 4)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Độ hấp dẫn{' '}
+                              <MathFormula tex="\beta(r)" ariaLabel="beta(r)" />
+                            </span>
+                            <span className="hairline-bento__val hairline-bento__val--lime">
+                              {formatFixed(wData.pair_logs[0].beta, 4)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Vị trí mới đề xuất
+                            </span>
+                            <span
+                              className="hairline-bento__val"
+                              style={{ fontSize: '0.88rem' }}
+                            >
+                              {formatVec(wData.pair_logs[0].new_pos, 3)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              So sánh chất lượng nghiệm
+                            </span>
+                            <span className="hairline-bento__val hairline-bento__val--lime">
+                              {formatFixed(wData.pair_logs[0].f_new, 2)} &lt;{' '}
+                              {wData.initial_population[1].f} (CẬP NHẬT)
+                            </span>
+                          </div>
                         </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Vị trí mới đề xuất
-                          </span>
-                          <span
-                            className="hairline-bento__val"
-                            style={{ fontSize: '0.88rem' }}
-                          >
-                            {formatVec(wData.pair_logs[0].new_pos, 3)}
-                          </span>
-                        </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            So sánh chất lượng nghiệm
-                          </span>
-                          <span className="hairline-bento__val hairline-bento__val--lime">
-                            {formatFixed(wData.pair_logs[0].f_new, 2)} &lt; 33 (CẬP NHẬT)
-                          </span>
-                        </div>
-                      </div>
+                      </>
                     ) : null}
 
                     {activeStep === 2 && wData.pair_logs[1] ? (
-                      <div className="hairline-bento">
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Khoảng cách xa{' '}
-                            <MathFormula tex="r_{31}" ariaLabel="r_31" />
-                          </span>
-                          <span className="hairline-bento__val">
-                            {formatFixed(wData.pair_logs[1].r_ij, 4)}
-                          </span>
+                      <>
+                        <div className="worked-pair-origin-bar">
+                          <span className="worked-pair-origin-bar__tag">Tọa độ gốc:</span>
+                          <code>
+                            x₃ = ({wData.initial_population[2].pos.join(', ')}), f ={' '}
+                            {wData.initial_population[2].f}
+                          </code>
+                          <span aria-hidden="true">→</span>
+                          <code>
+                            x₁ = ({wData.initial_population[0].pos.join(', ')}), f ={' '}
+                            {wData.initial_population[0].f}
+                          </code>
                         </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Lực hút{' '}
-                            <MathFormula tex="\beta(r)" ariaLabel="beta(r)" /> suy
-                            giảm
-                          </span>
-                          <span className="hairline-bento__val hairline-bento__val--iris">
-                            {formatFixed(wData.pair_logs[1].beta, 4)}
-                          </span>
+
+                        <div className="hairline-bento">
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Khoảng cách xa{' '}
+                              <MathFormula tex="r_{31}" ariaLabel="r_31" />
+                            </span>
+                            <span className="hairline-bento__val">
+                              {formatFixed(wData.pair_logs[1].r_ij, 4)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Lực hút{' '}
+                              <MathFormula tex="\beta(r)" ariaLabel="beta(r)" /> suy
+                              giảm
+                            </span>
+                            <span className="hairline-bento__val hairline-bento__val--iris">
+                              {formatFixed(wData.pair_logs[1].beta, 4)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              Tọa độ thử nghiệm
+                            </span>
+                            <span
+                              className="hairline-bento__val"
+                              style={{ fontSize: '0.88rem' }}
+                            >
+                              {formatVec(wData.pair_logs[1].new_pos, 3)}
+                            </span>
+                          </div>
+                          <div className="hairline-bento__cell">
+                            <span className="hairline-bento__label">
+                              So sánh chất lượng nghiệm
+                            </span>
+                            <span className="hairline-bento__val hairline-bento__val--amber">
+                              {formatFixed(wData.pair_logs[1].f_new, 2)} &gt;{' '}
+                              {wData.initial_population[2].f} (GIỮ NGUYÊN{' '}
+                              <MathFormula tex="\mathbf{x}_3" ariaLabel="x_3" />)
+                            </span>
+                          </div>
                         </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            Tọa độ thử nghiệm
-                          </span>
-                          <span
-                            className="hairline-bento__val"
-                            style={{ fontSize: '0.88rem' }}
-                          >
-                            {formatVec(wData.pair_logs[1].new_pos, 3)}
-                          </span>
-                        </div>
-                        <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">
-                            So sánh chất lượng nghiệm
-                          </span>
-                          <span className="hairline-bento__val hairline-bento__val--amber">
-                            {formatFixed(wData.pair_logs[1].f_new, 2)} &gt; 26 (GIỮ NGUYÊN{' '}
-                            <MathFormula tex="\mathbf{x}_3" ariaLabel="x_3" />)
-                          </span>
-                        </div>
-                      </div>
+                      </>
                     ) : null}
+
+                    <div className="worked-divider-rule" aria-hidden="true" />
 
                     <div className="worked-scrubber-card">
                       <div className="worked-scrubber-card__head">
-                        <span>
-                          Mốc hội tụ theo thế hệ (
-                          <MathFormula tex="n = 20" ariaLabel="n = 20" />)
-                        </span>
+                        <div className="worked-subblock-head">
+                          <span className="worked-subblock-head__badge">PHẦN B</span>
+                          <strong>
+                            Chạy thực tế trên Python (n = 20, t = 0 → 200)
+                          </strong>
+                        </div>
                         <code>t = {activeGenT}</code>
                       </div>
+
+                      <p className="worked-scrubber-card__note">
+                        Hình 3D bên trái đang minh họa 5 cá thể tính tay ở trên;
+                        bảng dưới cho thấy tốc độ hội tụ khi tăng đàn lên 20 cá thể.
+                      </p>
 
                       <div
                         className="worked-milestone-pills"
@@ -518,33 +586,89 @@ export function WorkedTelemetrySection({
                     </div>
                     <div className="hairline-bento__cell hairline-bento__cell--wide">
                       <span className="hairline-bento__label">
-                        Tiến trình hội tụ 300 thế hệ{' '}
+                        Độ lệch hàm phạt theo thang log qua 300 thế hệ{' '}
                         <MathFormula
-                          tex="\Pi_{\text{best}}(t)"
-                          ariaLabel="Pi_best(t)"
+                          tex="\log_{10}(\Pi_{\text{best}}(t) - \Pi^* + 10^{-3})"
+                          ariaLabel="log10(Pi_best(t) - Pi* + 10^-3)"
                         />{' '}
                         (cuối:{' '}
                         <SciNumber value={cData.fbest_penalized} sigDigits={3} />)
                       </span>
-                      <svg
-                        viewBox="0 0 340 66"
-                        style={{ width: '100%', height: '62px', display: 'block' }}
-                        aria-hidden="true"
-                      >
-                        <line
-                          x1="12"
-                          y1="58"
-                          x2="328"
-                          y2="58"
-                          stroke="rgba(239,239,232,0.14)"
-                        />
-                        <path
-                          d={sparklinePath}
-                          fill="none"
-                          stroke="#C5E84D"
-                          strokeWidth="2"
-                        />
-                      </svg>
+                      {constrainedChart ? (
+                        <svg
+                          viewBox="0 0 560 92"
+                          style={{ width: '100%', height: 'auto', display: 'block', marginTop: '0.25rem' }}
+                          aria-hidden="true"
+                        >
+                          <line
+                            x1="14"
+                            y1="74"
+                            x2="546"
+                            y2="74"
+                            stroke="rgba(239,239,232,0.18)"
+                          />
+                          <line
+                            x1="14"
+                            y1="18"
+                            x2="14"
+                            y2="74"
+                            stroke="rgba(239,239,232,0.14)"
+                          />
+                          <path
+                            d={constrainedChart.path}
+                            fill="none"
+                            stroke="#C5E84D"
+                            strokeWidth="2.1"
+                          />
+                          <circle
+                            cx={constrainedChart.endX}
+                            cy={constrainedChart.endY}
+                            r="4.2"
+                            fill="#C5E84D"
+                            stroke="#101110"
+                            strokeWidth="1.2"
+                          />
+                          <text
+                            x="22"
+                            y="16"
+                            fill="#B6C96E"
+                            fontSize="11"
+                            fontFamily="var(--font-mono)"
+                          >
+                            Π(0) = {constrainedChart.initF.toFixed(2)}
+                          </text>
+                          <text
+                            x={constrainedChart.endX - 6}
+                            y={Math.max(18, constrainedChart.endY - 8)}
+                            textAnchor="end"
+                            fill="#C5E84D"
+                            fontSize="11.2"
+                            fontWeight="600"
+                            fontFamily="var(--font-mono)"
+                          >
+                            {constrainedChart.finalF.toFixed(3)}
+                          </text>
+                          <text
+                            x="14"
+                            y="89"
+                            fill="#939889"
+                            fontSize="10.5"
+                            fontFamily="var(--font-mono)"
+                          >
+                            t = 0
+                          </text>
+                          <text
+                            x="546"
+                            y="89"
+                            textAnchor="end"
+                            fill="#939889"
+                            fontSize="10.5"
+                            fontFamily="var(--font-mono)"
+                          >
+                            t = {constrainedChart.maxT}
+                          </text>
+                        </svg>
+                      ) : null}
                     </div>
                   </div>
                 )}

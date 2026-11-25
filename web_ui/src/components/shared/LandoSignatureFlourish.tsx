@@ -85,7 +85,7 @@ export function LandoSignatureFlourish({
           tl.set(paths[1], { opacity: 1 }, 0.22);
           tl.to(
             paths[1],
-            { strokeDashoffset: 0, ease: 'none', duration: 0.50 },
+            { strokeDashoffset: 0, ease: 'none', duration: 0.5 },
             0.22
           );
         }

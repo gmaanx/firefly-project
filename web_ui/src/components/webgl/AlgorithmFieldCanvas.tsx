@@ -1,5 +1,65 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MathFormula } from '../shared/MathFormula';
+import { useRouteCurtain } from '../shared/RouteCurtain';
+
+let cachedAlgoContourBackdrop: HTMLCanvasElement | null = null;
+
+function getOrBuildAlgoContourBackdrop(): HTMLCanvasElement | null {
+  if (cachedAlgoContourBackdrop) return cachedAlgoContourBackdrop;
+  if (typeof document === 'undefined') return null;
+
+  const off = document.createElement('canvas');
+  const w = 480;
+  const h = 360;
+  off.width = w;
+  off.height = h;
+  const octx = off.getContext('2d');
+  if (!octx) return null;
+
+  const vals = new Float64Array(w * h);
+  for (let py = 0; py < h; py += 1) {
+    const y = 3.0 - ((py + 0.5) / h) * 6.0;
+    for (let px = 0; px < w; px += 1) {
+      const x = -4.0 + ((px + 0.5) / w) * 8.0;
+      vals[py * w + px] = evalLandscape(x, y);
+    }
+  }
+
+  const img = octx.createImageData(w, h);
+  for (let i = 0; i < vals.length; i += 1) {
+    const norm = Math.min(1, vals[i] / 1.45);
+    const inv = 1 - norm;
+    img.data[i * 4] = Math.round(16 + inv * 20);
+    img.data[i * 4 + 1] = Math.round(17 + inv * 27);
+    img.data[i * 4 + 2] = Math.round(16 + inv * 13);
+    img.data[i * 4 + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+
+  const levels = [0.08, 0.16, 0.28, 0.42, 0.58, 0.76, 0.96, 1.16];
+  for (let li = 0; li < levels.length; li += 1) {
+    const lv = levels[li];
+    octx.fillStyle =
+      li < 2
+        ? 'rgba(197, 232, 77, 0.32)'
+        : li < 4
+          ? 'rgba(182, 201, 110, 0.22)'
+          : 'rgba(239, 239, 232, 0.11)';
+    for (let py = 0; py < h - 1; py += 1) {
+      for (let px = 0; px < w - 1; px += 1) {
+        const v00 = vals[py * w + px];
+        const v10 = vals[py * w + px + 1];
+        const v01 = vals[(py + 1) * w + px];
+        if ((v00 - lv) * (v10 - lv) <= 0 || (v00 - lv) * (v01 - lv) <= 0) {
+          octx.fillRect(px, py, 1.05, 1.05);
+        }
+      }
+    }
+  }
+
+  cachedAlgoContourBackdrop = off;
+  return off;
+}
 
 export interface AlgorithmFieldCanvasProps {
   reducedMotion: boolean;
@@ -77,9 +137,11 @@ function createInitialSwarm(): VectorFirefly[] {
  * #C5E84D global optimum beacon, and warm-ivory architectural segmented controls (zero green/purple clash).
  */
 export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProps) {
+  const { isTransitioning } = useRouteCurtain();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const backdropRef = useRef<HTMLCanvasElement | null>(null);
+  const backdropRef = useRef<HTMLCanvasElement | null>(cachedAlgoContourBackdrop);
   const swarmRef = useRef<VectorFirefly[]>(createInitialSwarm());
+  const settledFramesRef = useRef<number>(0);
 
   const [gamma, setGamma] = useState<number>(0.35);
   const [alpha, setAlpha] = useState<number>(0.16);
@@ -87,63 +149,20 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
   paramsRef.current = { gamma, alpha, reducedMotion };
 
   const handleRescatter = useCallback(() => {
+    settledFramesRef.current = 0;
     swarmRef.current = createInitialSwarm();
   }, []);
 
-  // Pre-bake crisp concentric contour field once
+  // Pre-bake crisp concentric contour field once (deferred past RouteCurtain wipe & cached globally)
   useEffect(() => {
-    const off = document.createElement('canvas');
-    const w = 480;
-    const h = 360;
-    off.width = w;
-    off.height = h;
-    const octx = off.getContext('2d');
-    if (!octx) return;
+    if (backdropRef.current) return;
+    if (isTransitioning) return;
 
-    const vals = new Float64Array(w * h);
-    for (let py = 0; py < h; py += 1) {
-      const y = 3.0 - ((py + 0.5) / h) * 6.0;
-      for (let px = 0; px < w; px += 1) {
-        const x = -4.0 + ((px + 0.5) / w) * 8.0;
-        vals[py * w + px] = evalLandscape(x, y);
-      }
-    }
-
-    const img = octx.createImageData(w, h);
-    for (let i = 0; i < vals.length; i += 1) {
-      const norm = Math.min(1, vals[i] / 1.45);
-      const inv = 1 - norm;
-      // Deep gallery obsidian (#101110) -> botanical moss basin (#22281B)
-      img.data[i * 4] = Math.round(16 + inv * 20);
-      img.data[i * 4 + 1] = Math.round(17 + inv * 27);
-      img.data[i * 4 + 2] = Math.round(16 + inv * 13);
-      img.data[i * 4 + 3] = 255;
-    }
-    octx.putImageData(img, 0, 0);
-
-    const levels = [0.08, 0.16, 0.28, 0.42, 0.58, 0.76, 0.96, 1.16];
-    for (let li = 0; li < levels.length; li += 1) {
-      const lv = levels[li];
-      octx.fillStyle =
-        li < 2
-          ? 'rgba(197, 232, 77, 0.32)'
-          : li < 4
-            ? 'rgba(182, 201, 110, 0.22)'
-            : 'rgba(239, 239, 232, 0.11)';
-      for (let py = 0; py < h - 1; py += 1) {
-        for (let px = 0; px < w - 1; px += 1) {
-          const v00 = vals[py * w + px];
-          const v10 = vals[py * w + px + 1];
-          const v01 = vals[(py + 1) * w + px];
-          if ((v00 - lv) * (v10 - lv) <= 0 || (v00 - lv) * (v01 - lv) <= 0) {
-            octx.fillRect(px, py, 1.05, 1.05);
-          }
-        }
-      }
-    }
-
-    backdropRef.current = off;
-  }, []);
+    const raf = window.requestAnimationFrame(() => {
+      backdropRef.current = getOrBuildAlgoContourBackdrop();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [isTransitioning]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -305,7 +324,7 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
         const stepRate = 0.042;
         while (accum >= stepRate) {
           accum -= stepRate;
-          let allConverged = true;
+          let settledInWells = 0;
 
           for (let i = 0; i < swarm.length; i += 1) {
             const fi = swarm[i];
@@ -333,13 +352,25 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
             fi.trail.push([fi.x, fi.y]);
             if (fi.trail.length > 18) fi.trail.shift();
 
-            if (Math.hypot(fi.x - 1.35, fi.y - 0.35) > 0.42) {
-              allConverged = false;
+            const dGlobal = Math.hypot(fi.x - 1.35, fi.y - 0.35);
+            const dLocal = Math.hypot(fi.x + 1.65, fi.y + 0.55);
+            const speed = Math.hypot(fi.vx, fi.vy);
+            if (Math.min(dGlobal, dLocal) <= 0.55 && speed < 0.24) {
+              settledInWells += 1;
             }
           }
 
-          if (allConverged && curAlpha <= 0.05) {
+          if (settledInWells >= 15) {
+            settledFramesRef.current += 1;
+          } else {
+            settledFramesRef.current = Math.max(0, settledFramesRef.current - 1);
+          }
+
+          // Hold settled clusters ~2.5s (60 steps * 0.042s) so audience sees convergence, then auto-rescatter
+          if (settledFramesRef.current >= 60) {
+            settledFramesRef.current = 0;
             swarmRef.current = createInitialSwarm();
+            break;
           }
         }
       }
@@ -509,6 +540,7 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
     swarm[worstIdx].y = y;
     swarm[worstIdx].f = evalLandscape(x, y);
     swarm[worstIdx].trail = [[x, y]];
+    settledFramesRef.current = 0;
   };
 
   return (

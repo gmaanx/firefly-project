@@ -19,7 +19,7 @@ export function RgbCubeVisualizer({
   const stageRef = useRef<HTMLDivElement>(null);
   const [showCloud, setShowCloud] = useState<boolean>(true);
   const [autoSpin, setAutoSpin] = useState<boolean>(true);
-  const { shouldMount, isReady } = useDeferredWebGLMount();
+  const { shouldMount, isReady } = useDeferredWebGLMount(stageRef, '560px');
 
   const cloudRef = useRef<THREE.Points | null>(null);
   const centroidsGroupRef = useRef<THREE.Group | null>(null);

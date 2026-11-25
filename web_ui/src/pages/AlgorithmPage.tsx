@@ -115,10 +115,38 @@ export function AlgorithmPage({ reducedMotion, onOpenQa }: AlgorithmPageProps) {
             </div>
 
             <div className="algo-hero-formula-bar algo-hero-enter">
-              <MathFormula
-                tex="\mathbf{x}_i^{t+1} = \mathbf{x}_i^t + \beta_0 e^{-\gamma r_{ij}^2}(\mathbf{x}_j^t - \mathbf{x}_i^t) + \alpha_t \boldsymbol{\epsilon}_i^t"
-                ariaLabel="Phương trình dịch chuyển đom đóm i về phía đom đóm j sáng hơn"
-              />
+              <div className="algo-hero-formula-bar__main">
+                <MathFormula
+                  tex="\mathbf{x}_i^{t+1} = \mathbf{x}_i^t + \beta_0 e^{-\gamma r_{ij}^2}(\mathbf{x}_j^t - \mathbf{x}_i^t) + \alpha_t \boldsymbol{\epsilon}_i^t"
+                  ariaLabel="Phương trình dịch chuyển đom đóm i về phía đom đóm j sáng hơn"
+                />
+              </div>
+              <div className="algo-hero-formula-bar__legend">
+                <span>
+                  <MathFormula
+                    tex="\beta_0 e^{-\gamma r_{ij}^2}(\mathbf{x}_j^t - \mathbf{x}_i^t)"
+                    ariaLabel="beta_0 exp(-gamma r_ij^2)(x_j^t - x_i^t)"
+                  />
+                  : lực hút về con sáng hơn (
+                  <MathFormula tex="\beta_0" ariaLabel="beta_0" />: tại{' '}
+                  <MathFormula tex="r=0" ariaLabel="r=0" />,{' '}
+                  <MathFormula tex="\gamma" ariaLabel="gamma" />: độ cản sáng)
+                </span>
+                <span>
+                  <MathFormula
+                    tex="\alpha_t \boldsymbol{\epsilon}_i^t"
+                    ariaLabel="alpha_t epsilon_i^t"
+                  />
+                  : bước nhảy ngẫu nhiên giảm dần theo thế hệ
+                </span>
+                <span>
+                  <MathFormula
+                    tex="r_{ij} = \|\mathbf{x}_i - \mathbf{x}_j\|_2"
+                    ariaLabel="r_ij = ||x_i - x_j||_2"
+                  />
+                  : khoảng cách Euclid giữa 2 đom đóm
+                </span>
+              </div>
             </div>
           </div>
 

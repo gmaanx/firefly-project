@@ -26,19 +26,55 @@ import { HomePage } from './pages/HomePage';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Lazy-loaded sub-page chunks so initial `/` load only downloads & parses the Home Hero chunk
-const AlgorithmPage = lazy(() =>
-  import('./pages/AlgorithmPage').then((m) => ({ default: m.AlgorithmPage }))
-);
-const ExperimentsPage = lazy(() =>
-  import('./pages/ExperimentsPage').then((m) => ({ default: m.ExperimentsPage }))
-);
-const DemoPage = lazy(() =>
-  import('./pages/DemoPage').then((m) => ({ default: m.DemoPage }))
-);
+// Memoized lazy chunk loaders so preloading on hover / idle / curtain cover shares the exact Promise
+let algoChunkPromise: Promise<{ default: typeof import('./pages/AlgorithmPage')['AlgorithmPage'] }> | null = null;
+let expChunkPromise: Promise<{ default: typeof import('./pages/ExperimentsPage')['ExperimentsPage'] }> | null = null;
+let demoChunkPromise: Promise<{ default: typeof import('./pages/DemoPage')['DemoPage'] }> | null = null;
+
+function loadAlgorithmPageChunk() {
+  if (!algoChunkPromise) {
+    algoChunkPromise = import('./pages/AlgorithmPage').then((m) => ({
+      default: m.AlgorithmPage,
+    }));
+  }
+  return algoChunkPromise;
+}
+
+function loadExperimentsPageChunk() {
+  if (!expChunkPromise) {
+    expChunkPromise = import('./pages/ExperimentsPage').then((m) => ({
+      default: m.ExperimentsPage,
+    }));
+  }
+  return expChunkPromise;
+}
+
+function loadDemoPageChunk() {
+  if (!demoChunkPromise) {
+    demoChunkPromise = import('./pages/DemoPage').then((m) => ({
+      default: m.DemoPage,
+    }));
+  }
+  return demoChunkPromise;
+}
+
+export function preloadRouteChunk(to: AppRoutePath): Promise<unknown> {
+  if (to === '/thuat-toan') return loadAlgorithmPageChunk();
+  if (to === '/thuc-nghiem') return loadExperimentsPageChunk();
+  if (to === '/demo') return loadDemoPageChunk();
+  return Promise.resolve();
+}
+
+const AlgorithmPage = lazy(loadAlgorithmPageChunk);
+const ExperimentsPage = lazy(loadExperimentsPageChunk);
+const DemoPage = lazy(loadDemoPageChunk);
 const QaDrawer = lazy(() =>
   import('./components/shared/QaDrawer').then((m) => ({ default: m.QaDrawer }))
 );
+
+function getSectionScrollOffset(_id: string): number {
+  return -68;
+}
 
 interface AppInnerProps {
   activeRoute: AppRoutePath;
@@ -56,6 +92,72 @@ function AppInner({
   const { navigateWithCurtain } = useRouteCurtain();
   const routeMeta =
     APP_ROUTES.find((r) => r.path === activeRoute) ?? APP_ROUTES[0];
+
+  const isHomeActive = activeRoute === '/';
+  const [hasVisitedHome, setHasVisitedHome] = useState<boolean>(isHomeActive);
+  const homeKeepAliveRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isHomeActive && !hasVisitedHome) {
+      setHasVisitedHome(true);
+    }
+  }, [isHomeActive, hasVisitedHome]);
+
+  // Toggle Keep-Alive HomePage ScrollTriggers cleanly across route switches without touching HomePage.tsx
+  useEffect(() => {
+    const keepRoot = homeKeepAliveRef.current;
+    if (!keepRoot) return;
+
+    if (!isHomeActive) {
+      ScrollTrigger.getAll().forEach((st) => {
+        const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
+        if (trig instanceof Node && keepRoot.contains(trig)) {
+          st.disable(false);
+        }
+      });
+      return;
+    }
+
+    const raf = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('scroll'));
+      ScrollTrigger.getAll().forEach((st) => {
+        const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
+        if (trig instanceof Node && keepRoot.contains(trig)) {
+          st.enable(false, false);
+        }
+      });
+      ScrollTrigger.refresh();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [isHomeActive]);
+
+  // Warm up sub-route JS chunks quietly during browser idle time after initial boot
+  useEffect(() => {
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId = 0;
+    const timerId = window.setTimeout(() => {
+      const warm = () => {
+        void loadAlgorithmPageChunk();
+        void loadExperimentsPageChunk();
+        void loadDemoPageChunk();
+      };
+      if (typeof win.requestIdleCallback === 'function') {
+        idleId = win.requestIdleCallback(warm, { timeout: 2500 });
+      } else {
+        warm();
+      }
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timerId);
+      if (idleId && typeof win.cancelIdleCallback === 'function') {
+        win.cancelIdleCallback(idleId);
+      }
+    };
+  }, []);
 
   const [activeSurface, setActiveSurface] = useState<SurfaceTheme>(
     routeMeta.defaultSurface
@@ -79,7 +181,7 @@ function AppInner({
     document.title = routeMeta.docTitle;
   }, [routeMeta.docTitle]);
 
-  // Zero-scroll-listener surface detection via IntersectionObserver (`rootMargin: '-44px 0px -90% 0px'`)
+  // Accurate navbar surface detection right at the FA logo center (`y ≈ 26px`)
   useEffect(() => {
     setActiveSurface(routeMeta.defaultSurface);
     const mainEl = mainRef.current;
@@ -90,12 +192,26 @@ function AppInner({
 
     const syncActiveSurface = () => {
       let matched: SurfaceTheme | null = null;
+
+      // Primary check: exact section covering the FA navbar logo (`y = 26..28px`)
       for (const sec of observedNodes) {
-        if (intersecting.has(sec)) {
+        const rect = sec.getBoundingClientRect();
+        if (rect.top <= 28 && rect.bottom > 28) {
           const val = sec.dataset.surface as SurfaceTheme | undefined;
           if (val) matched = val;
         }
       }
+
+      // Fallback to IO set if at extreme bounce boundary
+      if (!matched) {
+        for (const sec of observedNodes) {
+          if (intersecting.has(sec)) {
+            const val = sec.dataset.surface as SurfaceTheme | undefined;
+            if (val) matched = val;
+          }
+        }
+      }
+
       if (matched) {
         setActiveSurface((prev) => (prev === matched ? prev : matched));
       }
@@ -114,7 +230,7 @@ function AppInner({
         syncActiveSurface();
       },
       {
-        rootMargin: '-44px 0px -90% 0px',
+        rootMargin: '-22px 0px -96% 0px',
         threshold: 0,
       }
     );
@@ -123,20 +239,27 @@ function AppInner({
       io.disconnect();
       intersecting.clear();
       observedNodes = Array.from(
-        mainEl.querySelectorAll<HTMLElement>('[data-surface]')
+        mainEl.querySelectorAll<HTMLElement>(
+          '[data-route-active="true"] [data-surface]'
+        )
       );
       for (const sec of observedNodes) {
         io.observe(sec);
       }
+      syncActiveSurface();
     };
 
     bindSections();
 
-    // Re-bind automatically if a React.lazy() route finishes mounting inside <main>
     const mo = new MutationObserver(() => {
       bindSections();
     });
-    mo.observe(mainEl, { childList: true });
+    mo.observe(mainEl, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-route-active'],
+    });
 
     return () => {
       mo.disconnect();
@@ -207,46 +330,62 @@ function AppInner({
         onOpenQa={handleOpenQa}
         reducedMotion={reducedMotion}
         onToggleReducedMotion={onToggleReducedMotion}
+        onPreloadRoute={preloadRouteChunk}
       />
 
       <main id="main-presentation" ref={mainRef}>
-        <Suspense fallback={null}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <HomePage
-                  reducedMotion={reducedMotion}
-                  onScrollToSection={onScrollToSection}
-                />
-              }
+        {hasVisitedHome ? (
+          <div
+            ref={homeKeepAliveRef}
+            data-keepalive-root="home"
+            data-route-active={isHomeActive ? 'true' : 'false'}
+            hidden={!isHomeActive}
+            aria-hidden={!isHomeActive}
+            {...(!isHomeActive ? ({ inert: '' } as Record<string, string>) : {})}
+            style={{ display: isHomeActive ? 'block' : 'none' }}
+          >
+            <HomePage
+              reducedMotion={reducedMotion}
+              onScrollToSection={onScrollToSection}
             />
-            <Route
-              path="/thuat-toan"
-              element={
-                <AlgorithmPage
-                  reducedMotion={reducedMotion}
-                  onOpenQa={handleOpenQa}
-                />
-              }
-            />
-            <Route
-              path="/thuc-nghiem"
-              element={<ExperimentsPage reducedMotion={reducedMotion} />}
-            />
-            <Route
-              path="/demo"
-              element={
-                <DemoPage
-                  reducedMotion={reducedMotion}
-                  onRegisterSpaceToggle={handleRegisterSpaceToggle}
-                  onScrollToSection={onScrollToSection}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+          </div>
+        ) : null}
+
+        <div
+          className="route-subpage-outlet"
+          data-route-active={!isHomeActive ? 'true' : 'false'}
+          hidden={isHomeActive}
+          style={{ display: isHomeActive ? 'none' : 'block' }}
+        >
+          <Suspense fallback={null}>
+            <Routes>
+              <Route path="/" element={null} />
+              <Route
+                path="/thuat-toan"
+                element={
+                  <AlgorithmPage
+                    reducedMotion={reducedMotion}
+                    onOpenQa={handleOpenQa}
+                  />
+                }
+              />
+              <Route
+                path="/thuc-nghiem"
+                element={<ExperimentsPage reducedMotion={reducedMotion} />}
+              />
+              <Route
+                path="/demo"
+                element={
+                  <DemoPage
+                    reducedMotion={reducedMotion}
+                    onRegisterSpaceToggle={handleRegisterSpaceToggle}
+                  />
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </div>
       </main>
 
       <Suspense fallback={null}>
@@ -319,7 +458,24 @@ export function App() {
     gsap.ticker.add(tickerUpdate);
     gsap.ticker.lagSmoothing(500, 33);
 
+    const onCustomLenisScroll = (ev: Event) => {
+      const detail = (
+        ev as CustomEvent<{ top: number; immediate?: boolean; duration?: number }>
+      ).detail;
+      if (!detail || typeof detail.top !== 'number') return;
+      if (detail.immediate) {
+        lenis.scrollTo(detail.top, { immediate: true, force: true });
+      } else {
+        lenis.scrollTo(detail.top, {
+          duration: detail.duration ?? 0.55,
+          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        });
+      }
+    };
+    window.addEventListener('app:lenis-scroll', onCustomLenisScroll);
+
     return () => {
+      window.removeEventListener('app:lenis-scroll', onCustomLenisScroll);
       gsap.ticker.remove(tickerUpdate);
       lenis.destroy();
       lenisRef.current = null;
@@ -343,7 +499,16 @@ export function App() {
         const el = document.getElementById(hash);
         if (el) {
           if (lenisRef.current) {
-            lenisRef.current.scrollTo(el, { offset: -72, immediate: true });
+            const targetTop = Math.max(
+              0,
+              window.scrollY +
+                el.getBoundingClientRect().top +
+                getSectionScrollOffset(hash)
+            );
+            lenisRef.current.scrollTo(targetTop, {
+              immediate: true,
+              force: true,
+            });
           } else {
             el.scrollIntoView({ behavior: 'auto', block: 'start' });
           }
@@ -354,7 +519,7 @@ export function App() {
 
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (lenisRef.current) {
-      lenisRef.current.scrollTo(0, { immediate: true });
+      lenisRef.current.scrollTo(0, { immediate: true, force: true });
     }
   }, []);
 
@@ -363,9 +528,14 @@ export function App() {
       const target = document.getElementById(id);
       if (!target) return;
       if (lenisRef.current && !reducedMotion) {
-        lenisRef.current.scrollTo(target, {
-          offset: -56,
-          duration: 1.22,
+        const targetTop = Math.max(
+          0,
+          window.scrollY +
+            target.getBoundingClientRect().top +
+            getSectionScrollOffset(id)
+        );
+        lenisRef.current.scrollTo(targetTop, {
+          duration: 1.05,
           easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         });
       } else {
@@ -390,6 +560,7 @@ export function App() {
         reducedMotion={reducedMotion}
         onResetScroll={handleResetScroll}
         onPauseLenis={handlePauseLenis}
+        onPreloadRoute={preloadRouteChunk}
       >
         <AppInner
           activeRoute={activeRoute}

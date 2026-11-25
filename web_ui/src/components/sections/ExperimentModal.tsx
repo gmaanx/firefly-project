@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   DATASET_PROVENANCE,
   SciNumber,
@@ -6,6 +6,7 @@ import {
   formatFixed,
   formatVec,
 } from '../../lib/formatters';
+import { isInteractiveElement } from '../../lib/navigation';
 import { MathFormula } from '../shared/MathFormula';
 import type {
   ConvergenceIterationsData,
@@ -24,9 +25,19 @@ export type ExperimentCardId =
   | 'cooling_hybrid'
   | 'multimodal';
 
+const MODAL_CARD_ORDER: readonly ExperimentCardId[] = [
+  'convergence',
+  'scalability',
+  'complexity',
+  'gamma',
+  'cooling_hybrid',
+  'multimodal',
+];
+
 export interface ExperimentModalProps {
   activeCard: ExperimentCardId | null;
   onClose: () => void;
+  onNavigateCard?: (nextCard: ExperimentCardId) => void;
   convergence: ConvergenceIterationsData | null;
   scalability: ScalabilityNdData | null;
   complexity: Tv10ComplexityData | null;
@@ -56,6 +67,7 @@ function evalContourFn(fnName: 'Himmelblau' | 'Rastrigin', x1: number, x2: numbe
 export default function ExperimentModal({
   activeCard,
   onClose,
+  onNavigateCard,
   convergence,
   scalability,
   complexity,
@@ -74,6 +86,20 @@ export default function ExperimentModal({
   const [mmFrameIdx, setMmFrameIdx] = useState<number>(0);
   const [mmPlaying, setMmPlaying] = useState<boolean>(false);
 
+  const activeIdx = activeCard ? MODAL_CARD_ORDER.indexOf(activeCard) : -1;
+
+  const stepCard = useCallback(
+    (delta: -1 | 1) => {
+      if (!activeCard || !onNavigateCard) return;
+      const cur = MODAL_CARD_ORDER.indexOf(activeCard);
+      if (cur < 0) return;
+      const nextIdx =
+        (cur + delta + MODAL_CARD_ORDER.length) % MODAL_CARD_ORDER.length;
+      onNavigateCard(MODAL_CARD_ORDER[nextIdx]);
+    },
+    [activeCard, onNavigateCard]
+  );
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -84,6 +110,24 @@ export default function ExperimentModal({
     }
     setMmPlaying(false);
   }, [activeCard]);
+
+  // Keyboard ArrowLeft / ArrowRight card cycling when focus is not inside a range slider / input
+  useEffect(() => {
+    if (!activeCard || !onNavigateCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isInteractiveElement(e.target)) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepCard(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepCard(1);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeCard, onNavigateCard, stepCard]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -252,7 +296,7 @@ export default function ExperimentModal({
   }, [activeCard, activeReplay, mmFrameIdx]);
 
   const titles: Record<ExperimentCardId, string> = {
-    convergence: '01 · Hội tụ theo thế hệ (Shifted Sphere 3D)',
+    convergence: '01 · Hội tụ theo thế hệ (Mặt cầu dịch tâm 3D)',
     scalability: '02 · Quy mô đàn n & Số chiều D (D = 3 vs D = 10)',
     complexity: '03 · Độ phức tạp tính toán theo kích thước đàn',
     gamma: '04 · Độ nhạy hệ số hấp thụ ánh sáng γ',
@@ -275,14 +319,47 @@ export default function ExperimentModal({
                 {titles[activeCard]}
               </h2>
             </div>
-            <button
-              type="button"
-              className="icon-square-btn"
-              onClick={() => dialogRef.current?.close()}
-              aria-label="Đóng cửa sổ thực nghiệm (Esc)"
-            >
-              ✕
-            </button>
+
+            <div className="exp-modal__header-actions">
+              {onNavigateCard ? (
+                <div
+                  className="exp-modal__nav-group"
+                  role="group"
+                  aria-label="Chuyển nhanh giữa 6 bài đo thực nghiệm"
+                >
+                  <button
+                    type="button"
+                    className="icon-square-btn"
+                    onClick={() => stepCard(-1)}
+                    aria-label="Bài đo trước (Phím mũi tên trái)"
+                    title="Bài đo trước (←)"
+                  >
+                    ←
+                  </button>
+                  <span className="exp-modal__step-counter" aria-hidden="true">
+                    {String(activeIdx + 1).padStart(2, '0')} / 06
+                  </span>
+                  <button
+                    type="button"
+                    className="icon-square-btn"
+                    onClick={() => stepCard(1)}
+                    aria-label="Bài đo tiếp theo (Phím mũi tên phải)"
+                    title="Bài đo tiếp theo (→)"
+                  >
+                    →
+                  </button>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                className="icon-square-btn"
+                onClick={() => dialogRef.current?.close()}
+                aria-label="Đóng cửa sổ thực nghiệm (Esc)"
+              >
+                ✕
+              </button>
+            </div>
           </header>
 
           {/* 1. CONVERGENCE */}
@@ -342,6 +419,12 @@ export default function ExperimentModal({
                     {convergence.by_iterations.map((m) => {
                       const x = 64 + ((m.t_max - 1) / Math.max(1, logs.length - 1)) * 610;
                       const y = 228 - ((safeLog10(m.fbest) - minL) / spanL) * 188;
+                      const isLast = m.t_max === 500;
+                      const tx = isLast ? x - 10 : x;
+                      const ty = Math.max(46, isLast ? y - 16 : y - 14);
+                      const boxW = 104;
+                      const boxX = isLast ? tx - boxW + 4 : tx - boxW / 2;
+
                       return (
                         <g key={m.t_max}>
                           <line
@@ -354,9 +437,20 @@ export default function ExperimentModal({
                             strokeOpacity="0.55"
                           />
                           <circle cx={x} cy={y} r="5" fill="#C5E84D" stroke="#101110" strokeWidth="1.4" />
+                          <rect
+                            x={boxX}
+                            y={ty - 12}
+                            width={boxW}
+                            height="17"
+                            rx="3"
+                            fill="rgba(16,17,16,0.88)"
+                            stroke="rgba(239,239,232,0.14)"
+                            strokeWidth="0.8"
+                          />
                           <text
-                            x={Math.min(575, x - 24)}
-                            y={Math.max(52, y - 10)}
+                            x={tx}
+                            y={ty}
+                            textAnchor={isLast ? 'end' : 'middle'}
                             fill="#EFEFE8"
                             fontSize="10"
                             fontFamily="var(--font-mono)"
@@ -378,8 +472,12 @@ export default function ExperimentModal({
                   <thead>
                     <tr>
                       <th>Mốc thế hệ</th>
-                      <th>f_best(t)</th>
-                      <th>Nghiệm nbest</th>
+                      <th>
+                        <span style={{ textTransform: 'none' }}>
+                          <MathFormula tex="f_{\text{best}}(t)" ariaLabel="f_best(t)" />
+                        </span>
+                      </th>
+                      <th>Nghiệm tốt nhất</th>
                       <th>Nhận xét</th>
                     </tr>
                   </thead>
@@ -420,13 +518,16 @@ export default function ExperimentModal({
           {activeCard === 'scalability' && scalability ? (
             <div className="exp-modal__body">
               <p className="exp-modal__takeaway">
-                Khi tăng từ <code>D = 3</code> lên <code>D = 10</code>, đàn nhỏ <code>n = 5</code> hụt hơi rõ rệt, trong khi <code>n = 20</code> đạt sai số cỡ 10<sup>-12</sup> với thời gian chạy chỉ bằng ~1/7.7 so với <code>n = 50</code>.
+                Khi tăng từ <code>D = 3</code> lên <code>D = 10</code>, đàn nhỏ{' '}
+                <code>n = 5</code> hụt hơi rõ rệt, trong khi <code>n = 20</code>{' '}
+                đạt sai số cỡ 10<sup>-12</sup> với thời gian chạy chỉ bằng ~1/7.7
+                so với <code>n = 50</code>.
               </p>
 
               <div className="dual-chart-row">
                 <svg viewBox="0 0 345 230" className="modal-chart-svg" role="img" aria-label="Sai số trung bình log10 theo n ở D=3 và D=10">
                   <text x="16" y="22" fill="#B6C96E" fontSize="10" fontFamily="var(--font-mono)">
-                    SAI SỐ TRUNG BÌNH fbest_mean (LOG10, 5 RUNS)
+                    SAI SỐ TRUNG BÌNH (LOG10, 5 LƯỢT CHẠY)
                   </text>
                   {[5, 10, 20, 50].map((nVal, idx) => {
                     const r3 = scalability.by_scale.find((r) => r.n === nVal && r.d === 3);
@@ -488,7 +589,7 @@ export default function ExperimentModal({
                     <tr>
                       <th>Số chiều D</th>
                       <th>Quy mô đàn n</th>
-                      <th>fbest_mean ± fbest_std</th>
+                      <th>Sai số TB ± Độ lệch chuẩn</th>
                       <th>Thời gian TB (ms)</th>
                     </tr>
                   </thead>
@@ -525,8 +626,8 @@ export default function ExperimentModal({
                   tex="n \in \{10, 20, 40, 80, 160\}"
                   ariaLabel="n in {10, 20, 40, 80, 160}"
                 />
-                , trung vị thời gian mỗi thế hệ khớp với hệ số góc{' '}
-                <strong>slope = {formatFixed(complexity.log_log_slope, 3)}</strong>,
+                , trung vị thời gian mỗi thế hệ khớp với{' '}
+                <strong>độ dốc = {formatFixed(complexity.log_log_slope, 3)}</strong>,
                 phản ánh xu hướng bậc hai <MathFormula tex="n^2" ariaLabel="n^2" />{' '}
                 phép duyệt cặp mỗi vòng.
               </p>
@@ -574,7 +675,7 @@ export default function ExperimentModal({
                       );
                     })}
                     <text x="82" y="56" fill="#C5E84D" fontSize="11" fontFamily="var(--font-mono)">
-                      Slope log–log = {formatFixed(complexity.log_log_slope, 4)}
+                      Độ dốc log–log = {formatFixed(complexity.log_log_slope, 4)}
                     </text>
                   </svg>
                 );
@@ -586,7 +687,11 @@ export default function ExperimentModal({
                     <tr>
                       <th>Kích thước đàn n</th>
                       <th>
-                        Kiểm tra cặp / vòng (n<sup>2</sup>)
+                        Kiểm tra cặp / vòng (
+                        <span style={{ textTransform: 'none' }}>
+                          n<sup>2</sup>
+                        </span>
+                        )
                       </th>
                       <th>Trung vị ms / vòng</th>
                     </tr>
@@ -724,7 +829,11 @@ export default function ExperimentModal({
                       <table className="qa-table">
                         <thead>
                           <tr>
-                            <th>γ (θ = {selectedThetaForGamma.toFixed(2)})</th>
+                            <th>
+                              <span style={{ textTransform: 'none' }}>
+                                γ (θ = {selectedThetaForGamma.toFixed(2)})
+                              </span>
+                            </th>
                             <th>
                               Sai số cuối E<sub>500</sub>
                             </th>
@@ -813,7 +922,7 @@ export default function ExperimentModal({
                       <svg viewBox="0 0 690 232" className="modal-chart-svg" role="img" aria-label="So sánh hội tụ alpha cố định và alpha giảm dần">
                         <line x1="58" y1={targetY} x2="648" y2={targetY} stroke="rgba(182,201,110,0.36)" strokeDasharray="3 3" />
                         <text x="64" y={targetY - 6} fill="#B6C96E" fontSize="9.5" fontFamily="var(--font-mono)">
-                          Ngưỡng mục tiêu f &lt;= 1e-3
+                          Ngưỡng mục tiêu f ≤ 10⁻³
                         </text>
                         {fixed0 ? (
                           <path d={toPath(fixed0.curve)} fill="none" stroke="#8D7AE6" strokeWidth="1.9" strokeDasharray="6 4" />
@@ -833,9 +942,15 @@ export default function ExperimentModal({
                           <th>Phương thức</th>
                           <th>Sai số cuối TB (5 seed)</th>
                           <th>
-                            Tỷ lệ đạt f ≤ 10<sup>-3</sup>
+                            Tỷ lệ đạt{' '}
+                            <span style={{ textTransform: 'none' }}>
+                              f ≤ 10<sup>-3</sup>
+                            </span>
                           </th>
-                          <th>Tổng lượt gọi f(x)</th>
+                          <th>
+                            Tổng lượt gọi{' '}
+                            <span style={{ textTransform: 'none' }}>f(x)</span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -888,12 +1003,17 @@ export default function ExperimentModal({
                   <table className="qa-table">
                     <thead>
                       <tr>
-                        <th>Hệ số làm nguội θ (γ = 0.1)</th>
+                        <th>
+                          Hệ số làm nguội{' '}
+                          <span style={{ textTransform: 'none' }}>θ (γ = 0.1)</span>
+                        </th>
                         <th>
                           Sai số cuối E<sub>500</sub>
                         </th>
                         <th>
-                          α<sub>500</sub>
+                          <span style={{ textTransform: 'none' }}>
+                            α<sub>500</sub>
+                          </span>
                         </th>
                       </tr>
                     </thead>
@@ -941,6 +1061,8 @@ export default function ExperimentModal({
                   ))}
                 </div>
 
+                <span className="modal-controls-sep" aria-hidden="true" />
+
                 <div className="chip-group" role="group" aria-label="Chọn hệ số gamma cho replay">
                   {[1e-5, 0.01, 0.1, 1.0, 5.0].map((g) => (
                     <button
@@ -950,7 +1072,8 @@ export default function ExperimentModal({
                       className={`chip-btn ${Math.abs(mmGamma - g) < 1e-9 ? 'chip-btn--active' : ''}`}
                       onClick={() => setMmGamma(g)}
                     >
-                      γ = {g === 1e-5 ? (
+                      γ ={' '}
+                      {g === 1e-5 ? (
                         <>
                           10<sup>-5</sup>
                         </>
@@ -963,7 +1086,11 @@ export default function ExperimentModal({
               </div>
 
               <p className="exp-modal__takeaway">
-                Trên <strong>Himmelblau</strong>, <code>γ = 1.0</code> cho tầm nhìn cục bộ L = 1 vừa khít khoảng cách giữa 4 hố nên chiếm lĩnh trọn <strong>4 / 4 cực tiểu toàn cục</strong>. Trên <strong>Rastrigin</strong> (<code>γ = 5.0</code>), đàn tách cụm nhưng bị bẫy ở hố cục bộ (số cụm khác số nghiệm toàn cục).
+                Trên <strong>Himmelblau</strong>, <code>γ = 1.0</code> cho tầm
+                nhìn cục bộ L = 1 vừa khít khoảng cách giữa 4 hố nên chiếm lĩnh
+                trọn <strong>4 / 4 cực tiểu toàn cục</strong>. Trên{' '}
+                <strong>Rastrigin</strong> (<code>γ = 5.0</code>), đàn tách cụm
+                nhưng dễ kẹt ở các hố cục bộ xung quanh.
               </p>
 
               <div className="mm-replay-layout">
@@ -1021,7 +1148,7 @@ export default function ExperimentModal({
                           <span className="hairline-bento__val">{currMet?.n_clusters ?? 0} cụm</span>
                         </div>
                         <div className="hairline-bento__cell">
-                          <span className="hairline-bento__label">f_best hiện tại</span>
+                          <span className="hairline-bento__label">Sai số hiện tại</span>
                           <span className="hairline-bento__val">
                             <SciNumber value={currFrame?.fbest} sigDigits={3} />
                           </span>
@@ -1042,32 +1169,45 @@ export default function ExperimentModal({
                     <table className="qa-table">
                       <thead>
                         <tr>
-                          <th>γ ({mmFunc})</th>
+                          <th>
+                            <span style={{ textTransform: 'none' }}>γ</span> ({mmFunc})
+                          </th>
                           <th>Số cụm TB</th>
                           <th>Đỉnh toàn cục TB</th>
-                          <th>fbest_mean</th>
+                          <th>Sai số TB</th>
                         </tr>
                       </thead>
                       <tbody>
                         {multimodal.gamma_summary
                           .filter((s) => s.function_name === mmFunc)
-                          .map((s) => (
-                            <tr key={s.gamma}>
-                              <td>
-                                <code>γ = {s.gamma}</code>
-                              </td>
-                              <td>
-                                {s.n_clusters_mean.toFixed(2)} ± {s.n_clusters_std.toFixed(2)}
-                              </td>
-                              <td>
-                                <strong>{s.global_optima_found_mean.toFixed(2)}</strong> /{' '}
-                                {mmFunc === 'Himmelblau' ? 4 : 1}
-                              </td>
-                              <td>
-                                <SciNumber value={s.fbest_mean} sigDigits={2} />
-                              </td>
-                            </tr>
-                          ))}
+                          .map((s) => {
+                            const isActiveRow = Math.abs(s.gamma - mmGamma) < 1e-9;
+                            return (
+                              <tr
+                                key={s.gamma}
+                                className={
+                                  isActiveRow
+                                    ? 'qa-table__row qa-table__row--active'
+                                    : 'qa-table__row'
+                                }
+                                onClick={() => setMmGamma(s.gamma)}
+                              >
+                                <td>
+                                  <code>γ = {s.gamma}</code>
+                                </td>
+                                <td>
+                                  {s.n_clusters_mean.toFixed(2)} ± {s.n_clusters_std.toFixed(2)}
+                                </td>
+                                <td>
+                                  <strong>{s.global_optima_found_mean.toFixed(2)}</strong> /{' '}
+                                  {mmFunc === 'Himmelblau' ? 4 : 1}
+                                </td>
+                                <td>
+                                  <SciNumber value={s.fbest_mean} sigDigits={2} />
+                                </td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
                     </table>
                   </div>
