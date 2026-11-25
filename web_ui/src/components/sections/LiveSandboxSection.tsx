@@ -585,12 +585,16 @@ export function LiveSandboxSection({
           <div className="sandbox-left">
             <div>
               <h2 id="sandbox-heading" tabIndex={-1} className="sandbox-title">
-                <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
-                  Thử nghiệm tham số{' '}
-                  <span className="editorial-serif editorial-serif--sage-gold">
-                    trên 7 hàm chuẩn
-                  </span>
-                </BlockReveal>
+                <span className="block-reveal-lines">
+                  <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
+                    Thử nghiệm tham số
+                  </BlockReveal>
+                  <BlockReveal color="olive-lime" delay={0.18} reducedMotion={reducedMotion}>
+                    <span className="editorial-serif editorial-serif--sage-gold">
+                      trên 7 hàm chuẩn
+                    </span>
+                  </BlockReveal>
+                </span>
               </h2>
             </div>
 

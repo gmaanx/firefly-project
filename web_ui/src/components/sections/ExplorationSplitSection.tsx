@@ -740,7 +740,7 @@ export function ExplorationSplitSection({
                     Đom đóm mờ hơn
                   </span>
                 </BlockReveal>
-                <BlockReveal color="dark" delay={0.08} reducedMotion={reducedMotion}>
+                <BlockReveal color="dark" delay={0.18} reducedMotion={reducedMotion}>
                   <span className="dynamics-monograph-title__sans">
                     bay về phía con sáng hơn
                   </span>
@@ -1222,7 +1222,7 @@ export function ExplorationSplitSection({
                     Nhảy rộng lúc đầu,
                   </span>
                 </BlockReveal>
-                <BlockReveal color="dark" delay={0.08} reducedMotion={reducedMotion}>
+                <BlockReveal color="dark" delay={0.18} reducedMotion={reducedMotion}>
                   <span className="dynamics-monograph-title__sans">
                     thu hẹp dần về cuối
                   </span>

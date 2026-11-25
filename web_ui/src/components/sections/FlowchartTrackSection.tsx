@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import gsap from 'gsap';
-import { useSectionReveal } from '../../lib/useEditorialMotion';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+import { BlockReveal } from '../shared/BlockReveal';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
+import { LandoSignatureFlourish } from '../shared/LandoSignatureFlourish';
 import { MathFormula } from '../shared/MathFormula';
 import type { QaTabId } from '../shared/QaDrawer';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export interface FlowchartTrackSectionProps {
   reducedMotion: boolean;
@@ -13,7 +18,8 @@ export interface FlowchartTrackSectionProps {
 interface PhaseItem {
   idx: number;
   code: string;
-  shortLabel: string;
+  mapTitle: string;
+  mapSub: ReactNode;
   fnName: string;
   title: ReactNode;
   desc: ReactNode;
@@ -26,14 +32,20 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 0,
     code: '01',
-    shortLabel: '01 Khởi tạo',
+    mapTitle: 'Khởi tạo đàn ban đầu',
+    mapSub: (
+      <>
+        Rải đều <MathFormula tex="n" ariaLabel="n" /> cá thể trong{' '}
+        <MathFormula tex="[\mathbf{Lb}, \mathbf{Ub}]" ariaLabel="[Lb, Ub]" />
+      </>
+    ),
     fnName: 'init_population',
-    title: 'Khởi tạo đàn ban đầu',
+    title: 'Khởi tạo ngẫu nhiên quần thể đom đóm',
     desc: (
       <>
-        Rải ngẫu nhiên <MathFormula tex="n" ariaLabel="n" /> đom đóm trong miền{' '}
-        <MathFormula tex="[\mathbf{Lb}, \mathbf{Ub}]" ariaLabel="[Lb, Ub]" /> và
-        gán các tham số ban đầu.
+        Phân bố ngẫu nhiên <MathFormula tex="n" ariaLabel="n" /> đom đóm trên toàn
+        miền tìm kiếm <MathFormula tex="[\mathbf{Lb}, \mathbf{Ub}] \subset \mathbb{R}^d" ariaLabel="[Lb, Ub]" />{' '}
+        và khởi gán bộ tham số <MathFormula tex="\beta_0, \gamma, \alpha_0, \theta" ariaLabel="beta_0, gamma, alpha_0, theta" />.
       </>
     ),
     formulaTex: '\\mathbf{x}_i^0 \\sim \\mathcal{U}(\\mathbf{Lb}, \\mathbf{Ub})',
@@ -43,14 +55,20 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 1,
     code: '02',
-    shortLabel: '02 Tính độ sáng',
+    mapTitle: 'Tính độ sáng từng cá thể',
+    mapSub: (
+      <>
+        Đánh giá <MathFormula tex="f(\mathbf{x}_i)" ariaLabel="f(x_i)" /> trên toàn đàn
+      </>
+    ),
     fnName: 'evaluate_light',
-    title: 'Tính độ sáng từng cá thể',
+    title: 'Đánh giá hàm mục tiêu & cường độ sáng',
     desc: (
       <>
-        Đánh giá <MathFormula tex="f(\mathbf{x}_i)" ariaLabel="f(x_i)" /> tại
-        mỗi vị trí; với bài toán tìm cực tiểu,{' '}
-        <MathFormula tex="f" ariaLabel="f" /> càng nhỏ thì đom đóm càng sáng.
+        Tính giá trị <MathFormula tex="f(\mathbf{x}_i)" ariaLabel="f(x_i)" /> tại vị trí
+        của từng đom đóm. Trong bài toán cực tiểu hóa,{' '}
+        <MathFormula tex="f(\mathbf{x}_i)" ariaLabel="f(x_i)" /> càng nhỏ thì cá thể
+        đó phát sáng càng mạnh.
       </>
     ),
     formulaTex:
@@ -60,19 +78,25 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 2,
     code: '03',
-    shortLabel: '03 So sánh cặp',
+    mapTitle: 'So sánh mọi cặp đom đóm (i, j)',
+    mapSub: (
+      <>
+        Duyệt 2 vòng lặp lồng nhau <MathFormula tex="\mathcal{O}(n^2)" ariaLabel="O(n^2)" />
+      </>
+    ),
     fnName: 'compare_pairs',
     title: (
       <>
-        So sánh từng cặp <MathFormula tex="(i, j)" ariaLabel="(i, j)" />
+        Đối chiếu độ sáng từng cặp <MathFormula tex="(i, j)" ariaLabel="(i, j)" />
       </>
     ),
     desc: (
       <>
-        Duyệt 2 vòng lặp <MathFormula tex="\mathcal{O}(n^2)" ariaLabel="O(n^2)" />;
-        nếu <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)" ariaLabel="f(x_j) < f(x_i)" />{' '}
-        thì tính khoảng cách <MathFormula tex="r_{ij}" ariaLabel="r_ij" /> và lực
-        hút <MathFormula tex="\beta" ariaLabel="beta" />.
+        Với mỗi cặp <MathFormula tex="(i, j)" ariaLabel="(i, j)" />, nếu đom đóm{' '}
+        <MathFormula tex="j" ariaLabel="j" /> sáng hơn (
+        <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)" ariaLabel="f(x_j) < f(x_i)" />
+        ) thì tính khoảng cách Euclid <MathFormula tex="r_{ij}" ariaLabel="r_ij" /> và
+        lực hấp dẫn <MathFormula tex="\beta(r_{ij})" ariaLabel="beta(r_ij)" />.
       </>
     ),
     formulaTex: 'r_{ij} = \\|\\mathbf{x}_i - \\mathbf{x}_j\\|_2',
@@ -82,16 +106,20 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 3,
     code: '04',
-    shortLabel: '04 Di chuyển & kẹp biên',
+    mapTitle: 'Di chuyển về con sáng hơn & kẹp biên',
+    mapSub: (
+      <>
+        Chỉ thực hiện khi <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)" ariaLabel="f(x_j) < f(x_i)" />
+      </>
+    ),
     fnName: 'move_and_clamp',
-    title: 'Di chuyển & kẹp biên',
+    title: 'Dịch chuyển kết hợp nhiễu & giữ trong biên',
     desc: (
       <>
-        Kéo <MathFormula tex="\mathbf{x}_i" ariaLabel="x_i" /> về phía{' '}
-        <MathFormula tex="\mathbf{x}_j" ariaLabel="x_j" /> cộng nhiễu ngẫu
-        nhiên, giữ trong{' '}
-        <MathFormula tex="[\mathbf{Lb}, \mathbf{Ub}]" ariaLabel="[Lb, Ub]" /> và
-        cập nhật ngay độ sáng mới.
+        Kéo <MathFormula tex="\mathbf{x}_i" ariaLabel="x_i" /> bay về phía{' '}
+        <MathFormula tex="\mathbf{x}_j" ariaLabel="x_j" /> cộng bước nhiễu ngẫu nhiên,
+        kẹp tọa độ trong <MathFormula tex="[\mathbf{Lb}, \mathbf{Ub}]" ariaLabel="[Lb, Ub]" />{' '}
+        rồi cập nhật lại ngay độ sáng mới.
       </>
     ),
     formulaTex:
@@ -101,18 +129,23 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 4,
     code: '05',
-    shortLabel: '05 Giảm bước nhảy',
+    mapTitle: 'Giảm biên độ nhiễu & xếp hạng x*',
+    mapSub: (
+      <>
+        Làm nguội <MathFormula tex="\alpha_{t+1} = \theta\alpha_t" ariaLabel="alpha_{t+1} = theta alpha_t" /> cuối mỗi thế hệ
+      </>
+    ),
     fnName: 'update_alpha',
     title: (
       <>
-        Giảm bước nhảy <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />
+        Hạ dần bước nhảy <MathFormula tex="\alpha_t" ariaLabel="alpha_t" /> để hội tụ sâu
       </>
     ),
     desc: (
       <>
-        Cuối mỗi thế hệ, nhân <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />{' '}
-        với <MathFormula tex="\theta" ariaLabel="theta" /> (thường lấy{' '}
-        <MathFormula tex="0.97" ariaLabel="0.97" />) rồi xếp hạng tìm{' '}
+        Kết thúc thế hệ <MathFormula tex="t" ariaLabel="t" />, nhân biên độ nhiễu với{' '}
+        <MathFormula tex="\theta \approx 0.97" ariaLabel="theta ~ 0.97" /> để thu hẹp
+        dao động quanh đáy hố và lưu lại nghiệm tốt nhất{' '}
         <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />.
       </>
     ),
@@ -201,130 +234,165 @@ const PSEUDOCODE_LINES: readonly PseudocodeLine[] = [
   },
 ];
 
-function PhaseMiniDiagram({ idx, active }: { idx: number; active: boolean }) {
-  const strokeMain = active ? '#EFEFE8' : '#141513';
-  const strokeSub = active ? 'rgba(239,239,232,0.42)' : 'rgba(20,21,19,0.55)';
-  const accentFill = active ? '#C5E84D' : '#3A4620';
-  const accentSoft = active ? '#B6C96E' : '#4A572A';
+function SpotlightIllustration({ idx, active }: { idx: number; active: boolean }) {
+  const strokeSub = 'rgba(239, 239, 232, 0.28)';
+  const strokeMain = '#EFEFE8';
+  const lime = '#C5E84D';
+  const sage = '#B6C96E';
 
   if (idx === 0) {
     return (
-      <svg viewBox="0 0 240 72" className="phase-card__diagram" aria-hidden="true" fill="none">
+      <svg viewBox="0 0 520 124" className="spotlight-card__svg" aria-hidden="true" fill="none">
         <rect
-          x="18"
-          y="8"
-          width="204"
-          height="56"
-          rx="6"
+          x="24"
+          y="14"
+          width="472"
+          height="96"
+          rx="8"
           stroke={strokeSub}
-          strokeWidth="1.8"
-          strokeDasharray="4 3"
+          strokeWidth="1.6"
+          strokeDasharray="6 4"
         />
+        <text x="38" y="34" fill={sage} fontSize="11" fontFamily="var(--font-mono)">
+          Lb
+        </text>
+        <text x="466" y="100" fill={sage} fontSize="11" fontFamily="var(--font-mono)">
+          Ub
+        </text>
         {[
-          [48, 26],
-          [86, 48],
-          [124, 22],
-          [162, 44],
-          [194, 28],
+          [94, 48],
+          [168, 84],
+          [258, 38],
+          [342, 78],
+          [416, 46],
+          [212, 62],
+          [378, 36],
         ].map(([cx, cy], k) => (
           <g key={k}>
             {active && k === 2 ? (
               <circle
                 cx={cx}
                 cy={cy}
-                r="11"
-                stroke={accentFill}
-                strokeOpacity="0.45"
-                strokeWidth="1.4"
+                r="16"
+                stroke={lime}
+                strokeOpacity="0.5"
+                strokeWidth="1.6"
                 className="phase-svg-halo"
               />
             ) : null}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={k === 2 ? 6 : 4.2}
-              fill={k === 2 ? accentFill : strokeMain}
-            />
+            <circle cx={cx} cy={cy} r={k === 2 ? 7.5 : 5} fill={k === 2 ? lime : strokeMain} />
           </g>
         ))}
       </svg>
     );
   }
+
   if (idx === 1) {
     return (
-      <svg viewBox="0 0 240 72" className="phase-card__diagram" aria-hidden="true" fill="none">
-        {[16, 28, 42, 54].map((r, k) => (
+      <svg viewBox="0 0 520 124" className="spotlight-card__svg" aria-hidden="true" fill="none">
+        {[24, 46, 72, 98].map((r, k) => (
           <ellipse
             key={r}
-            cx="120"
-            cy="36"
-            rx={r * 1.65}
-            ry={r * 0.54}
-            stroke={k === 0 ? accentFill : strokeSub}
-            strokeWidth={k === 0 ? 2.1 : 1.5}
+            cx="260"
+            cy="62"
+            rx={r * 2.15}
+            ry={r * 0.52}
+            stroke={k === 0 ? lime : strokeSub}
+            strokeWidth={k === 0 ? 2.2 : 1.4}
             className={active ? 'phase-svg-iso-ring' : undefined}
             style={{ animationDelay: `${k * 160}ms` }}
           />
         ))}
-        <circle cx="120" cy="36" r="5.5" fill={accentFill} />
+        <circle cx="260" cy="62" r="8" fill={lime} />
+        <circle cx="146" cy="78" r="4.8" fill={strokeMain} fillOpacity="0.65" />
+        <circle cx="382" cy="46" r="4.8" fill={strokeMain} fillOpacity="0.65" />
+        <text x="276" y="58" fill={lime} fontSize="11.5" fontFamily="var(--font-mono)">
+          f(x) nhỏ nhất → Sáng nhất
+        </text>
       </svg>
     );
   }
+
   if (idx === 2) {
     return (
-      <svg viewBox="0 0 240 72" className="phase-card__diagram" aria-hidden="true" fill="none">
+      <svg viewBox="0 0 520 124" className="spotlight-card__svg" aria-hidden="true" fill="none">
         <circle
-          cx="172"
-          cy="36"
-          r="21"
-          stroke={strokeSub}
-          strokeWidth="1.7"
-          strokeDasharray="4 3"
+          cx="376"
+          cy="58"
+          r="38"
+          stroke={sage}
+          strokeOpacity="0.55"
+          strokeWidth="1.6"
+          strokeDasharray="5 4"
         />
         <path
-          d="M54 52 Q112 22 162 36"
-          stroke={accentFill}
-          strokeWidth="2.2"
+          d="M124 86 Q246 26 364 58"
+          stroke={lime}
+          strokeWidth="2.6"
           className={active ? 'phase-svg-arc-draw' : undefined}
         />
-        <circle cx="54" cy="52" r="4.6" fill={accentSoft} />
-        <circle cx="172" cy="36" r="6.6" fill={accentFill} />
+        <circle cx="124" cy="86" r="6" fill={strokeMain} />
+        <circle cx="376" cy="58" r="8.5" fill={lime} />
+        <text x="108" y="108" fill={strokeMain} fontSize="11" fontFamily="var(--font-mono)">
+          x_i (mờ hơn)
+        </text>
+        <text x="344" y="112" fill={lime} fontSize="11" fontFamily="var(--font-mono)">
+          x_j (sáng hơn)
+        </text>
+        <text x="218" y="42" fill={sage} fontSize="11" fontFamily="var(--font-mono)">
+          r_ij , β(r_ij)
+        </text>
       </svg>
     );
   }
+
   if (idx === 3) {
     return (
-      <svg viewBox="0 0 240 72" className="phase-card__diagram" aria-hidden="true" fill="none">
-        <line x1="186" y1="8" x2="186" y2="64" stroke={accentSoft} strokeWidth="2" />
+      <svg viewBox="0 0 520 124" className="spotlight-card__svg" aria-hidden="true" fill="none">
+        <line x1="398" y1="12" x2="398" y2="112" stroke={sage} strokeWidth="2.2" />
+        <text x="408" y="30" fill={sage} fontSize="11" fontFamily="var(--font-mono)">
+          Biên Ub
+        </text>
         <path
-          d="M56 52 L212 20"
+          d="M108 92 L456 28"
           stroke={strokeSub}
-          strokeWidth="1.6"
-          strokeDasharray="4 3"
+          strokeWidth="1.8"
+          strokeDasharray="5 4"
         />
-        <path d="M56 52 L186 25" stroke={accentFill} strokeWidth="2.2" />
+        <path d="M108 92 L398 39" stroke={lime} strokeWidth="2.6" />
+        <circle cx="108" cy="92" r="5.5" fill={strokeMain} />
         <circle
-          cx="186"
-          cy="25"
-          r="5.6"
-          fill={accentFill}
+          cx="398"
+          cy="39"
+          r="7.5"
+          fill={lime}
           className={active ? 'phase-svg-clamp-glide' : undefined}
         />
+        <text x="216" y="86" fill={lime} fontSize="11" fontFamily="var(--font-mono)">
+          clip(x_i mới, Lb, Ub)
+        </text>
       </svg>
     );
   }
+
   return (
-    <svg viewBox="0 0 240 72" className="phase-card__diagram" aria-hidden="true" fill="none">
-      <line x1="24" y1="60" x2="216" y2="60" stroke={strokeSub} strokeWidth="1.8" />
-      <path d="M24 14 Q92 52 216 58" stroke={accentFill} strokeWidth="2.2" />
-      <circle cx="24" cy="14" r="4.2" fill={accentSoft} />
+    <svg viewBox="0 0 520 124" className="spotlight-card__svg" aria-hidden="true" fill="none">
+      <line x1="48" y1="98" x2="472" y2="98" stroke={strokeSub} strokeWidth="1.6" />
+      <path d="M56 24 Q196 86 464 94" stroke={lime} strokeWidth="2.6" />
+      <circle cx="56" cy="24" r="5.5" fill={sage} />
       <circle
-        cx="216"
-        cy="58"
-        r="5.6"
-        fill={accentFill}
+        cx="464"
+        cy="94"
+        r="7.5"
+        fill={lime}
         className={active ? 'phase-svg-cool-pulse' : undefined}
       />
+      <text x="68" y="26" fill={sage} fontSize="11" fontFamily="var(--font-mono)">
+        α₀ (đầu quá trình)
+      </text>
+      <text x="336" y="82" fill={lime} fontSize="11" fontFamily="var(--font-mono)">
+        α_t = α₀·0.97^t → 0
+      </text>
     </svg>
   );
 }
@@ -336,55 +404,47 @@ export function FlowchartTrackSection({
   const flowSectionRef = useRef<HTMLElement>(null);
   const pseudoSectionRef = useRef<HTMLElement>(null);
   const runwayRef = useRef<HTMLDivElement>(null);
-  const formulaMathRef = useRef<HTMLDivElement>(null);
-  const segmentRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const deckStageRef = useRef<HTMLDivElement>(null);
+  const spineFillRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<Array<HTMLElement | null>>([]);
   const prevPhaseRef = useRef<number>(0);
-  const scrollDirRef = useRef<1 | -1>(1);
+  const lastAnimatedPhaseRef = useRef<number>(0);
 
   const [activePhase, setActivePhase] = useState<number>(0);
   const [selectedPseudoLine, setSelectedPseudoLine] = useState<string | null>(null);
 
-  useSectionReveal(flowSectionRef, reducedMotion);
-  useSectionReveal(pseudoSectionRef, reducedMotion);
-
-  // Pure native CSS `position: sticky` scroll tracker for `#so-do` ONLY
+  // Scroll-threshold step tracker + smooth vertical spine fill (`#so-do`)
   useEffect(() => {
     if (reducedMotion) {
-      segmentRefs.current.forEach((seg, k) => {
-        if (seg) seg.style.transform = `scaleX(${k <= activePhase ? 1 : 0})`;
-      });
+      if (spineFillRef.current) {
+        spineFillRef.current.style.transform = `scaleY(${((activePhase + 1) / PHASES.length).toFixed(3)})`;
+      }
       return;
     }
 
     const syncScroll = () => {
       const runway = runwayRef.current;
-      if (!runway) return;
-
-      if (window.innerWidth < 1024) {
-        segmentRefs.current.forEach((seg, k) => {
-          if (seg) seg.style.transform = `scaleX(${k <= prevPhaseRef.current ? 1 : 0})`;
-        });
-        return;
-      }
+      if (!runway || window.innerWidth < 1024) return;
 
       const rect = runway.getBoundingClientRect();
       const scrollable = Math.max(1, rect.height - window.innerHeight);
       const rawProgress = Math.min(1, Math.max(0, -rect.top / scrollable));
 
-      for (let k = 0; k < PHASES.length; k++) {
-        const segEl = segmentRefs.current[k];
-        if (!segEl) continue;
-        const local = Math.min(1, Math.max(0, rawProgress * PHASES.length - k));
-        segEl.style.transform = `scaleX(${local.toFixed(4)})`;
+      if (spineFillRef.current) {
+        spineFillRef.current.style.transform = `scaleY(${Math.max(0.08, rawProgress).toFixed(4)})`;
       }
 
-      const nextIdx = Math.min(
-        PHASES.length - 1,
-        Math.max(0, Math.floor(rawProgress * PHASES.length))
-      );
+      // 5 discrete zones [0..1) with hysteresis so cards NEVER freeze mid-way ("lưng chừng")
+      const band = rawProgress * PHASES.length;
+      const cur = prevPhaseRef.current;
+      let nextIdx = cur;
+      if (band >= cur + 1.06 && cur < PHASES.length - 1) {
+        nextIdx = Math.min(PHASES.length - 1, Math.floor(band));
+      } else if (band <= cur - 0.06 && cur > 0) {
+        nextIdx = Math.max(0, Math.floor(band));
+      }
 
-      if (nextIdx !== prevPhaseRef.current) {
-        scrollDirRef.current = nextIdx > prevPhaseRef.current ? 1 : -1;
+      if (nextIdx !== cur) {
         prevPhaseRef.current = nextIdx;
         setActivePhase(nextIdx);
       }
@@ -399,24 +459,159 @@ export function FlowchartTrackSection({
     };
   }, [reducedMotion, activePhase]);
 
-  // Directional kinetic formula transition when activePhase jumps
-  useEffect(() => {
-    if (reducedMotion) return;
-    const mathEl = formulaMathRef.current;
-    if (!mathEl) return;
+  // Discrete GSAP 3D Deck Choreography: Always completes to 100% crisp, solid resting pose!
+  useGSAP(
+    () => {
+      const cards = cardRefs.current.filter((c): c is HTMLElement => c !== null);
+      if (cards.length === 0) return;
 
-    const dir = scrollDirRef.current;
-    gsap.killTweensOf(mathEl);
-    gsap.fromTo(
-      mathEl,
-      { y: dir * 13, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, duration: 0.36, ease: 'power3.out', overwrite: 'auto' }
-    );
-  }, [activePhase, reducedMotion]);
+      if (reducedMotion || window.innerWidth < 1024) {
+        cards.forEach((el) => {
+          gsap.set(el, {
+            clearProps: 'transform,opacity,visibility,zIndex,pointerEvents',
+          });
+        });
+        lastAnimatedPhaseRef.current = activePhase;
+        return;
+      }
+
+      const prevIdx = lastAnimatedPhaseRef.current;
+      const isInitial = prevIdx === activePhase;
+      const goingForward = activePhase > prevIdx;
+
+      cards.forEach((el, k) => {
+        if (k === activePhase) {
+          gsap.set(el, { zIndex: 30, pointerEvents: 'auto' });
+          if (isInitial) {
+            gsap.set(el, { autoAlpha: 1, y: 0, scale: 1 });
+          } else if (goingForward) {
+            gsap.fromTo(
+              el,
+              { autoAlpha: 0, y: 38, scale: 0.965 },
+              {
+                autoAlpha: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.48,
+                ease: 'expo.out',
+                overwrite: 'auto',
+              }
+            );
+          } else {
+            gsap.to(el, {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.46,
+              ease: 'expo.out',
+              overwrite: 'auto',
+            });
+          }
+        } else if (k < activePhase) {
+          const depth = activePhase - k;
+          if (depth <= 2) {
+            gsap.to(el, {
+              autoAlpha: 1,
+              y: -depth * 14,
+              scale: 1 - depth * 0.035,
+              zIndex: 30 - depth,
+              pointerEvents: 'none',
+              duration: isInitial ? 0 : 0.46,
+              ease: 'expo.out',
+              overwrite: 'auto',
+            });
+          } else {
+            gsap.to(el, {
+              autoAlpha: 0,
+              y: -34,
+              scale: 0.9,
+              zIndex: 20 - depth,
+              pointerEvents: 'none',
+              duration: isInitial ? 0 : 0.3,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            });
+          }
+        } else {
+          if (!isInitial && k === prevIdx && !goingForward) {
+            gsap.to(el, {
+              autoAlpha: 0,
+              y: 36,
+              scale: 0.965,
+              zIndex: 34,
+              pointerEvents: 'none',
+              duration: 0.36,
+              ease: 'power3.out',
+              overwrite: 'auto',
+            });
+          } else {
+            gsap.set(el, {
+              autoAlpha: 0,
+              y: 38,
+              scale: 0.965,
+              zIndex: 10,
+              pointerEvents: 'none',
+            });
+          }
+        }
+      });
+
+      lastAnimatedPhaseRef.current = activePhase;
+    },
+    { scope: deckStageRef, dependencies: [activePhase, reducedMotion] }
+  );
+
+  // GSAP ScrollTrigger Staggered Entrance for Standalone Pseudocode Section (`#ma-gia`)
+  useGSAP(
+    () => {
+      const sec = pseudoSectionRef.current;
+      if (!sec || reducedMotion) return;
+
+      const lines = sec.querySelectorAll<HTMLElement>('.flowchart-pseudocode-line');
+      if (lines.length > 0) {
+        gsap.fromTo(
+          lines,
+          { x: -16, autoAlpha: 0 },
+          {
+            x: 0,
+            autoAlpha: 1,
+            duration: 0.55,
+            stagger: 0.035,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: sec,
+              start: 'top 78%',
+              once: true,
+            },
+          }
+        );
+      }
+
+      const specItems = sec.querySelectorAll<HTMLElement>('.flowchart-spec-card__item');
+      if (specItems.length > 0) {
+        gsap.fromTo(
+          specItems,
+          { y: 22, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.68,
+            stagger: 0.1,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: sec,
+              start: 'top 76%',
+              once: true,
+            },
+          }
+        );
+      }
+    },
+    { scope: pseudoSectionRef, dependencies: [reducedMotion] }
+  );
 
   const handleSelectPhase = useCallback(
     (idx: number) => {
-      scrollDirRef.current = idx >= prevPhaseRef.current ? 1 : -1;
       prevPhaseRef.current = idx;
       setActivePhase(idx);
 
@@ -426,36 +621,27 @@ export function FlowchartTrackSection({
         const scrollable = Math.max(0, runway.offsetHeight - window.innerHeight);
         const ratio =
           idx === 0
-            ? 0.03
+            ? 0.02
             : idx === PHASES.length - 1
-              ? 0.92
-              : (idx + 0.45) / PHASES.length;
+              ? 0.96
+              : (idx + 0.5) / PHASES.length;
         const targetY = runwayTop + ratio * scrollable;
         window.dispatchEvent(
           new CustomEvent('app:lenis-scroll', {
-            detail: { top: targetY, duration: 0.52 },
+            detail: { top: targetY, duration: 0.62 },
           })
         );
       } else {
-        segmentRefs.current.forEach((seg, k) => {
-          if (seg) seg.style.transform = `scaleX(${k <= idx ? 1 : 0})`;
-        });
+        const cardEl = cardRefs.current[idx];
+        cardEl?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
       }
     },
     [reducedMotion]
   );
 
-  const currentFormula = PHASES[activePhase] ?? PHASES[0];
-
-  const getNodeStateClass = (idx: number): string => {
-    if (activePhase === idx) return 'flowchart-node-btn--active';
-    if (activePhase > idx) return 'flowchart-node-btn--done';
-    return '';
-  };
-
   return (
     <>
-      {/* 2A. Sticky 5-Step Scrollytelling Flowchart Section (`#so-do`) */}
+      {/* 2A. Split Sticky 5-Step Scrollytelling Section (`#so-do`) */}
       <section
         id="so-do"
         ref={flowSectionRef}
@@ -474,20 +660,28 @@ export function FlowchartTrackSection({
           >
             <div className="section-container flowchart-stack">
               <div className="flowchart-header">
-                <div>
+                <div className="flowchart-header__titles">
+                  <span className="flowchart-eyebrow">
+                    CẤU TRÚC VÒNG LẶP · CUỘN ĐỂ ĐI QUA TỪNG BƯỚC
+                  </span>
                   <h2 id="flowchart-heading" tabIndex={-1} className="flowchart-title">
-                    <span className="reveal-mask">
-                      <span className="reveal-line">
-                        Quy trình{' '}
-                        <span className="editorial-serif editorial-serif--olive">
-                          5 bước lặp chính
-                        </span>
+                    <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
+                      Quy trình{' '}
+                      <span className="editorial-serif editorial-serif--olive">
+                        5 bước lặp chính
                       </span>
-                    </span>
+                    </BlockReveal>
                   </h2>
                 </div>
 
                 <div className="flowchart-header__actions">
+                  <div className="flowchart-live-counter" aria-live="polite">
+                    <span className="flowchart-live-counter__cur">
+                      0{activePhase + 1}
+                    </span>
+                    <span className="flowchart-live-counter__tot">/ 05</span>
+                  </div>
+
                   <button
                     type="button"
                     className="qa-text-link"
@@ -498,303 +692,216 @@ export function FlowchartTrackSection({
                 </div>
               </div>
 
-              {/* Circuit Diagram: Step 01 outside loop -> Loop Frame [02 -> 03 -> Diamond f(x_j)<f(x_i)? -> 04/skip -> 05] -> Exit x* */}
-              <div
-                className="flowchart-circuit"
-                role="group"
-                aria-label="Sơ đồ mạch vòng lặp 5 bước của Thuật toán Đom đóm"
-              >
-                <div className="flowchart-circuit__entry">
+              {/* Split 2-Column Stage: Left Vertical Flowchart Map | Right Scrubbed 3D Card Stack */}
+              <div className="flowchart-split-stage">
+                {/* LEFT: Crystal-Clear Vertical Flowchart Map + Continuous Scrubbed Spine */}
+                <div
+                  className="flowchart-vmap"
+                  role="group"
+                  aria-label="Sơ đồ khối dọc 5 bước của Thuật toán Đom đóm"
+                >
+                  <div className="flowchart-vmap__rail" aria-hidden="true">
+                    <div ref={spineFillRef} className="flowchart-vmap__rail-fill" />
+                  </div>
+
+                  {/* Step 01: Outside Loop */}
                   <button
                     type="button"
                     aria-pressed={activePhase === 0}
-                    className={`flowchart-node-btn ${getNodeStateClass(0)}`}
+                    className={`flowchart-vstep ${
+                      activePhase === 0
+                        ? 'flowchart-vstep--active'
+                        : activePhase > 0
+                          ? 'flowchart-vstep--done'
+                          : ''
+                    }`}
                     onClick={() => handleSelectPhase(0)}
                   >
-                    <span className="flowchart-node-btn__dot" aria-hidden="true" />
-                    01 Khởi tạo
+                    <span className="flowchart-vstep__num">
+                      {activePhase > 0 ? '✓' : '01'}
+                    </span>
+                    <div className="flowchart-vstep__copy">
+                      <strong>{PHASES[0].mapTitle}</strong>
+                      <span>{PHASES[0].mapSub}</span>
+                    </div>
+                    <span className="flowchart-vstep__tag">Ngoài vòng lặp</span>
                   </button>
-                  <span
-                    className={`flowchart-circuit__arrow ${
-                      activePhase >= 1 ? 'flowchart-circuit__arrow--passed' : ''
-                    }`}
-                    aria-hidden="true"
-                  >
-                    →
-                  </span>
-                </div>
 
-                <div className="flowchart-loop-frame">
-                  <span className="flowchart-loop-frame__tag">
-                    Lặp <MathFormula tex="t = 1 \to t_{\max}" ariaLabel="t = 1 -> t_max" />
-                  </span>
-
-                  <div className="flowchart-loop-frame__row">
-                    <button
-                      type="button"
-                      aria-pressed={activePhase === 1}
-                      className={`flowchart-node-btn ${getNodeStateClass(1)}`}
-                      onClick={() => handleSelectPhase(1)}
-                    >
-                      <span className="flowchart-node-btn__dot" aria-hidden="true" />
-                      02 Tính độ sáng
-                    </button>
-
-                    <span
-                      className={`flowchart-circuit__arrow ${
-                        activePhase >= 2 ? 'flowchart-circuit__arrow--passed' : ''
-                      }`}
-                      aria-hidden="true"
-                    >
-                      →
-                    </span>
-
-                    <button
-                      type="button"
-                      aria-pressed={activePhase === 2}
-                      className={`flowchart-node-btn ${getNodeStateClass(2)}`}
-                      onClick={() => handleSelectPhase(2)}
-                    >
-                      <span className="flowchart-node-btn__dot" aria-hidden="true" />
-                      03 So sánh cặp · <MathFormula tex="\mathcal{O}(n^2)" ariaLabel="O(n^2)" />
-                    </button>
-
-                    <span
-                      className={`flowchart-circuit__arrow ${
-                        activePhase >= 2 ? 'flowchart-circuit__arrow--passed' : ''
-                      }`}
-                      aria-hidden="true"
-                    >
-                      →
-                    </span>
-
-                    {/* Branch Decision Node + True/False Paths */}
-                    <div className="flowchart-branch-cluster">
-                      <button
-                        type="button"
-                        className={`flowchart-diamond-btn ${
-                          activePhase === 2 || activePhase === 3
-                            ? 'flowchart-diamond-btn--active'
-                            : activePhase > 3
-                              ? 'flowchart-diamond-btn--done'
-                              : ''
-                        }`}
-                        onClick={() => handleSelectPhase(3)}
-                        title="Điều kiện rẽ nhánh: đom đóm j có sáng hơn i không?"
-                      >
-                        <span className="flowchart-diamond-btn__shape" aria-hidden="true">
-                          ◇
-                        </span>
-                        <MathFormula
-                          tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)?"
-                          ariaLabel="f(x_j) < f(x_i)?"
-                        />
-                      </button>
-
-                      <div className="flowchart-branch-paths">
-                        <div className="flowchart-branch-true">
-                          <span className="flowchart-branch-label flowchart-branch-label--true">
-                            Đúng →
-                          </span>
-                          <button
-                            type="button"
-                            aria-pressed={activePhase === 3}
-                            className={`flowchart-node-btn ${getNodeStateClass(3)}`}
-                            onClick={() => handleSelectPhase(3)}
-                          >
-                            <span className="flowchart-node-btn__dot" aria-hidden="true" />
-                            04 Di chuyển &amp; kẹp biên
-                          </button>
-                          <span
-                            className={`flowchart-circuit__arrow ${
-                              activePhase >= 4 ? 'flowchart-circuit__arrow--passed' : ''
-                            }`}
-                            aria-hidden="true"
-                          >
-                            →
-                          </span>
-                        </div>
-
-                        <div
-                          className={`flowchart-branch-false ${
-                            activePhase === 2 ? 'flowchart-branch-false--highlight' : ''
-                          }`}
-                          aria-hidden="true"
-                        >
-                          <span>↳ Sai: bỏ qua bước 04 ─────────↗</span>
-                        </div>
-                      </div>
+                  {/* Loop Box: Steps 02 -> 05 + Condition Diamond + Return Rail */}
+                  <div className="flowchart-vloop-box">
+                    <div className="flowchart-vloop-box__header">
+                      <span className="flowchart-vloop-box__badge">
+                        VÒNG LẶP <MathFormula tex="t = 1 \to t_{\max}" ariaLabel="t = 1 -> t_max" />
+                      </span>
+                      <span className="flowchart-vloop-box__return">
+                        ↺ Hết Bước 05 quay lại Bước 02 khi{' '}
+                        <MathFormula tex="t < t_{\max}" ariaLabel="t < t_max" />
+                      </span>
                     </div>
 
-                    <button
-                      type="button"
-                      aria-pressed={activePhase === 4}
-                      className={`flowchart-node-btn ${getNodeStateClass(4)}`}
-                      onClick={() => handleSelectPhase(4)}
-                    >
-                      <span className="flowchart-node-btn__dot" aria-hidden="true" />
-                      05 Giảm bước nhảy <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />
-                    </button>
-                  </div>
-
-                  {/* Explicit Return Arrow from Step 05 back to Step 02 (NEVER back to Step 01!) */}
-                  <div
-                    className={`flowchart-return-rail ${
-                      activePhase === 4 ? 'flowchart-return-rail--active' : ''
-                    }`}
-                    aria-hidden="true"
-                  >
-                    <svg
-                      viewBox="0 0 780 26"
-                      preserveAspectRatio="none"
-                      className="flowchart-return-rail__svg"
-                    >
-                      <path
-                        d="M 748 3 V 19 H 42 V 5"
-                        fill="none"
-                        stroke="rgba(36, 40, 30, 0.28)"
-                        strokeWidth="1.6"
-                      />
-                      {activePhase === 4 ? (
-                        <path
-                          d="M 748 3 V 19 H 42 V 5"
-                          fill="none"
-                          stroke="#24281E"
-                          strokeWidth="2.4"
-                          strokeDasharray="9 5"
-                          className="flowchart-return-rail__flow"
-                        />
-                      ) : null}
-                      <path
-                        d="M 37 10 L 42 4 L 47 10"
-                        fill="none"
-                        stroke="#24281E"
-                        strokeWidth={activePhase === 4 ? '2.4' : '1.6'}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className="flowchart-return-rail__caption">
-                      Quay về Bước 02 khi{' '}
-                      <MathFormula tex="t < t_{\max}" ariaLabel="t < t_max" /> (không
-                      khởi tạo lại Bước 01)
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flowchart-circuit__exit">
-                  <span
-                    className={`flowchart-circuit__arrow ${
-                      activePhase === 4 ? 'flowchart-circuit__arrow--passed' : ''
-                    }`}
-                    aria-hidden="true"
-                  >
-                    →
-                  </span>
-                  <span
-                    className={`flowchart-exit-pill ${
-                      activePhase === 4 ? 'flowchart-exit-pill--ready' : ''
-                    }`}
-                  >
-                    Hết vòng → <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />
-                  </span>
-                </div>
-              </div>
-
-              {/* Clean Formula Spotlight Bar + 5-Segment Scrubbed Progress Rail */}
-              <div className="flowchart-formula-spotlight">
-                <div className="flowchart-formula-spotlight__meta">
-                  <span className="flowchart-formula-spotlight__badge">
-                    BƯỚC {currentFormula.code} / 05
-                  </span>
-                  <code className="flowchart-formula-spotlight__fn">
-                    {currentFormula.fnName}()
-                  </code>
-                </div>
-
-                <div
-                  ref={formulaMathRef}
-                  className={`flowchart-formula-spotlight__math ${
-                    currentFormula.formulaSecondTex
-                      ? 'flowchart-formula-spotlight__math--pair'
-                      : 'flowchart-formula-spotlight__math--single'
-                  }`}
-                >
-                  <MathFormula
-                    tex={currentFormula.formulaTex}
-                    ariaLabel={currentFormula.formulaAria}
-                  />
-                  {currentFormula.formulaSecondTex ? (
-                    <MathFormula tex={currentFormula.formulaSecondTex} />
-                  ) : null}
-                </div>
-
-                <span className="flowchart-formula-spotlight__cue" aria-hidden="true">
-                  {activePhase < PHASES.length - 1
-                    ? `Cuộn tiếp → Bước 0${activePhase + 2}`
-                    : 'Cuộn tiếp → Mã giả ↓'}
-                </span>
-
-                <div className="flowchart-step-segments" aria-hidden="true">
-                  {PHASES.map((p, k) => (
-                    <span key={p.code} className="flowchart-step-segments__track">
-                      <span
-                        ref={(el) => {
-                          segmentRefs.current[k] = el;
-                        }}
-                        className={`flowchart-step-segments__fill ${
-                          k === activePhase
-                            ? 'flowchart-step-segments__fill--active'
-                            : ''
-                        }`}
-                        style={{
-                          transform: `scaleX(${k < activePhase ? 1 : k === activePhase ? 0.35 : 0})`,
-                        }}
-                      />
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* 5-Column Full-Width Phase Grid (directional elevation + live animated mini-diagram!) */}
-              <div className="flowchart-five-grid">
-                {PHASES.map((p, idx) => {
-                  const isActive = activePhase === idx;
-                  const isDone = activePhase > idx;
-                  return (
-                    <article
-                      key={p.code}
-                      className={`phase-card ${
-                        isActive
-                          ? 'phase-card--active'
-                          : isDone
-                            ? 'phase-card--done'
-                            : 'phase-card--upcoming'
-                      }`}
-                      onClick={() => handleSelectPhase(idx)}
-                    >
-                      <div>
-                        <div className="phase-card__top">
-                          <span className="phase-card__badge">
-                            {isDone ? `✓ ${p.code}` : p.code}
+                    {[1, 2].map((stepIdx) => {
+                      const p = PHASES[stepIdx];
+                      const isAct = activePhase === stepIdx;
+                      const isDone = activePhase > stepIdx;
+                      return (
+                        <button
+                          key={p.code}
+                          type="button"
+                          aria-pressed={isAct}
+                          className={`flowchart-vstep ${
+                            isAct
+                              ? 'flowchart-vstep--active'
+                              : isDone
+                                ? 'flowchart-vstep--done'
+                                : ''
+                          }`}
+                          onClick={() => handleSelectPhase(stepIdx)}
+                        >
+                          <span className="flowchart-vstep__num">
+                            {isDone ? '✓' : p.code}
                           </span>
-                          <code className="phase-card__fn">{p.fnName}()</code>
-                        </div>
-                        <h3 className="phase-card__title">{p.title}</h3>
-                        <p className="phase-card__desc">{p.desc}</p>
-                      </div>
+                          <div className="flowchart-vstep__copy">
+                            <strong>{p.mapTitle}</strong>
+                            <span>{p.mapSub}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
 
-                      <PhaseMiniDiagram idx={idx} active={isActive} />
-                    </article>
-                  );
-                })}
+                    {/* Explicit Branch Condition Strip between Step 03 and Step 04 */}
+                    <div
+                      className={`flowchart-vbranch ${
+                        activePhase === 2 || activePhase === 3
+                          ? 'flowchart-vbranch--active'
+                          : ''
+                      }`}
+                    >
+                      <span className="flowchart-vbranch__diamond">
+                        ◇ <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)?" ariaLabel="f(x_j) < f(x_i)?" />
+                      </span>
+                      <span className="flowchart-vbranch__yes">Đúng ↓ vào Bước 04</span>
+                      <span className="flowchart-vbranch__no">Sai ↷ giữ nguyên, qua 05</span>
+                    </div>
+
+                    {[3, 4].map((stepIdx) => {
+                      const p = PHASES[stepIdx];
+                      const isAct = activePhase === stepIdx;
+                      const isDone = activePhase > stepIdx;
+                      return (
+                        <button
+                          key={p.code}
+                          type="button"
+                          aria-pressed={isAct}
+                          className={`flowchart-vstep ${
+                            isAct
+                              ? 'flowchart-vstep--active'
+                              : isDone
+                                ? 'flowchart-vstep--done'
+                                : ''
+                          }`}
+                          onClick={() => handleSelectPhase(stepIdx)}
+                        >
+                          <span className="flowchart-vstep__num">
+                            {isDone ? '✓' : p.code}
+                          </span>
+                          <div className="flowchart-vstep__copy">
+                            <strong>{p.mapTitle}</strong>
+                            <span>{p.mapSub}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Loop Exit */}
+                  <div
+                    className={`flowchart-vexit ${
+                      activePhase === 4 ? 'flowchart-vexit--ready' : ''
+                    }`}
+                  >
+                    <span>↳ Khi đủ</span>
+                    <MathFormula tex="t = t_{\max}" ariaLabel="t = t_max" />
+                    <span>→ Xuất nghiệm tối ưu</span>
+                    <MathFormula tex="\mathbf{x}^*, f(\mathbf{x}^*)" ariaLabel="x*, f(x*)" />
+                  </div>
+                </div>
+
+                {/* RIGHT: Large Discrete GSAP 3D Spotlight Card Stack */}
+                <div className="flowchart-deck-col">
+                  <div
+                    ref={deckStageRef}
+                    className={`flowchart-deck-stage ${
+                      reducedMotion ? 'flowchart-deck-stage--static' : ''
+                    }`}
+                  >
+                    {PHASES.map((p, idx) => {
+                      const isActive = activePhase === idx;
+                      const deckRole = isActive
+                        ? 'active'
+                        : idx < activePhase
+                          ? 'behind'
+                          : 'upcoming';
+                      return (
+                        <article
+                          key={p.code}
+                          ref={(el) => {
+                            cardRefs.current[idx] = el;
+                          }}
+                          data-deck-role={deckRole}
+                          className={`spotlight-step-card ${
+                            isActive ? 'spotlight-step-card--active' : ''
+                          }`}
+                          onClick={() => handleSelectPhase(idx)}
+                        >
+                          <div className="spotlight-step-card__top">
+                            <div className="spotlight-step-card__step-lockup">
+                              <span className="spotlight-step-card__num">{p.code}</span>
+                              <div>
+                                <span className="spotlight-step-card__eyebrow">
+                                  BƯỚC {p.code} / 05
+                                </span>
+                                <code className="spotlight-step-card__fn">{p.fnName}()</code>
+                              </div>
+                            </div>
+
+                            <span className="spotlight-step-card__hint" aria-hidden="true">
+                              {idx < PHASES.length - 1
+                                ? `Cuộn tiếp → Bước 0${idx + 2}`
+                                : 'Cuộn tiếp → Mã giả ↓'}
+                            </span>
+                          </div>
+
+                          <div className="spotlight-step-card__body">
+                            <h3 className="spotlight-step-card__title">{p.title}</h3>
+                            <p className="spotlight-step-card__desc">{p.desc}</p>
+                          </div>
+
+                          <div
+                            className={`spotlight-step-card__formula ${
+                              p.formulaSecondTex
+                                ? 'spotlight-step-card__formula--pair'
+                                : 'spotlight-step-card__formula--single'
+                            }`}
+                          >
+                            <MathFormula tex={p.formulaTex} ariaLabel={p.formulaAria} />
+                            {p.formulaSecondTex ? (
+                              <MathFormula tex={p.formulaSecondTex} />
+                            ) : null}
+                          </div>
+
+                          <SpotlightIllustration idx={idx} active={isActive} />
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2B. Standalone Static Pseudocode & Time Complexity Section (`#ma-gia`) — NO scroll-to-step lock! */}
+      {/* 2B. Standalone Static Pseudocode & Time Complexity Section (`#ma-gia`) */}
       <section
         id="ma-gia"
         ref={pseudoSectionRef}
@@ -806,17 +913,23 @@ export function FlowchartTrackSection({
 
         <div className="section-container flowchart-stack">
           <div className="flowchart-header">
-            <div>
+            <div className="flowchart-header__titles">
+              <span className="flowchart-eyebrow">
+                CẤU TRÚC MÃ NGUỒN · ĐỐI CHIẾU TRỰC TIẾP VỚI PYTHON
+              </span>
               <h2 id="pseudocode-heading" tabIndex={-1} className="flowchart-title">
-                <span className="reveal-mask">
-                  <span className="reveal-line">
-                    Mã giả{' '}
-                    <span className="editorial-serif editorial-serif--olive">
-                      &amp; độ phức tạp tính toán
-                    </span>
+                <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
+                  Mã giả{' '}
+                  <span className="editorial-serif editorial-serif--olive">
+                    &amp; độ phức tạp tính toán
                   </span>
-                </span>
+                </BlockReveal>
               </h2>
+              <LandoSignatureFlourish
+                variant="editorial-signoff"
+                triggerRef={pseudoSectionRef}
+                reducedMotion={reducedMotion}
+              />
             </div>
 
             <div className="flowchart-header__actions">
@@ -830,7 +943,7 @@ export function FlowchartTrackSection({
             </div>
           </div>
 
-          <div className="flowchart-pseudocode-grid reveal-fade">
+          <div className="flowchart-pseudocode-grid">
             <div
               className="flowchart-pseudocode-box"
               role="region"
@@ -878,7 +991,7 @@ export function FlowchartTrackSection({
               aria-label="Thông số đầu vào, đầu ra và độ phức tạp"
             >
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">ĐẦU VÀO</span>
+                <span className="flowchart-spec-card__label">01 · ĐẦU VÀO</span>
                 <p>
                   Hàm mục tiêu <MathFormula tex="f(\mathbf{x})" ariaLabel="f(x)" />, miền{' '}
                   <MathFormula
@@ -895,7 +1008,7 @@ export function FlowchartTrackSection({
               </div>
 
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">ĐẦU RA</span>
+                <span className="flowchart-spec-card__label">02 · ĐẦU RA</span>
                 <p>
                   Vị trí tốt nhất <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" /> và giá
                   trị tối ưu <MathFormula tex="f(\mathbf{x}^*)" ariaLabel="f(x*)" /> sau{' '}
@@ -904,7 +1017,7 @@ export function FlowchartTrackSection({
               </div>
 
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">ĐỘ PHỨC TẠP THỜI GIAN</span>
+                <span className="flowchart-spec-card__label">03 · ĐỘ PHỨC TẠP THỜI GIAN</span>
                 <div className="flowchart-spec-card__complexity">
                   <MathFormula
                     tex="\mathcal{O}(t_{\max} \cdot n^2 \cdot d)"

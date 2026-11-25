@@ -60,12 +60,14 @@ export function BlockReveal({
         transformOrigin: 'left center',
       });
 
+      const triggerEl = wrap.closest('h1, h2, h3') ?? wrap;
+
       const tl = gsap.timeline({
         delay,
         scrollTrigger: immediate
           ? undefined
           : {
-              trigger: wrap,
+              trigger: triggerEl,
               start: 'top 91%',
               once: true,
             },

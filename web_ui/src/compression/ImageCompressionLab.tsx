@@ -255,12 +255,16 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
       <div className="section-container">
         <div className="compression-lab-header">
           <h2 id="compression-lab-heading" className="compression-lab-title">
-            <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
-              Nén ảnh 24-bit bằng{' '}
-              <span className="editorial-serif editorial-serif--sage-gold">
-                Thuật toán Đom đóm
-              </span>
-            </BlockReveal>
+            <span className="block-reveal-lines">
+              <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
+                Nén ảnh 24-bit bằng
+              </BlockReveal>
+              <BlockReveal color="olive-lime" delay={0.18} reducedMotion={reducedMotion}>
+                <span className="editorial-serif editorial-serif--sage-gold">
+                  Thuật toán Đom đóm
+                </span>
+              </BlockReveal>
+            </span>
           </h2>
           <p className="compression-lab-lead">
             Mỗi đom đóm biểu diễn một bộ <MathFormula tex="K" ariaLabel="K" />{' '}

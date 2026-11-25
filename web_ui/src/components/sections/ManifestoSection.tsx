@@ -37,7 +37,7 @@ export function ManifestoSection({ reducedMotion }: ManifestoSectionProps) {
               </BlockReveal>
               <BlockReveal
                 color="olive-lime"
-                delay={0.08}
+                delay={0.18}
                 reducedMotion={reducedMotion}
               >
                 cho bài toán{' '}

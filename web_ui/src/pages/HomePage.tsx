@@ -344,7 +344,7 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
                   </BlockReveal>
                   <BlockReveal
                     color="olive-lime"
-                    delay={0.08}
+                    delay={0.18}
                     reducedMotion={reducedMotion}
                   >
                     và{' '}

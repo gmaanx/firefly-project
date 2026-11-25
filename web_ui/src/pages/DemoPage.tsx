@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react';
 import { ImageCompressionLab } from '../compression/ImageCompressionLab';
 import { FooterSection } from '../components/sections/FooterSection';
 import { LiveSandboxSection } from '../components/sections/LiveSandboxSection';
+import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
 import { MathFormula } from '../components/shared/MathFormula';
 
@@ -57,9 +58,15 @@ export function DemoPage({
                 tabIndex={-1}
                 className="demo-studio-header__title"
               >
-                Mô phỏng thuật toán &amp;{' '}
-                <span className="editorial-serif editorial-serif--sage-gold">
-                  ứng dụng nén ảnh
+                <span className="block-reveal-lines">
+                  <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
+                    Mô phỏng thuật toán &amp;
+                  </BlockReveal>
+                  <BlockReveal color="olive-lime" delay={0.18} reducedMotion={reducedMotion}>
+                    <span className="editorial-serif editorial-serif--sage-gold">
+                      ứng dụng nén ảnh
+                    </span>
+                  </BlockReveal>
                 </span>
               </h1>
             </div>

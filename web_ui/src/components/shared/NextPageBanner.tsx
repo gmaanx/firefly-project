@@ -31,12 +31,16 @@ export function NextPageBanner({
       <div className="section-container next-page-banner__inner">
         <div>
           <h2 className="next-page-banner__title">
-            <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
-              {titlePlain}{' '}
-              <span className="editorial-serif editorial-serif--sage-gold">
-                {titleSerif}
-              </span>
-            </BlockReveal>
+            <span className="block-reveal-lines">
+              <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
+                {titlePlain}
+              </BlockReveal>
+              <BlockReveal color="olive-lime" delay={0.18} reducedMotion={reducedMotion}>
+                <span className="editorial-serif editorial-serif--sage-gold">
+                  {titleSerif}
+                </span>
+              </BlockReveal>
+            </span>
           </h2>
         </div>
 

@@ -4,7 +4,9 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { ExperimentsGridSection } from '../components/sections/ExperimentsGridSection';
 import { FooterSection } from '../components/sections/FooterSection';
+import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
+import { LandoSignatureFlourish } from '../components/shared/LandoSignatureFlourish';
 import { MathFormula } from '../components/shared/MathFormula';
 import { NextPageBanner } from '../components/shared/NextPageBanner';
 
@@ -24,17 +26,35 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
       if (!hero || reducedMotion) return;
 
       const lines = hero.querySelectorAll<HTMLElement>('.cal-enter-line');
-      gsap.fromTo(
-        lines,
-        { y: 20, autoAlpha: 0 },
-        {
-          y: 0,
-          autoAlpha: 1,
-          duration: 0.85,
-          ease: 'power3.out',
-          stagger: 0.08,
-        }
-      );
+      if (lines.length > 0) {
+        gsap.fromTo(
+          lines,
+          { y: 22, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.82,
+            ease: 'power3.out',
+            stagger: 0.08,
+          }
+        );
+      }
+
+      const kpiCells = hero.querySelectorAll<HTMLElement>('.exp-kpi-cell');
+      if (kpiCells.length > 0) {
+        gsap.fromTo(
+          kpiCells,
+          { y: 24, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.78,
+            ease: 'power3.out',
+            stagger: 0.07,
+            delay: 0.16,
+          }
+        );
+      }
 
       const kpiEls = hero.querySelectorAll<HTMLElement>('[data-kpi-count]');
       kpiEls.forEach((el) => {
@@ -43,13 +63,32 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
         const proxy = { v: 0 };
         gsap.to(proxy, {
           v: target,
-          duration: 0.95,
+          duration: 1.05,
           ease: 'power3.out',
           onUpdate: () => {
             el.textContent = `${Math.round(proxy.v)}${suffix}`;
           },
         });
       });
+
+      // Lenis-scrubbed multi-depth glide as user scrolls out of Hero into Experiment Cards
+      const mm = gsap.matchMedia();
+      mm.add('(min-width: 1024px)', () => {
+        kpiCells.forEach((cell, idx) => {
+          gsap.to(cell, {
+            y: -10 - (idx % 2) * 12,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: hero,
+              start: 'top top',
+              end: 'bottom top',
+              scrub: 0.65,
+            },
+          });
+        });
+      });
+
+      return () => mm.revert();
     },
     { scope: heroRef, dependencies: [reducedMotion] }
   );
@@ -68,16 +107,31 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
         <div className="section-container exp-olive-hero__inner">
           <div className="exp-olive-hero__top">
             <div className="exp-olive-hero__title-stack">
-              <h1
-                id="exp-page-heading"
-                tabIndex={-1}
-                className="exp-olive-hero__title cal-enter-line"
-              >
-                Kết quả{' '}
-                <span className="editorial-serif editorial-serif--sage-gold">
-                  thực nghiệm &amp; đánh giá
-                </span>
+              <span className="exp-micro-eyebrow cal-enter-line">
+                KIỂM CHỨNG TRÊN PYTHON · 06 PHÉP ĐO THỰC TẾ
+              </span>
+
+              <h1 id="exp-page-heading" tabIndex={-1} className="exp-olive-hero__title">
+                <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
+                  Kết quả{' '}
+                  <span className="editorial-serif editorial-serif--sage-gold">
+                    thực nghiệm &amp; đánh giá
+                  </span>
+                </BlockReveal>
               </h1>
+
+              <LandoSignatureFlourish
+                variant="showcase-underline"
+                triggerRef={heroRef}
+                reducedMotion={reducedMotion}
+              />
+
+              <p className="exp-olive-hero__lead cal-enter-line">
+                Đối chiếu kết quả chạy Python trên 4 bài toán chuẩn: kiểm tra tốc
+                độ hội tụ tới <MathFormula tex="10^{-14}" ariaLabel="10^-14" />, khả
+                năng tự chia đàn tìm đủ 4 cực tiểu và chi phí thời gian{' '}
+                <MathFormula tex="\mathcal{O}(n^2)" ariaLabel="O(n^2)" />.
+              </p>
             </div>
 
             {/* Understated Glass / Ivory Segmented View Switcher */}
@@ -115,7 +169,7 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
 
           {/* Refined Tabular KPI Strip (#B6C96E sage-gold accent, hairline vertical separators) */}
           <div
-            className="exp-kpi-strip cal-enter-line"
+            className="exp-kpi-strip"
             aria-label="Bốn chỉ số tổng quan thực nghiệm"
           >
             <div className="exp-kpi-cell">
@@ -173,7 +227,7 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
         </div>
       </section>
 
-      {/* 2. Interactive Notched Bento Grid (#F3F2EC Museum Alabaster — 0% Neon on Light!) */}
+      {/* 2. Spacious 2-Column Bento Showcase (#F3F2EC Museum Alabaster — 0% Neon on Light!) */}
       <ExperimentsGridSection
         reducedMotion={reducedMotion}
         viewMode={viewMode}
