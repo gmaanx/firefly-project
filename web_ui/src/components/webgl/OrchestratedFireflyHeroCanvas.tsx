@@ -1,0 +1,638 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type RefObject,
+} from 'react';
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {
+  markSanctuaryBootMounted,
+  markSanctuaryBootReady,
+  reportSanctuaryBootProgress,
+} from '../shared/TailordPreloader';
+import { buildNocturnalWreckScene } from './buildNocturnalWreckScene';
+import { createOrchestratedTerrainAndParticles } from './orchestratedTerrainAndParticles';
+
+export interface OrchestratedFireflyHeroCanvasProps {
+  reducedMotion: boolean;
+  /** Scroll progress `p in [0, 1]` across Hero -> Manifesto transition */
+  scrollProgressRef: MutableRefObject<number>;
+  /** Optional ref to Hero HUD content for 60fps frame-locked damped exit */
+  hudContentRef?: RefObject<HTMLDivElement | null>;
+  /** Optional ref to outer sticky Hero HUD frame for synchronized Lando window clip */
+  hudFrameRef?: RefObject<HTMLDivElement | null>;
+  /** Optional ref to Hero CRT screen overlay for frame-locked scroll fade */
+  crtOverlayRef?: RefObject<HTMLDivElement | null>;
+  /** True while the Hero + Manifesto top stage is active */
+  stageActive: boolean;
+  /** Optional handler (kept for prop compatibility) */
+  onActivatePortal?: () => void;
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return t * t * (3.0 - 2.0 * t);
+}
+
+/**
+ * Final Display-Space Cinema & Retro CRT Finishing Pass (runs after `OutputPass`):
+ * - Authentic Retro Vintage Old-TV Scanlines (`sọc ngang retro vintage`), subtle RGB phosphor
+ *   edge convergence fringe, warm analog tape toe, and gentle rolling refresh hum bar on Hero
+ * - Complete 100% Matte-Olive (`#24281E`) full-frame dissolve on scroll (`mix`, not just `max`)
+ *   so ZERO hero cars/pipes bleed behind `ManifestoSection`
+ * - Sub-LSB triangle-noise dithering
+ */
+const NocturnalFinishingShader = {
+  uniforms: {
+    tDiffuse: { value: null as THREE.Texture | null },
+    uFloorColor: { value: new THREE.Vector3(36 / 255, 40 / 255, 30 / 255) },
+    uFloor: { value: 0.0 },
+    uNoiseAmount: { value: 1.8 / 255.0 },
+    uTime: { value: 0.0 },
+    uResolution: { value: new THREE.Vector2(1440, 900) },
+    uCrtStrength: { value: 1.0 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    precision highp float;
+
+    uniform sampler2D tDiffuse;
+    uniform vec3 uFloorColor;
+    uniform float uFloor;
+    uniform float uNoiseAmount;
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform float uCrtStrength;
+
+    varying vec2 vUv;
+
+    float triangleNoise(vec2 p) {
+      vec2 p1 = fract(p * vec2(5.3983, 5.4427));
+      p1 += dot(p1.yx, p1.xy + vec2(21.5351, 14.3137));
+      vec2 h = fract(vec2(p1.x * p1.y * 95.4337, p1.x * p1.y * 97.597));
+      return h.x + h.y - 1.0;
+    }
+
+    void main() {
+      float crtAmt = uCrtStrength * (1.0 - smoothstep(0.32, 0.86, uFloor));
+
+      // Pixel-accurate tailord.design CRT RGB phosphor convergence (-0.7px / +0.7px center -> 1.55px corners)
+      vec2 q = vUv - 0.5;
+      float edgeDist = dot(q, q);
+      float pxShift = (0.72 + edgeDist * 1.65) / max(uResolution.x, 320.0) * crtAmt;
+      float rCh = texture2D(tDiffuse, vec2(clamp(vUv.x + pxShift, 0.0, 1.0), vUv.y)).r;
+      float gCh = texture2D(tDiffuse, vUv).g;
+      float bCh = texture2D(tDiffuse, vec2(clamp(vUv.x - pxShift, 0.0, 1.0), vUv.y)).b;
+      vec3 col = vec3(rCh, gCh, bCh);
+
+      // Phase-locked 3.0px CSS-pixel phosphor aperture (2*pi/3 = 2.0943951) matching .tailord-crt-overlay 1px/3px pitch
+      float cssY = vUv.y * uResolution.y;
+      float phosphorAperture = 0.5 + 0.5 * cos(cssY * 2.0943951);
+      float luma = dot(col, vec3(0.299, 0.587, 0.114));
+      float apertureDepth = mix(0.085, 0.035, smoothstep(0.18, 0.85, luma)) * crtAmt;
+      col *= 1.0 - apertureDepth * (1.0 - phosphorAperture);
+
+      // Subtle #181717 CRT charcoal-phosphor glass black-level sheen + cream-sage warmth
+      col = mix(
+        col,
+        col * vec3(1.015, 1.008, 0.965) + vec3(0.010, 0.010, 0.011),
+        0.52 * crtAmt
+      );
+
+      float vignette = clamp(1.0 - pow(edgeDist, 1.72) * 2.45 * (1.0 - uFloor), 0.0, 1.0);
+      col *= vignette;
+
+      // Silky-smooth directional rising #24281E nocturnal mist horizon (sweeps bottom -> top with scroll!)
+      float mistWave =
+        sin(vUv.x * 5.1 + uTime * 0.22) * 0.032 +
+        cos(vUv.x * 11.3 - uTime * 0.16) * 0.016;
+      float horizonY = mix(-0.34, 1.36, smoothstep(0.04, 0.96, uFloor)) + mistWave;
+      float preMist =
+        (1.0 - smoothstep(horizonY - 0.08, horizonY + 0.54, vUv.y)) *
+        smoothstep(0.02, 0.42, uFloor);
+      float directionalVeil = 1.0 - smoothstep(horizonY - 0.30, horizonY + 0.16, vUv.y);
+      float fullLock = smoothstep(0.88, 0.99, uFloor);
+      float coverAlpha = clamp(max(directionalVeil, fullLock), 0.0, 1.0);
+
+      col = mix(col, col * 0.52 + uFloorColor * 0.48, preMist * 0.68);
+      col = mix(col, uFloorColor, coverAlpha);
+
+      // Sub-LSB triangle dithering + subtle CRT phosphor micro-grain
+      col += triangleNoise(gl_FragCoord.xy + fract(uTime * 11.3) * 89.0) * (uNoiseAmount + 0.0038 * crtAmt);
+
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+    }
+  `,
+};
+
+export function OrchestratedFireflyHeroCanvas({
+  reducedMotion,
+  scrollProgressRef,
+  hudContentRef,
+  hudFrameRef,
+  crtOverlayRef,
+  stageActive,
+}: OrchestratedFireflyHeroCanvasProps) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageActiveRef = useRef<boolean>(stageActive);
+  stageActiveRef.current = stageActive;
+
+  const reducedMotionRef = useRef<boolean>(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
+
+  const hudRefLatest = useRef(hudContentRef);
+  hudRefLatest.current = hudContentRef;
+
+  const hudFrameRefLatest = useRef(hudFrameRef);
+  hudFrameRefLatest.current = hudFrameRef;
+
+  const crtRefLatest = useRef(crtOverlayRef);
+  crtRefLatest.current = crtOverlayRef;
+
+  const [webglFailed, setWebglFailed] = useState<boolean>(false);
+
+  useEffect(() => {
+    markSanctuaryBootMounted();
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      markSanctuaryBootReady();
+      return;
+    }
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: false,
+        powerPreference: 'high-performance',
+        stencil: false,
+        depth: true,
+      });
+    } catch {
+      setWebglFailed(true);
+      markSanctuaryBootReady();
+      return;
+    }
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.06;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    // All shadow-casting lights & props are static: bake shadow map on demand instead of 60x/sec!
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
+    renderer.localClippingEnabled = true;
+    renderer.setClearColor(0x010204, 1);
+
+    const isMobile = window.innerWidth < 768;
+    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.45);
+    let vw = Math.max(2, window.innerWidth);
+    let vh = Math.max(2, window.innerHeight);
+    let pixelH = Math.max(2, Math.floor(vh * dpr));
+
+    /* ----------------------------------------------------------------------
+       1. Photoscanned PBR Ground + 340 Non-Clumping Single-Orb Fireflies
+       ---------------------------------------------------------------------- */
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x010204);
+    scene.fog = new THREE.FogExp2(0x010204, 0.042);
+
+    const terrainAndParticles = createOrchestratedTerrainAndParticles(
+      renderer,
+      isMobile,
+      pixelH
+    );
+    scene.add(terrainAndParticles.terrainMesh);
+    scene.add(terrainAndParticles.grassCarpetMesh);
+    scene.add(terrainAndParticles.fireflyPoints);
+
+    /* ----------------------------------------------------------------------
+       2. Real `.glb` Wrecked White Sedans, Verdigris Pipe, Shrubs & 3D Roses
+       ---------------------------------------------------------------------- */
+    const wreckSanctuary = buildNocturnalWreckScene({
+      renderer,
+      scene,
+      isMobile,
+      sampleHeight: terrainAndParticles.sampleHeight,
+      particleLightTex: terrainAndParticles.particleLightRT.texture,
+      onLoadProgress: reportSanctuaryBootProgress,
+      onReady: markSanctuaryBootReady,
+    });
+    terrainAndParticles.grassMeadow.bindSpotLight(wreckSanctuary.clearingSpot);
+    scene.add(wreckSanctuary.group);
+
+    const camera = new THREE.PerspectiveCamera(47, vw / vh, 0.15, 65.0);
+
+    const computeCameraBase = (aspect: number): { fov: number; baseZ: number } => {
+      if (aspect >= 1.4) {
+        return { fov: 47, baseZ: 8.75 };
+      }
+      const fov = clamp(47 * Math.pow(1.4 / Math.max(aspect, 0.52), 0.34), 47, 63);
+      const baseZ = clamp(8.75 + (1.4 - aspect) * 2.15, 8.75, 10.8);
+      return { fov, baseZ };
+    };
+
+    /* ----------------------------------------------------------------------
+       3. `EffectComposer` (4x MSAA HalfFloat HDR -> Bloom -> ACES Output -> Finish)
+       ---------------------------------------------------------------------- */
+    const msaaTarget = new THREE.WebGLRenderTarget(
+      Math.max(2, Math.floor(vw * dpr)),
+      Math.max(2, Math.floor(vh * dpr)),
+      {
+        type: THREE.HalfFloatType,
+        format: THREE.RGBAFormat,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        samples: isMobile ? 0 : 2,
+      }
+    );
+
+    const composer = new EffectComposer(renderer, msaaTarget);
+    composer.setPixelRatio(dpr);
+    composer.setSize(vw, vh);
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // Half-res HDR bloom (4x faster GPU fillrate, identical soft Orchestrated bokeh halation!)
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(Math.max(2, Math.floor(vw * 0.5)), Math.max(2, Math.floor(vh * 0.5))),
+      0.28,
+      0.46,
+      0.78
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    const finishPass = new ShaderPass(NocturnalFinishingShader);
+    composer.addPass(finishPass);
+
+    /* ----------------------------------------------------------------------
+       4. Pointer Tracking & Resize
+       ---------------------------------------------------------------------- */
+    let pointerNdcX = 0;
+    let pointerNdcY = 0;
+    let smoothPtrX = 0;
+    let smoothPtrY = 0;
+    let pointerActive = 0;
+    let smoothPointerActive = 0;
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const w = Math.max(1, window.innerWidth);
+      const h = Math.max(1, window.innerHeight);
+      pointerNdcX = clamp((ev.clientX / w) * 2.0 - 1.0, -1.0, 1.0);
+      pointerNdcY = clamp(-((ev.clientY / h) * 2.0 - 1.0), -1.0, 1.0);
+      pointerActive = 1.0;
+    };
+
+    const onPointerLeave = () => {
+      pointerActive = 0.0;
+    };
+
+    const handleResize = () => {
+      vw = Math.max(2, window.innerWidth);
+      vh = Math.max(2, window.innerHeight);
+      const aspect = vw / vh;
+      const { fov } = computeCameraBase(aspect);
+
+      camera.aspect = aspect;
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(vw, vh, false);
+
+      pixelH = Math.max(2, Math.floor(vh * dpr));
+      composer.setPixelRatio(dpr);
+      composer.setSize(vw, vh);
+      bloomPass.resolution.set(Math.max(2, Math.floor(vw * 0.5)), Math.max(2, Math.floor(vh * 0.5)));
+      finishPass.uniforms.uResolution.value.set(vw, vh);
+      terrainAndParticles.resize(pixelH);
+    };
+
+    handleResize();
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    window.addEventListener('blur', onPointerLeave, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    /* ----------------------------------------------------------------------
+       5. `THREE.Timer` Render Loop (3D Parallax + Raycast + GPGPU Fireflies)
+       ---------------------------------------------------------------------- */
+    const heroEl = document.getElementById('hero');
+    const raycaster = new THREE.Raycaster();
+    const ptrVec2 = new THREE.Vector2();
+    const cursorWorld = new THREE.Vector3(0, -0.75, 1.8);
+    const targetCursorWorld = new THREE.Vector3(0, -0.75, 1.8);
+    const camLookTarget = new THREE.Vector3();
+
+    const timer = new THREE.Timer();
+    timer.connect(document);
+
+    let rafId = 0;
+    let running = false;
+    let elapsed = 0;
+    let introProgress = 0;
+    let rushPhase = 0;
+    let dispersed = false;
+    let smoothScrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
+
+    const stepFrame = (timestamp: number) => {
+      if (!running) return;
+      rafId = window.requestAnimationFrame(stepFrame);
+
+      timer.update(timestamp);
+      const dt = clamp(timer.getDelta(), 0.004, 0.033);
+      const motionScale = reducedMotionRef.current ? 0.22 : 1.0;
+      elapsed += dt * motionScale;
+
+      introProgress = Math.min(1.0, introProgress + dt / 1.05);
+      const introEased = smoothstep(0.0, 1.0, introProgress);
+
+      const rawScrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
+      if (reducedMotionRef.current) {
+        smoothScrollP = rawScrollP;
+      } else {
+        const scrollLerp = 1.0 - Math.exp(-dt * 13.5);
+        smoothScrollP += (rawScrollP - smoothScrollP) * scrollLerp;
+        if (Math.abs(rawScrollP - smoothScrollP) < 0.0004) {
+          smoothScrollP = rawScrollP;
+        }
+      }
+      const scrollP = smoothScrollP;
+
+      // Synchronize Lando Portrait-Window Clip + Hero HUD + CRT screen overlay to damped 60fps scrollP
+      const hudEl = hudRefLatest.current?.current;
+      if (hudEl) {
+        const hudFade = smoothstep(0.0, 0.44, scrollP);
+        const hudOpacity = 1.0 - hudFade;
+        const hudTy = reducedMotionRef.current ? 0.0 : -34.0 * hudFade;
+        const hudScale = reducedMotionRef.current ? 1.0 : 1.0 - 0.06 * hudFade;
+        hudEl.style.opacity = hudOpacity.toFixed(3);
+        hudEl.style.transform = `translate3d(0, ${hudTy.toFixed(2)}px, 0) scale(${hudScale.toFixed(4)})`;
+        hudEl.style.pointerEvents = hudOpacity < 0.05 ? 'none' : '';
+      }
+
+      const wrapEl = wrapRef.current;
+      const hudFrameEl = hudFrameRefLatest.current?.current;
+      if (!reducedMotionRef.current) {
+        if (scrollP <= 0.002) {
+          if (wrapEl) {
+            wrapEl.style.clipPath = 'none';
+            wrapEl.style.transform = 'none';
+          }
+          if (hudFrameEl) {
+            hudFrameEl.style.clipPath = 'none';
+            hudFrameEl.style.transform = 'none';
+          }
+        } else {
+          // Lando Norris 2-phase Hero -> Manifesto framing:
+          // Phase 1 (0 -> 0.62): Fullscreen 100vw x 100vh frames inward into a centered 36vw portrait window at top-center
+          // Phase 2 (0.58 -> 0.99): Portrait window lifts & closes upward so 0px of Hero remains visible in Section 2
+          const framePhase = smoothstep(0.01, 0.62, scrollP);
+          const exitPhase = smoothstep(0.58, 0.99, scrollP);
+          const maxInsetX = camera.aspect >= 1.05 ? 31.5 : 8.5;
+          const insetX = maxInsetX * framePhase;
+          const insetBottom = Math.min(100.0, 44.0 * framePhase + 56.0 * exitPhase);
+          const radiusPx = 10.0 * framePhase * (1.0 - exitPhase * 0.5);
+          const liftVh = -18.0 * exitPhase;
+          const clipVal = `inset(0% ${insetX.toFixed(2)}% ${insetBottom.toFixed(2)}% ${insetX.toFixed(2)}% round 0px 0px ${radiusPx.toFixed(1)}px ${radiusPx.toFixed(1)}px)`;
+          const tfVal = `translate3d(0, ${liftVh.toFixed(2)}vh, 0)`;
+
+          if (wrapEl) {
+            wrapEl.style.clipPath = clipVal;
+            wrapEl.style.transform = tfVal;
+          }
+          if (hudFrameEl) {
+            hudFrameEl.style.clipPath = clipVal;
+            hudFrameEl.style.transform = tfVal;
+          }
+        }
+      } else {
+        if (wrapEl) {
+          wrapEl.style.clipPath = 'none';
+          wrapEl.style.transform = 'none';
+        }
+        if (hudFrameEl) {
+          hudFrameEl.style.clipPath = 'none';
+          hudFrameEl.style.transform = 'none';
+        }
+      }
+
+      const crtEl = crtRefLatest.current?.current;
+      if (crtEl) {
+        const crtOp = 1.0 - smoothstep(0.28, 0.78, scrollP);
+        crtEl.style.opacity = crtOp.toFixed(3);
+      }
+
+      dispersed = dispersed ? scrollP >= 0.26 : scrollP > 0.29;
+      rushPhase = dispersed
+        ? Math.min(1.0, rushPhase + dt / 0.88)
+        : Math.max(0.0, rushPhase - dt / 0.38);
+      const rush = rushPhase * rushPhase;
+
+      const ptrFollow = 1.0 - Math.exp(-dt * 5.8);
+      smoothPtrX += (pointerNdcX - smoothPtrX) * ptrFollow;
+      smoothPtrY += (pointerNdcY - smoothPtrY) * ptrFollow;
+      smoothPointerActive +=
+        (pointerActive * (1.0 - scrollP * 0.85) - smoothPointerActive) *
+        (1.0 - Math.exp(-dt * 4.5));
+
+      if (heroEl) {
+        heroEl.style.setProperty('--hero-px', smoothPtrX.toFixed(4));
+        heroEl.style.setProperty('--hero-py', smoothPtrY.toFixed(4));
+      }
+
+      // True 3D Near-Mid-Far Perspective Camera Parallax (`xa gan`)
+      const { baseZ } = computeCameraBase(camera.aspect);
+      const idleSwayX = Math.sin(elapsed * 0.30) * 0.11 * motionScale;
+      const idleSwayY = Math.cos(elapsed * 0.24) * 0.04 * motionScale;
+
+      const camX = (smoothPtrX * 0.88 + idleSwayX) * (1.0 - scrollP * 0.65);
+      const camZ = baseZ - scrollP * 1.35;
+      const groundUnderCam = terrainAndParticles.sampleHeight(camX, camZ);
+      const camY = Math.max(
+        groundUnderCam + 0.85,
+        0.48 + (-smoothPtrY * 0.30 + idleSwayY) * (1.0 - scrollP * 0.65) - scrollP * 0.52
+      );
+
+      camera.position.set(camX, camY, camZ);
+      camLookTarget.set(
+        smoothPtrX * 0.16 * (1.0 - scrollP * 0.6),
+        -0.32 - scrollP * 2.05,
+        0.35 - scrollP * 1.15
+      );
+      camera.lookAt(camLookTarget);
+      camera.updateMatrixWorld();
+
+      // CPU Heightfield Raymarch (0.01ms) drives BOTH firefly attraction AND 3D grass parting
+      // (replaces 43,200-triangle Three.Raycaster mesh intersection every frame -> zero CPU stall!)
+      ptrVec2.set(smoothPtrX, smoothPtrY);
+      raycaster.setFromCamera(ptrVec2, camera);
+      {
+        const ro = raycaster.ray.origin;
+        const rd = raycaster.ray.direction;
+        let hitFound = false;
+        let tPrev = 1.8;
+        for (let step = 1; step <= 22; step += 1) {
+          const t = 1.8 + step * 0.68;
+          const wx = ro.x + rd.x * t;
+          const wy = ro.y + rd.y * t;
+          const wz = ro.z + rd.z * t;
+          const surfH = terrainAndParticles.sampleHeight(wx, wz) + 0.52;
+          if (wy <= surfH) {
+            let lo = tPrev;
+            let hi = t;
+            for (let b = 0; b < 3; b += 1) {
+              const mid = (lo + hi) * 0.5;
+              const my = ro.y + rd.y * mid;
+              const mh =
+                terrainAndParticles.sampleHeight(ro.x + rd.x * mid, ro.z + rd.z * mid) +
+                0.52;
+              if (my <= mh) hi = mid;
+              else lo = mid;
+            }
+            const tHit = (lo + hi) * 0.5;
+            targetCursorWorld.set(
+              clamp(ro.x + rd.x * tHit, -5.8, 5.8),
+              clamp(ro.y + rd.y * tHit, -1.35, 1.45),
+              clamp(ro.z + rd.z * tHit, -1.8, 5.2)
+            );
+            hitFound = true;
+            break;
+          }
+          tPrev = t;
+        }
+        if (!hitFound) {
+          const tSky = clamp((1.2 - ro.z) / (Math.abs(rd.z) > 1e-3 ? rd.z : -1.0), 3.5, 11.5);
+          targetCursorWorld.set(
+            clamp(ro.x + rd.x * tSky, -5.5, 5.5),
+            clamp(ro.y + rd.y * tSky, -1.15, 1.35),
+            clamp(ro.z + rd.z * tSky, -1.5, 4.8)
+          );
+        }
+      }
+      cursorWorld.lerp(targetCursorWorld, 1.0 - Math.exp(-dt * 8.5));
+      terrainAndParticles.grassMeadow.injectPointerGust(
+        targetCursorWorld.x,
+        targetCursorWorld.z,
+        pointerActive > 0.5 && scrollP < 0.35
+      );
+
+      // Step GPGPU Firefly Simulation + Splat 256x256 Ground LightMap
+      terrainAndParticles.stepAndSplat(
+        renderer,
+        camera,
+        dt,
+        elapsed,
+        motionScale,
+        introEased,
+        scrollP,
+        rush,
+        cursorWorld,
+        smoothPointerActive,
+        pixelH
+      );
+
+      wreckSanctuary.updateUniforms(
+        elapsed,
+        scrollP,
+        camera.position,
+        cursorWorld,
+        smoothPointerActive * introEased
+      );
+      terrainAndParticles.grassMeadow.update(
+        elapsed,
+        0.0001,
+        scrollP,
+        wreckSanctuary.practicalPositions
+      );
+
+      finishPass.uniforms.uTime.value = elapsed * motionScale;
+      finishPass.uniforms.uCrtStrength.value = reducedMotionRef.current ? 0.65 : 1.0;
+      finishPass.uniforms.uFloor.value = reducedMotionRef.current
+        ? smoothstep(0.06, 0.96, scrollP)
+        : smoothstep(0.76, 0.995, scrollP) * 0.45;
+
+      // Render 3D PBR Scene + Shadows + Selective HDR Bloom + ACES Output + Cinema Finish
+      composer.render(dt);
+    };
+
+    const syncRunState = () => {
+      const shouldRun = stageActiveRef.current && !document.hidden;
+      if (shouldRun && !running) {
+        running = true;
+        timer.reset();
+        rafId = window.requestAnimationFrame(stepFrame);
+      } else if (!shouldRun && running) {
+        running = false;
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+
+    document.addEventListener('visibilitychange', syncRunState);
+    syncRunState();
+
+    return () => {
+      running = false;
+      window.cancelAnimationFrame(rafId);
+      timer.dispose();
+      document.removeEventListener('visibilitychange', syncRunState);
+      window.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerleave', onPointerLeave);
+      window.removeEventListener('blur', onPointerLeave);
+      window.removeEventListener('resize', handleResize);
+
+      terrainAndParticles.dispose();
+      wreckSanctuary.dispose();
+      bloomPass.dispose();
+      outputPass.dispose();
+      finishPass.dispose();
+      composer.dispose();
+      msaaTarget.dispose();
+      renderer.dispose();
+    };
+  }, [scrollProgressRef]);
+
+  useEffect(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, [stageActive]);
+
+  if (webglFailed) {
+    return <div className="orchestrated-hero-fallback" aria-hidden="true" />;
+  }
+
+  return (
+    <div
+      ref={wrapRef}
+      className={`orchestrated-hero-canvas-wrap ${
+        stageActive ? '' : 'orchestrated-hero-canvas-wrap--inactive'
+      }`}
+      aria-hidden="true"
+    >
+      <canvas ref={canvasRef} className="orchestrated-hero-canvas" />
+    </div>
+  );
+}

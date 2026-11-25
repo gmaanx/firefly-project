@@ -1,0 +1,570 @@
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import gsap from 'gsap';
+import { useDataset } from '../../lib/dataStore';
+import { SciNumber, formatFixed, formatVec } from '../../lib/formatters';
+import { useSectionReveal } from '../../lib/useEditorialMotion';
+import { BlockReveal } from '../shared/BlockReveal';
+import { ContourBackdrop } from '../shared/ContourBackdrop';
+import { DatasetStatusCard } from '../shared/DatasetStatusCard';
+import { MathFormula } from '../shared/MathFormula';
+import type { QaTabId } from '../shared/QaDrawer';
+import { Worked3DStage } from '../webgl/Worked3DStage';
+
+export interface WorkedTelemetrySectionProps {
+  reducedMotion: boolean;
+  onOpenQa: (tab?: QaTabId) => void;
+}
+
+const TIMELINE_MILESTONES = [0, 1, 5, 20, 50, 200] as const;
+
+export function WorkedTelemetrySection({
+  reducedMotion,
+  onOpenQa,
+}: WorkedTelemetrySectionProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const tabPrefix = useId();
+  const [mode, setMode] = useState<'unconstrained' | 'constrained'>('unconstrained');
+  const [activeStep, setActiveStep] = useState<0 | 1 | 2>(1);
+  const [milestoneIdx, setMilestoneIdx] = useState<number>(2);
+
+  const workedState = useDataset('worked_example_13_5', true);
+  const constrainedState = useDataset('constrained_demo', true);
+  const convState = useDataset('convergence_iterations', true);
+
+  useSectionReveal(sectionRef, reducedMotion);
+
+  const wData = workedState.data;
+  const cData = constrainedState.data;
+  const convCurve = useMemo(() => {
+    const arr = convState.data?.by_iterations;
+    if (!arr || arr.length === 0) return null;
+    return arr[arr.length - 1]?.curve ?? null;
+  }, [convState.data]);
+
+  const fReadoutRef = useRef<HTMLSpanElement>(null);
+  const alphaReadoutRef = useRef<HTMLSpanElement>(null);
+  const counterProxyRef = useRef({ logF: 1.48, alpha: 1.0 });
+
+  const activeGenT = TIMELINE_MILESTONES[milestoneIdx] ?? 5;
+  const targetFAtT = useMemo(() => {
+    if (activeGenT === 0) {
+      return wData?.initial_population[0]?.f ?? 18.0;
+    }
+    if (convCurve && convCurve.length >= activeGenT) {
+      return convCurve[activeGenT - 1];
+    }
+    return 18 * Math.pow(0.86, activeGenT);
+  }, [activeGenT, convCurve, wData]);
+
+  const targetAlphaAtT = useMemo(() => Math.pow(0.97, activeGenT), [activeGenT]);
+
+  useEffect(() => {
+    const fEl = fReadoutRef.current;
+    const aEl = alphaReadoutRef.current;
+    if (!fEl || !aEl) return;
+
+    const targetLog = Math.log10(Math.max(1e-16, targetFAtT));
+    if (reducedMotion) {
+      counterProxyRef.current.logF = targetLog;
+      counterProxyRef.current.alpha = targetAlphaAtT;
+      fEl.textContent =
+        targetFAtT >= 0.01 ? targetFAtT.toFixed(4) : targetFAtT.toExponential(2);
+      aEl.textContent = targetAlphaAtT.toFixed(4);
+      return;
+    }
+
+    const tween = gsap.to(counterProxyRef.current, {
+      logF: targetLog,
+      alpha: targetAlphaAtT,
+      duration: 0.45,
+      ease: 'power3.out',
+      onUpdate: () => {
+        const val = Math.pow(10, counterProxyRef.current.logF);
+        if (fReadoutRef.current) {
+          fReadoutRef.current.textContent =
+            val >= 0.01 ? val.toFixed(4) : val.toExponential(2);
+        }
+        if (alphaReadoutRef.current) {
+          alphaReadoutRef.current.textContent =
+            counterProxyRef.current.alpha.toFixed(4);
+        }
+      },
+    });
+
+    return () => {
+      tween.kill();
+    };
+  }, [reducedMotion, targetAlphaAtT, targetFAtT]);
+
+  const sparklinePath = useMemo(() => {
+    const hist = cData?.history;
+    if (!hist || hist.length === 0) return '';
+    const logs = hist.map((h) => Math.log10(Math.max(0.75, h.fbest)));
+    const minL = Math.min(...logs);
+    const maxL = Math.max(minL + 0.05, ...logs);
+    return logs
+      .filter((_, i) => i % 3 === 0 || i === logs.length - 1)
+      .map((lv, idx, arr) => {
+        const x = 12 + (idx / Math.max(1, arr.length - 1)) * 316;
+        const y = 58 - ((lv - minL) / (maxL - minL)) * 44;
+        return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [cData]);
+
+  return (
+    <section
+      id="trien-khai"
+      ref={sectionRef}
+      className="section-worked"
+      data-surface="dark"
+      aria-labelledby="worked-heading"
+    >
+      <ContourBackdrop variant="dark" />
+
+      <div className="section-container">
+        <div className="worked-top-row">
+          <div>
+            <h2 id="worked-heading" tabIndex={-1} className="worked-giant-title">
+              <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
+                Minh họa từng bước{' '}
+                <span className="editorial-serif editorial-serif--sage-gold">
+                  trong không gian 3D
+                </span>
+              </BlockReveal>
+            </h2>
+          </div>
+
+          <div
+            className="pill-tabs"
+            role="tablist"
+            aria-label="Chọn bài toán không gian 3D"
+          >
+            <button
+              type="button"
+              role="tab"
+              id={`${tabPrefix}-unconstrained`}
+              aria-selected={mode === 'unconstrained'}
+              className="pill-tab"
+              onClick={() => setMode('unconstrained')}
+            >
+              MẶT CẦU DỊCH TÂM (3D)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id={`${tabPrefix}-constrained`}
+              aria-selected={mode === 'constrained'}
+              className="pill-tab"
+              onClick={() => setMode('constrained')}
+            >
+              TỐI ƯU CÓ RÀNG BUỘC
+            </button>
+          </div>
+        </div>
+
+        <div className="worked-split-grid">
+          <div className="worked-sticky-col">
+            <Worked3DStage
+              mode={mode}
+              activeStep={activeStep}
+              workedData={wData}
+              constrainedData={cData}
+              reducedMotion={reducedMotion}
+            />
+          </div>
+
+          <div
+            className="worked-bento-col"
+            role="tabpanel"
+            aria-labelledby={
+              mode === 'unconstrained'
+                ? `${tabPrefix}-unconstrained`
+                : `${tabPrefix}-constrained`
+            }
+          >
+            {mode === 'unconstrained' ? (
+              <>
+                <div className="worked-formula-box worked-formula-box--pair">
+                  <MathFormula
+                    tex="\min_{\mathbf{x}\in[-5,5]^3} f(\mathbf{x}) = \sum_{k=1}^{3}(x_k - 1)^2"
+                    ariaLabel="min f(x) = sum (x_k - 1)^2 tren [-5,5]^3"
+                  />
+                  <MathFormula
+                    tex="\mathbf{x}^* = (1,1,1), \; f^* = 0"
+                    ariaLabel="x* = (1,1,1), f* = 0"
+                  />
+                </div>
+
+                {workedState.status !== 'ready' || !wData ? (
+                  <DatasetStatusCard
+                    status={workedState.status === 'error' ? 'error' : 'loading'}
+                    fileLabel="worked_example_13_5.json"
+                    error={workedState.error}
+                    onRetry={workedState.retry}
+                  />
+                ) : (
+                  <>
+                    <div
+                      className="worked-stepper-tabs"
+                      role="group"
+                      aria-label="Chọn bước dịch chuyển cặp năm đom đóm"
+                    >
+                      <button
+                        type="button"
+                        aria-pressed={activeStep === 0}
+                        className={`worked-step-btn ${
+                          activeStep === 0 ? 'worked-step-btn--active' : ''
+                        }`}
+                        onClick={() => setActiveStep(0)}
+                      >
+                        <div>KHỞI TẠO</div>
+                        <strong>5 vị trí ban đầu</strong>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={activeStep === 1}
+                        className={`worked-step-btn ${
+                          activeStep === 1 ? 'worked-step-btn--active' : ''
+                        }`}
+                        onClick={() => setActiveStep(1)}
+                      >
+                        <div>Cặp 01 · Nhận</div>
+                        <strong>
+                          <MathFormula
+                            tex="\mathbf{x}_2 \to \mathbf{x}_1"
+                            ariaLabel="x_2 -> x_1"
+                          />
+                        </strong>
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={activeStep === 2}
+                        className={`worked-step-btn worked-step-btn--reject ${
+                          activeStep === 2 ? 'worked-step-btn--active' : ''
+                        }`}
+                        onClick={() => setActiveStep(2)}
+                      >
+                        <div>Cặp 02 · Giữ nguyên</div>
+                        <strong>
+                          <MathFormula
+                            tex="\mathbf{x}_3 \to \mathbf{x}_1"
+                            ariaLabel="x_3 -> x_1"
+                          />
+                        </strong>
+                      </button>
+                    </div>
+
+                    {activeStep === 0 ? (
+                      <div className="hairline-bento">
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Cá thể sáng nhất (
+                            <MathFormula tex="\mathbf{x}_1" ariaLabel="x_1" />)
+                          </span>
+                          <span className="hairline-bento__val hairline-bento__val--lime">
+                            {formatVec(wData.initial_population[0].pos, 0)} · f ={' '}
+                            {wData.initial_population[0].f}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Tham số tại vòng đầu{' '}
+                            <MathFormula tex="t = 1" ariaLabel="t = 1" />
+                          </span>
+                          <span className="hairline-bento__val">
+                            <MathFormula
+                              tex="\gamma = 0.1, \; \alpha = 0.97"
+                              ariaLabel="gamma = 0.1, alpha = 0.97"
+                            />
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell hairline-bento__cell--wide">
+                          <span className="hairline-bento__label">
+                            Giá trị hàm mục tiêu các cá thể còn lại
+                          </span>
+                          <span
+                            className="hairline-bento__val"
+                            style={{ fontSize: '0.88rem' }}
+                          >
+                            <MathFormula
+                              tex="\mathbf{x}_2(f=33) \;\cdot\; \mathbf{x}_3(f=26) \;\cdot\; \mathbf{x}_4(f=53) \;\cdot\; \mathbf{x}_5(f=29)"
+                              ariaLabel="x_2(f=33), x_3(f=26), x_4(f=53), x_5(f=29)"
+                            />
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeStep === 1 && wData.pair_logs[0] ? (
+                      <div className="hairline-bento">
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Khoảng cách{' '}
+                            <MathFormula tex="r_{21}" ariaLabel="r_21" />
+                          </span>
+                          <span className="hairline-bento__val">
+                            {formatFixed(wData.pair_logs[0].r_ij, 4)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Độ hấp dẫn{' '}
+                            <MathFormula tex="\beta(r)" ariaLabel="beta(r)" />
+                          </span>
+                          <span className="hairline-bento__val hairline-bento__val--lime">
+                            {formatFixed(wData.pair_logs[0].beta, 4)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Vị trí mới đề xuất
+                          </span>
+                          <span
+                            className="hairline-bento__val"
+                            style={{ fontSize: '0.88rem' }}
+                          >
+                            {formatVec(wData.pair_logs[0].new_pos, 3)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            So sánh chất lượng nghiệm
+                          </span>
+                          <span className="hairline-bento__val hairline-bento__val--lime">
+                            {formatFixed(wData.pair_logs[0].f_new, 2)} &lt; 33 (CẬP NHẬT)
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeStep === 2 && wData.pair_logs[1] ? (
+                      <div className="hairline-bento">
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Khoảng cách xa{' '}
+                            <MathFormula tex="r_{31}" ariaLabel="r_31" />
+                          </span>
+                          <span className="hairline-bento__val">
+                            {formatFixed(wData.pair_logs[1].r_ij, 4)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Lực hút{' '}
+                            <MathFormula tex="\beta(r)" ariaLabel="beta(r)" /> suy
+                            giảm
+                          </span>
+                          <span className="hairline-bento__val hairline-bento__val--iris">
+                            {formatFixed(wData.pair_logs[1].beta, 4)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Tọa độ thử nghiệm
+                          </span>
+                          <span
+                            className="hairline-bento__val"
+                            style={{ fontSize: '0.88rem' }}
+                          >
+                            {formatVec(wData.pair_logs[1].new_pos, 3)}
+                          </span>
+                        </div>
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            So sánh chất lượng nghiệm
+                          </span>
+                          <span className="hairline-bento__val hairline-bento__val--amber">
+                            {formatFixed(wData.pair_logs[1].f_new, 2)} &gt; 26 (GIỮ NGUYÊN{' '}
+                            <MathFormula tex="\mathbf{x}_3" ariaLabel="x_3" />)
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="worked-scrubber-card">
+                      <div className="worked-scrubber-card__head">
+                        <span>
+                          Mốc hội tụ theo thế hệ (
+                          <MathFormula tex="n = 20" ariaLabel="n = 20" />)
+                        </span>
+                        <code>t = {activeGenT}</code>
+                      </div>
+
+                      <div
+                        className="worked-milestone-pills"
+                        role="group"
+                        aria-label="Chọn mốc thế hệ hội tụ"
+                      >
+                        {TIMELINE_MILESTONES.map((tVal, idx) => (
+                          <button
+                            key={tVal}
+                            type="button"
+                            aria-pressed={milestoneIdx === idx}
+                            className={`chip-btn ${
+                              milestoneIdx === idx ? 'chip-btn--active' : ''
+                            }`}
+                            onClick={() => setMilestoneIdx(idx)}
+                          >
+                            t = {tVal}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="hairline-bento">
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Sai số tốt nhất{' '}
+                            <MathFormula
+                              tex="f_{\text{best}}(t)"
+                              ariaLabel="f_best(t)"
+                            />
+                          </span>
+                          <span
+                            ref={fReadoutRef}
+                            className="hairline-bento__val hairline-bento__val--lime"
+                          >
+                            {targetFAtT >= 0.01
+                              ? targetFAtT.toFixed(4)
+                              : targetFAtT.toExponential(2)}
+                          </span>
+                        </div>
+
+                        <div className="hairline-bento__cell">
+                          <span className="hairline-bento__label">
+                            Biên độ nhiễu{' '}
+                            <MathFormula
+                              tex="\alpha_t = 0.97^t"
+                              ariaLabel="alpha_t = 0.97^t"
+                            />
+                          </span>
+                          <span
+                            ref={alphaReadoutRef}
+                            className="hairline-bento__val hairline-bento__val--iris"
+                          >
+                            {targetAlphaAtT.toFixed(4)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="worked-formula-box worked-formula-box--single">
+                  <MathFormula
+                    tex="\Pi(\mathbf{x}) = f(\mathbf{x}) + \lambda(x_1+x_2+x_3-1.5)^2 + \lambda\max(0, x_1-0.4)^2"
+                    ariaLabel="Pi(x) = f(x) + lambda (x1+x2+x3-1.5)^2 + lambda max(0, x1-0.4)^2"
+                  />
+                </div>
+
+                {constrainedState.status !== 'ready' || !cData ? (
+                  <DatasetStatusCard
+                    status={
+                      constrainedState.status === 'error' ? 'error' : 'loading'
+                    }
+                    fileLabel="constrained_demo.json"
+                    error={constrainedState.error}
+                    onRetry={constrainedState.retry}
+                  />
+                ) : (
+                  <div className="hairline-bento">
+                    <div className="hairline-bento__cell">
+                      <span className="hairline-bento__label">
+                        Hệ số phạt tĩnh <MathFormula tex="\lambda" ariaLabel="lambda" />
+                      </span>
+                      <span className="hairline-bento__val">
+                        {cData.penalty_lambda}
+                      </span>
+                    </div>
+                    <div className="hairline-bento__cell">
+                      <span className="hairline-bento__label">
+                        Trạng thái ràng buộc
+                      </span>
+                      <span className="hairline-bento__val hairline-bento__val--lime">
+                        {cData.is_feasible ? (
+                          <>
+                            HỢP LỆ (
+                            <MathFormula tex="x_1 \le 0.4" ariaLabel="x_1 <= 0.4" />)
+                          </>
+                        ) : (
+                          'VI PHẠM'
+                        )}
+                      </span>
+                    </div>
+                    <div className="hairline-bento__cell">
+                      <span className="hairline-bento__label">
+                        Nghiệm hội tụ <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />
+                      </span>
+                      <span
+                        className="hairline-bento__val hairline-bento__val--lime"
+                        style={{ fontSize: '0.88rem' }}
+                      >
+                        {formatVec(cData.nbest, 3)}
+                      </span>
+                    </div>
+                    <div className="hairline-bento__cell">
+                      <span className="hairline-bento__label">
+                        <MathFormula
+                          tex="f(\mathbf{x}^*) \;\cdot\; \Pi(\mathbf{x}^*)"
+                          ariaLabel="f(x*) . Pi(x*)"
+                        />
+                      </span>
+                      <span className="hairline-bento__val">
+                        {formatFixed(cData.fbest_objective, 4)} ·{' '}
+                        {formatFixed(cData.fbest_penalized, 4)}
+                      </span>
+                    </div>
+                    <div className="hairline-bento__cell hairline-bento__cell--wide">
+                      <span className="hairline-bento__label">
+                        Tiến trình hội tụ 300 thế hệ{' '}
+                        <MathFormula
+                          tex="\Pi_{\text{best}}(t)"
+                          ariaLabel="Pi_best(t)"
+                        />{' '}
+                        (cuối:{' '}
+                        <SciNumber value={cData.fbest_penalized} sigDigits={3} />)
+                      </span>
+                      <svg
+                        viewBox="0 0 340 66"
+                        style={{ width: '100%', height: '62px', display: 'block' }}
+                        aria-hidden="true"
+                      >
+                        <line
+                          x1="12"
+                          y1="58"
+                          x2="328"
+                          y2="58"
+                          stroke="rgba(239,239,232,0.14)"
+                        />
+                        <path
+                          d={sparklinePath}
+                          fill="none"
+                          stroke="#C5E84D"
+                          strokeWidth="2"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div>
+              <button
+                type="button"
+                className="qa-text-link"
+                onClick={() =>
+                  onOpenQa(mode === 'unconstrained' ? 'comparison' : 'guardrails')
+                }
+              >
+                Xem chứng minh chi tiết &amp; Q&amp;A →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
