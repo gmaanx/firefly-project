@@ -208,7 +208,7 @@ export function OrchestratedFireflyHeroCanvas({
     renderer.setClearColor(0x010204, 1);
 
     const isMobile = window.innerWidth < 768;
-    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.1 : 1.25);
+    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.0 : 1.15);
     let vw = Math.max(2, window.innerWidth);
     let vh = Math.max(2, window.innerHeight);
     let pixelH = Math.max(2, Math.floor(vh * dpr));
@@ -565,7 +565,7 @@ export function OrchestratedFireflyHeroCanvas({
       );
       terrainAndParticles.grassMeadow.update(
         elapsed,
-        0.0001,
+        dt * (0.28 + 0.72 * motionScale),
         gentleSceneScroll,
         wreckSanctuary.practicalPositions
       );

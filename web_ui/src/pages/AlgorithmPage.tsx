@@ -74,37 +74,6 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
           }
         );
       }
-
-      // Lenis-scrubbed multi-plane depth as the user scrolls out of the Hero
-      const mm = gsap.matchMedia();
-      mm.add('(min-width: 1024px)', () => {
-        if (heroRightRef.current) {
-          gsap.to(heroRightRef.current, {
-            y: -32,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: hero,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: 0.65,
-            },
-          });
-        }
-        if (heroLeftRef.current) {
-          gsap.to(heroLeftRef.current, {
-            y: -12,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: hero,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: 0.65,
-            },
-          });
-        }
-      });
-
-      return () => mm.revert();
     },
     { scope: pageRef, dependencies: [reducedMotion] }
   );

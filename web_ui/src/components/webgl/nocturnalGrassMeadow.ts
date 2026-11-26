@@ -27,8 +27,8 @@ export const MEADOW_V_MAX = 7.2;  // wz = +7.2 (right under camera lens)
 const U_SPAN = MEADOW_U_MAX - MEADOW_U_MIN;
 const V_SPAN = MEADOW_V_MAX - MEADOW_V_MIN;
 
-const DESKTOP_TUFT_COUNT = 72000; // 216,000 3D V-ribbed blades (optimized 60/120fps sweet spot!)
-const MOBILE_TUFT_COUNT = 26000;  // 52,000 3D V-ribbed blades!
+const DESKTOP_TUFT_COUNT = 30000; // 60,000 lush wide 3D V-ribbed blades (locked 60/120fps on laptop iGPUs!)
+const MOBILE_TUFT_COUNT = 14000;  // 28,000 3D V-ribbed blades!
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -268,9 +268,9 @@ export function createNocturnalGrassMeadow(
   const group = new THREE.Group();
   group.name = 'NocturnalGrassMeadow';
 
-  const shootsPerTuft = isMobile ? 2 : 3;
-  const windW = isMobile ? 84 : 128;
-  const windH = isMobile ? 56 : 88;
+  const shootsPerTuft = 2;
+  const windW = isMobile ? 48 : 64;
+  const windH = isMobile ? 32 : 44;
   const windCells = windW * windH;
 
   const fallbackShadowData = new Uint8Array([255, 255, 255, 255]);
@@ -391,18 +391,7 @@ export function createNocturnalGrassMeadow(
         return 1.0;
       }
       float compareZ = proj.z - 0.00085;
-      #ifdef MOBILE_GRASS
-        return mix(0.26, 1.0, step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy))));
-      #else
-        vec2 texel = vec2(1.0 / 2048.0);
-        float s = 0.0;
-        s += step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy)));
-        s += step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy + vec2(-0.85,  0.52) * texel * 1.5)));
-        s += step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy + vec2( 0.85, -0.52) * texel * 1.5)));
-        s += step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy + vec2( 0.52,  0.85) * texel * 1.5)));
-        s += step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy + vec2(-0.52, -0.85) * texel * 1.5)));
-        return mix(0.24, 1.0, s * 0.2);
-      #endif
+      return mix(0.25, 1.0, step(compareZ, unpackRGBAToDepth(texture2D(uShadowMap, proj.xy))));
     }
 
     vec3 evalNocturnalPracticalSpill(vec3 wp) {
@@ -554,7 +543,7 @@ export function createNocturnalGrassMeadow(
   const aBotany = new Float32Array(targetCount * 2);
 
   const rng = mulberry32(19730529);
-  const widthMobileComp = isMobile ? 1.54 : 1.25;
+  const widthMobileComp = isMobile ? 1.72 : 1.58;
   let placed = 0;
 
   const emitTuftAtXZ = (wx: number, wz: number, tuftScale: number): boolean => {

@@ -454,7 +454,7 @@ export function App() {
     }
 
     const lenis = new Lenis({
-      lerp: 0.088,
+      lerp: 0.135,
       smoothWheel: true,
       wheelMultiplier: 1.0,
       syncTouch: false,

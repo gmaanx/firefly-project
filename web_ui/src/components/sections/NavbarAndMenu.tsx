@@ -206,7 +206,7 @@ export function NavbarAndMenu({
       linkInners.forEach((linkEl, idx) => {
         linkEl.animate(
           [
-            { transform: 'translate3d(0, 112%, 0)' },
+            { transform: 'translate3d(0, 130%, 0)' },
             { transform: 'translate3d(0, 0%, 0)' },
           ],
           {
@@ -270,7 +270,7 @@ export function NavbarAndMenu({
       linkEl.animate(
         [
           { transform: 'translate3d(0, 0%, 0)' },
-          { transform: 'translate3d(0, -110%, 0)' },
+          { transform: 'translate3d(0, -130%, 0)' },
         ],
         {
           duration: 230,

@@ -63,7 +63,8 @@ export function OrchestratedCursor({
     const arrowEl = arrowWrapRef.current;
     if (!dotEl || !crossEl || !arrowEl) return;
 
-    gsap.set([dotEl, crossEl], { xPercent: -50, yPercent: -50 });
+    gsap.set(dotEl, { xPercent: -50, yPercent: -50, scale: 0.5 });
+    gsap.set(crossEl, { xPercent: -50, yPercent: -50 });
     gsap.set(arrowEl, { autoAlpha: 0, scale: 0.9 });
 
     const dotX = gsap.quickTo(dotEl, 'x', { duration: 0.45, ease: 'power3.out' });
@@ -89,18 +90,12 @@ export function OrchestratedCursor({
         currentMode = nextMode;
         currentLightSurface = onLightSurface;
 
-        gsap.killTweensOf(
-          dotEl,
-          'width,height,backgroundColor,borderWidth,borderColor'
-        );
+        gsap.killTweensOf(dotEl, 'scale,backgroundColor,borderColor');
 
         if (nextMode === 'backdrop-close') {
-          dotEl.style.backdropFilter = 'blur(8px)';
           gsap.to(dotEl, {
-            width: 80,
-            height: 80,
-            backgroundColor: 'rgba(28, 28, 28, 0.64)',
-            borderWidth: 1,
+            scale: 2.85,
+            backgroundColor: 'rgba(24, 26, 23, 0.86)',
             borderColor: 'rgba(255, 255, 255, 0.16)',
             duration: 0.34,
             ease: 'expo.out',
@@ -113,12 +108,9 @@ export function OrchestratedCursor({
             overwrite: 'auto',
           });
         } else if (nextMode === 'ring') {
-          dotEl.style.backdropFilter = 'none';
           gsap.to(dotEl, {
-            width: 28,
-            height: 28,
+            scale: 1,
             backgroundColor: 'rgba(255, 255, 255, 0)',
-            borderWidth: 2,
             borderColor: onLightSurface
               ? 'rgba(20, 21, 19, 0.88)'
               : 'rgba(255, 255, 255, 0.9)',
@@ -133,14 +125,11 @@ export function OrchestratedCursor({
             overwrite: 'auto',
           });
         } else {
-          dotEl.style.backdropFilter = 'none';
           gsap.to(dotEl, {
-            width: 14,
-            height: 14,
+            scale: 0.5,
             backgroundColor: onLightSurface
               ? 'rgba(20, 21, 19, 0.94)'
               : 'rgba(255, 255, 255, 1)',
-            borderWidth: 0,
             borderColor: 'rgba(255, 255, 255, 0)',
             duration: 0.3,
             ease: 'expo.out',
@@ -216,12 +205,11 @@ export function OrchestratedCursor({
       }
     };
 
-    const onPointerMove = (e: PointerEvent) => {
-      if (e.pointerType && e.pointerType !== 'mouse') return;
+    let pendingTarget: Element | null = null;
+    let moveRafId = 0;
 
-      lastX = e.clientX;
-      lastY = e.clientY;
-
+    const flushPointerMove = () => {
+      moveRafId = 0;
       if (!pointerSeen) {
         pointerSeen = true;
         document.documentElement.setAttribute('data-pointer-seen', '');
@@ -240,8 +228,19 @@ export function OrchestratedCursor({
         arrowY(lastY - 31);
       }
 
-      const targetEl = e.target instanceof Element ? e.target : null;
-      evaluateTarget(targetEl, lastX, lastY);
+      evaluateTarget(pendingTarget, lastX, lastY);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+
+      lastX = e.clientX;
+      lastY = e.clientY;
+      pendingTarget = e.target instanceof Element ? e.target : null;
+
+      if (!moveRafId) {
+        moveRafId = window.requestAnimationFrame(flushPointerMove);
+      }
     };
 
     let lastScrollHitTs = 0;
@@ -282,6 +281,7 @@ export function OrchestratedCursor({
     document.documentElement.addEventListener('mouseenter', onPointerEnterWindow);
 
     return () => {
+      if (moveRafId) window.cancelAnimationFrame(moveRafId);
       window.clearTimeout(scrollSettleTimer);
       window.removeEventListener('pointermove', onPointerMove, { capture: true });
       window.removeEventListener('scroll', onScroll);
