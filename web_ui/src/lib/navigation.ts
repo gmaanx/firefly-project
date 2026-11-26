@@ -70,6 +70,14 @@ export function normalizeRoutePath(pathname: string): AppRoutePath {
   return '/';
 }
 
+export function isSubpageDetailPath(pathname: string): boolean {
+  if (pathname.startsWith('/phan-cong')) return true;
+  if (pathname.startsWith('/thuc-nghiem/') && pathname !== '/thuc-nghiem/') {
+    return true;
+  }
+  return false;
+}
+
 export function isInteractiveElement(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;

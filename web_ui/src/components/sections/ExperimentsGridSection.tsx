@@ -1,18 +1,19 @@
-import { lazy, Suspense, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { useDataset } from '../../lib/dataStore';
 import { SciNumber, formatFixed } from '../../lib/formatters';
+import { CARD_TO_SLUG } from '../../pages/ExperimentDetailPage';
 import { BlockReveal } from '../shared/BlockReveal';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { LandoSignatureFlourish } from '../shared/LandoSignatureFlourish';
 import { MathFormula } from '../shared/MathFormula';
+import { useRouteCurtain } from '../shared/RouteCurtain';
 import type { ExperimentCardId } from './ExperimentModal';
 
 gsap.registerPlugin(ScrollTrigger);
-
-const ExperimentModal = lazy(() => import('./ExperimentModal'));
 
 export interface ExperimentsGridSectionProps {
   reducedMotion: boolean;
@@ -73,7 +74,7 @@ export function ExperimentsGridSection({
   const sectionRef = useRef<HTMLElement>(null);
   const takeawaysRef = useRef<HTMLDivElement>(null);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('all');
-  const [activeCard, setActiveCard] = useState<ExperimentCardId | null>(null);
+  const { navigateWithDarkZoom } = useRouteCurtain();
 
   const convState = useDataset('convergence_iterations', true);
   const scaleState = useDataset('scalability_nd', true);
@@ -181,45 +182,6 @@ export function ExperimentsGridSection({
             );
           }
         });
-
-        // Lenis-scrubbed asymmetric 2-column glide when showing all 6 cards
-        if (activeFilter === 'all') {
-          const mm = gsap.matchMedia();
-          mm.add('(min-width: 960px)', () => {
-            const cols = sec.querySelectorAll<HTMLElement>('.exp-bento-col');
-            if (cols.length === 2) {
-              gsap.fromTo(
-                cols[0],
-                { y: 18 },
-                {
-                  y: -22,
-                  ease: 'none',
-                  scrollTrigger: {
-                    trigger: sec,
-                    start: 'top bottom',
-                    end: 'bottom top',
-                    scrub: 0.65,
-                  },
-                }
-              );
-              gsap.fromTo(
-                cols[1],
-                { y: -14 },
-                {
-                  y: 24,
-                  ease: 'none',
-                  scrollTrigger: {
-                    trigger: sec,
-                    start: 'top bottom',
-                    end: 'bottom top',
-                    scrub: 0.65,
-                  },
-                }
-              );
-            }
-          });
-          return () => mm.revert();
-        }
       }
     },
     { scope: sectionRef, dependencies: [activeFilter, reducedMotion, viewMode, dataReadySig] }
@@ -684,8 +646,8 @@ export function ExperimentsGridSection({
           <MathFormula tex="n^2" ariaLabel="n^2" /> mỗi thế hệ.
         </>
       ),
-      problemCol: 'Đo thời gian thực thi (10D)',
-      configCol: 'n ∈ {10, 20, 40, 80, 160}',
+      problemCol: 'Mặt cầu dịch tâm 5D (CountingProblem)',
+      configCol: 'n ∈ {10, 20, 40, 80, 160} · t = 8 · 3 seed',
       resultCol: compState.data
         ? `Độ dốc log–log = ${compState.data.log_log_slope.toFixed(3)}`
         : '…',
@@ -763,7 +725,7 @@ export function ExperimentsGridSection({
       cardNoteVi:
         'Đàn 40 đom đóm tự chia thành 4 nhóm riêng biệt, chiếm lĩnh trọn vẹn cả 4 cực tiểu toàn cục của hàm Himmelblau khi γ = 1.0.',
       problemCol: 'Himmelblau 2D & Rastrigin 2D',
-      configCol: 'n = 40, γ ∈ {10⁻⁵..5}, 10 seed',
+      configCol: 'n = 40, γ ∈ {10⁻⁵..5}, 3 seed',
       resultCol: 'Tìm đủ 4.00 / 4 đỉnh Himmelblau (γ = 1.0)',
     },
   ];
@@ -838,47 +800,19 @@ export function ExperimentsGridSection({
         {viewMode === 'grid' ? (
           <div className="exp-bento-2col">
             <div className="exp-bento-col">
-              {leftColCards.map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className="exp-notch-card"
-                  onClick={() => setActiveCard(card.id)}
-                  aria-label={`Mở phân tích ${card.ariaTitle}`}
-                >
-                  <ChamferedFrameSvg />
-                  <div className="exp-notch-card__surface">
-                    <div className="exp-notch-card__top">
-                      <span className="exp-notch-card__index">
-                        {card.tagLabel}
-                      </span>
-                      <span className="exp-notch-card__open-pill" aria-hidden="true">
-                        Chi tiết ↗
-                      </span>
-                    </div>
-
-                    <div className="exp-notch-card__chart-wrap">
-                      {renderThumb(card.id)}
-                    </div>
-
-                    <div className="exp-notch-card__title">{card.title}</div>
-                    <p className="exp-notch-card__summary">{card.cardNoteVi}</p>
-                  </div>
-
-                  <div className="exp-notch-card__cutout-badge">{card.metric}</div>
-                </button>
-              ))}
-            </div>
-
-            {rightColCards.length > 0 ? (
-              <div className="exp-bento-col exp-bento-col--offset">
-                {rightColCards.map((card) => (
-                  <button
+              {leftColCards.map((card) => {
+                const detailPath = `/thuc-nghiem/${CARD_TO_SLUG[card.id]}`;
+                return (
+                  <Link
                     key={card.id}
-                    type="button"
+                    to={detailPath}
                     className="exp-notch-card"
-                    onClick={() => setActiveCard(card.id)}
-                    aria-label={`Mở phân tích ${card.ariaTitle}`}
+                    onClick={(e) =>
+                      navigateWithDarkZoom(detailPath, e, {
+                        returnPath: '/thuc-nghiem',
+                      })
+                    }
+                    aria-label={`Mở trang phân tích ${card.ariaTitle}`}
                   >
                     <ChamferedFrameSvg />
                     <div className="exp-notch-card__surface">
@@ -900,8 +834,50 @@ export function ExperimentsGridSection({
                     </div>
 
                     <div className="exp-notch-card__cutout-badge">{card.metric}</div>
-                  </button>
-                ))}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {rightColCards.length > 0 ? (
+              <div className="exp-bento-col exp-bento-col--offset">
+                {rightColCards.map((card) => {
+                  const detailPath = `/thuc-nghiem/${CARD_TO_SLUG[card.id]}`;
+                  return (
+                    <Link
+                      key={card.id}
+                      to={detailPath}
+                      className="exp-notch-card"
+                      onClick={(e) =>
+                        navigateWithDarkZoom(detailPath, e, {
+                          returnPath: '/thuc-nghiem',
+                        })
+                      }
+                      aria-label={`Mở trang phân tích ${card.ariaTitle}`}
+                    >
+                      <ChamferedFrameSvg />
+                      <div className="exp-notch-card__surface">
+                        <div className="exp-notch-card__top">
+                          <span className="exp-notch-card__index">
+                            {card.tagLabel}
+                          </span>
+                          <span className="exp-notch-card__open-pill" aria-hidden="true">
+                            Chi tiết ↗
+                          </span>
+                        </div>
+
+                        <div className="exp-notch-card__chart-wrap">
+                          {renderThumb(card.id)}
+                        </div>
+
+                        <div className="exp-notch-card__title">{card.title}</div>
+                        <p className="exp-notch-card__summary">{card.cardNoteVi}</p>
+                      </div>
+
+                      <div className="exp-notch-card__cutout-badge">{card.metric}</div>
+                    </Link>
+                  );
+                })}
               </div>
             ) : null}
           </div>
@@ -924,38 +900,47 @@ export function ExperimentsGridSection({
                 </tr>
               </thead>
               <tbody>
-                {visibleCards.map((card) => (
-                  <tr
-                    key={card.id}
-                    className="exp-summary-table__row"
-                    onClick={() => setActiveCard(card.id)}
-                  >
-                    <td className="exp-summary-table__code">{card.code}</td>
-                    <th scope="row" className="exp-summary-table__name">
-                      <div>{card.title}</div>
-                      <span className="exp-summary-table__subnote">
-                        {card.cardNoteVi}
-                      </span>
-                    </th>
-                    <td>{card.problemCol}</td>
-                    <td>
-                      <code className="exp-summary-table__cfg">{card.configCol}</code>
-                    </td>
-                    <td className="exp-summary-table__result">{card.resultCol}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="exp-summary-table__btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveCard(card.id);
-                        }}
-                      >
-                        Xem đồ thị ↗
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {visibleCards.map((card) => {
+                  const detailPath = `/thuc-nghiem/${CARD_TO_SLUG[card.id]}`;
+                  return (
+                    <tr
+                      key={card.id}
+                      className="exp-summary-table__row"
+                      onClick={(e) =>
+                        navigateWithDarkZoom(detailPath, e.currentTarget, {
+                          returnPath: '/thuc-nghiem',
+                        })
+                      }
+                    >
+                      <td className="exp-summary-table__code">{card.code}</td>
+                      <th scope="row" className="exp-summary-table__name">
+                        <div>{card.title}</div>
+                        <span className="exp-summary-table__subnote">
+                          {card.cardNoteVi}
+                        </span>
+                      </th>
+                      <td>{card.problemCol}</td>
+                      <td>
+                        <code className="exp-summary-table__cfg">{card.configCol}</code>
+                      </td>
+                      <td className="exp-summary-table__result">{card.resultCol}</td>
+                      <td>
+                        <Link
+                          to={detailPath}
+                          className="exp-summary-table__btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateWithDarkZoom(detailPath, e, {
+                              returnPath: '/thuc-nghiem',
+                            });
+                          }}
+                        >
+                          Xem đồ thị ↗
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1031,20 +1016,6 @@ export function ExperimentsGridSection({
           </div>
         </div>
       </div>
-
-      <Suspense fallback={null}>
-        <ExperimentModal
-          activeCard={activeCard}
-          onClose={() => setActiveCard(null)}
-          onNavigateCard={(nextId) => setActiveCard(nextId)}
-          convergence={convState.data}
-          scalability={scaleState.data}
-          complexity={compState.data}
-          sensitivity={sensState.data}
-          alphaHybrid={hybridState.data}
-          multimodal={mmState.data}
-        />
-      </Suspense>
     </section>
   );
 }

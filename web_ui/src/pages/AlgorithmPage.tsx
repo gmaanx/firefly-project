@@ -10,17 +10,15 @@ import { ContourBackdrop } from '../components/shared/ContourBackdrop';
 import { LandoSignatureFlourish } from '../components/shared/LandoSignatureFlourish';
 import { MathFormula } from '../components/shared/MathFormula';
 import { NextPageBanner } from '../components/shared/NextPageBanner';
-import type { QaTabId } from '../components/shared/QaDrawer';
 import { AlgorithmFieldCanvas } from '../components/webgl/AlgorithmFieldCanvas';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export interface AlgorithmPageProps {
   reducedMotion: boolean;
-  onOpenQa: (tab?: QaTabId) => void;
 }
 
-export function AlgorithmPage({ reducedMotion, onOpenQa }: AlgorithmPageProps) {
+export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const heroSectionRef = useRef<HTMLElement>(null);
   const heroLeftRef = useRef<HTMLDivElement>(null);
@@ -272,16 +270,10 @@ export function AlgorithmPage({ reducedMotion, onOpenQa }: AlgorithmPageProps) {
       </section>
 
       {/* 2. Split Sticky 5-Step Scrollytelling Deck (#so-do) + Standalone Pseudocode (#ma-gia) */}
-      <FlowchartTrackSection
-        reducedMotion={reducedMotion}
-        onOpenQa={onOpenQa}
-      />
+      <FlowchartTrackSection reducedMotion={reducedMotion} />
 
       {/* 3. Worked Step-by-Step 3D Telemetry & Constrained Optimization (#101110 Obsidian) */}
-      <WorkedTelemetrySection
-        reducedMotion={reducedMotion}
-        onOpenQa={onOpenQa}
-      />
+      <WorkedTelemetrySection reducedMotion={reducedMotion} />
 
       <NextPageBanner
         titlePlain="Kết quả"

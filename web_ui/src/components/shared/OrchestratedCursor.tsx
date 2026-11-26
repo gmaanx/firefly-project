@@ -167,9 +167,16 @@ export function OrchestratedCursor({
       }
     };
 
+    const liveDialogs = document.getElementsByTagName('dialog');
+    const hasOpenDialog = (): boolean => {
+      for (let i = 0; i < liveDialogs.length; i += 1) {
+        if (liveDialogs[i].open) return true;
+      }
+      return false;
+    };
+
     const evaluateTarget = (target: Element | null, x: number, y: number) => {
-      const openDialog = document.querySelector('dialog[open]');
-      if (openDialog) {
+      if (hasOpenDialog()) {
         const insideModal = Boolean(target?.closest(MODAL_CONTENT_SELECTOR));
         if (!insideModal) {
           applyVisualState('backdrop-close', false, false);
@@ -237,10 +244,23 @@ export function OrchestratedCursor({
       evaluateTarget(targetEl, lastX, lastY);
     };
 
-    const onScroll = () => {
-      if (!pointerSeen) return;
+    let lastScrollHitTs = 0;
+    let scrollSettleTimer = 0;
+
+    const runScrollHitTest = () => {
+      lastScrollHitTs = performance.now();
       const hovered = document.elementFromPoint(lastX, lastY);
       evaluateTarget(hovered, lastX, lastY);
+    };
+
+    const onScroll = () => {
+      if (!pointerSeen) return;
+      const now = performance.now();
+      if (now - lastScrollHitTs >= 96) {
+        runScrollHitTest();
+      }
+      window.clearTimeout(scrollSettleTimer);
+      scrollSettleTimer = window.setTimeout(runScrollHitTest, 120);
     };
 
     const onPointerLeaveWindow = () => {
@@ -262,6 +282,7 @@ export function OrchestratedCursor({
     document.documentElement.addEventListener('mouseenter', onPointerEnterWindow);
 
     return () => {
+      window.clearTimeout(scrollSettleTimer);
       window.removeEventListener('pointermove', onPointerMove, { capture: true });
       window.removeEventListener('scroll', onScroll);
       document.documentElement.removeEventListener(

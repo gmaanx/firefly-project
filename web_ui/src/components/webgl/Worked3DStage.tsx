@@ -12,12 +12,15 @@ export interface Worked3DStageProps {
   reducedMotion: boolean;
 }
 
-interface ProjectedLabel {
+interface LabelMeta {
   id: string;
   text: string;
+  tone: 'best' | 'normal' | 'reject';
+}
+
+interface ProjectedLabel extends LabelMeta {
   x: number;
   y: number;
-  tone: 'best' | 'normal' | 'reject';
 }
 
 function createGlowTexture(): THREE.CanvasTexture {
@@ -120,7 +123,8 @@ export function Worked3DStage({
 }: Worked3DStageProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [labels, setLabels] = useState<ProjectedLabel[]>([]);
+  const labelElsRef = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const [labelMetas, setLabelMetas] = useState<LabelMeta[]>([]);
   const { shouldMount, isReady } = useDeferredWebGLMount(wrapRef, '560px');
 
   const stateRef = useRef({ mode, activeStep, workedData, constrainedData, reducedMotion });
@@ -444,10 +448,11 @@ export function Worked3DStage({
           });
         }
       }
-    };
 
-    rebuildSceneRef.current = buildDynamicScene;
-    buildDynamicScene();
+      setLabelMetas(
+        labelAnchors.map((a) => ({ id: a.id, text: a.text, tone: a.tone }))
+      );
+    };
 
     let width = 480;
     let height = 400;
@@ -500,8 +505,34 @@ export function Worked3DStage({
           }
         }
       }
-      setLabels(raw);
+
+      const placedMap = new Map<string, ProjectedLabel>();
+      for (const item of raw) {
+        placedMap.set(item.id, item);
+      }
+      for (const a of labelAnchors) {
+        const el = labelElsRef.current.get(a.id);
+        if (!el) continue;
+        const hit = placedMap.get(a.id);
+        if (hit) {
+          el.style.transform = `translate3d(${hit.x.toFixed(1)}px, ${hit.y.toFixed(1)}px, 0) translate(-50%, -130%)`;
+          el.style.opacity = '1';
+        } else {
+          el.style.opacity = '0';
+        }
+      }
     };
+
+    const rebuildAndProject = () => {
+      buildDynamicScene();
+      requestAnimationFrame(() => {
+        renderer.render(scene, camera);
+        projectNonOverlappingLabels();
+      });
+    };
+
+    rebuildSceneRef.current = rebuildAndProject;
+    rebuildAndProject();
 
     const animate = () => {
       if (!isVisible || document.hidden) return;
@@ -598,9 +629,16 @@ export function Worked3DStage({
       >
         <canvas ref={canvasRef} className="worked-3d-canvas" />
         <div className="worked-3d-overlay-badges" aria-hidden="true">
-          {labels.map((lbl) => (
+          {labelMetas.map((lbl) => (
             <span
               key={lbl.id}
+              ref={(el) => {
+                if (el) {
+                  labelElsRef.current.set(lbl.id, el);
+                } else {
+                  labelElsRef.current.delete(lbl.id);
+                }
+              }}
               className={`firefly-3d-label ${
                 lbl.tone === 'best'
                   ? 'firefly-3d-label--best'
@@ -608,7 +646,6 @@ export function Worked3DStage({
                     ? 'hairline-bento__val--amber'
                     : ''
               }`}
-              style={{ left: `${lbl.x.toFixed(1)}px`, top: `${lbl.y.toFixed(1)}px` }}
             >
               {lbl.text}
             </span>

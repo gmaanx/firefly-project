@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   APP_ROUTES,
+  isSubpageDetailPath,
   type AppRoutePath,
   type SurfaceTheme,
 } from '../../lib/navigation';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { KineticRouteLink } from '../shared/KineticButton';
-import type { QaTabId } from '../shared/QaDrawer';
 import { useRouteCurtain } from '../shared/RouteCurtain';
 
 export interface NavbarAndMenuProps {
@@ -15,7 +15,6 @@ export interface NavbarAndMenuProps {
   activeSurface: SurfaceTheme;
   menuOpen: boolean;
   onMenuToggle: (next: boolean) => void;
-  onOpenQa: (tab?: QaTabId) => void;
   reducedMotion: boolean;
   onToggleReducedMotion: () => void;
   onPreloadRoute?: (to: AppRoutePath) => void;
@@ -74,7 +73,6 @@ export function NavbarAndMenu({
   activeSurface,
   menuOpen,
   onMenuToggle,
-  onOpenQa,
   reducedMotion,
   onToggleReducedMotion,
   onPreloadRoute,
@@ -88,7 +86,12 @@ export function NavbarAndMenu({
   const skipNextCloseAnimRef = useRef<boolean>(false);
   const menuTitleId = useId();
   const dialogId = useId();
-  const { navigateWithCurtain } = useRouteCurtain();
+  const location = useLocation();
+  const { navigateWithCurtain, returnFromSubpage } = useRouteCurtain();
+  const isDetailSubpage = isSubpageDetailPath(location.pathname);
+  const isExpSubpage =
+    location.pathname.startsWith('/thuc-nghiem/') &&
+    location.pathname !== '/thuc-nghiem/';
   const [hoveredRoute, setHoveredRoute] = useState<AppRoutePath>(activeRoute);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
 
@@ -371,24 +374,44 @@ export function NavbarAndMenu({
       />
       <header
         className={`top-nav ${
-          isDarkSurface ? 'top-nav--on-dark' : 'top-nav--on-light'
+          isDarkSurface || isDetailSubpage ? 'top-nav--on-dark' : 'top-nav--on-light'
         } ${isScrolled ? 'top-nav--scrolled' : ''}`}
         aria-label="Thanh điều hướng chính"
       >
-        <Link
-          to="/"
-          className="top-nav__brand"
-          onClick={(e) => navigateWithCurtain('/', e)}
-          aria-label="Về trang chủ Thuật toán Đom đóm"
-        >
-          <FaMonogramLogo />
-        </Link>
+        {isDetailSubpage ? (
+          <button
+            type="button"
+            className="top-nav__back-btn"
+            onClick={() =>
+              returnFromSubpage(isExpSubpage ? '/thuc-nghiem' : '/thuat-toan')
+            }
+            aria-label={
+              isExpSubpage
+                ? 'Quay lại trang Thực nghiệm'
+                : 'Quay lại trang trước'
+            }
+          >
+            <span className="top-nav__back-arrow" aria-hidden="true">
+              ←
+            </span>
+            <span>{isExpSubpage ? 'Quay lại Thực nghiệm' : 'Quay lại'}</span>
+          </button>
+        ) : (
+          <Link
+            to="/"
+            className="top-nav__brand"
+            onClick={(e) => navigateWithCurtain('/', e)}
+            aria-label="Về trang chủ Thuật toán Đom đóm"
+          >
+            <FaMonogramLogo />
+          </Link>
+        )}
 
         <div className="top-nav__actions">
           <KineticRouteLink
             to="/demo"
             label="LIVE DEMO"
-            variant={isDarkSurface ? 'lime' : 'dark'}
+            variant={isDarkSurface || isDetailSubpage ? 'lime' : 'dark'}
             className="top-nav__cta"
             onNavigate={(dest, e) => navigateWithCurtain(dest, e)}
           />
@@ -716,16 +739,6 @@ export function NavbarAndMenu({
             <div className="split-menu__utilities">
               <button
                 type="button"
-                className="menu-util-btn"
-                onClick={() => {
-                  onMenuToggle(false);
-                  onOpenQa('guardrails');
-                }}
-              >
-                Hỏi đáp Q&amp;A ↗
-              </button>
-              <button
-                type="button"
                 className={`menu-util-btn ${
                   reducedMotion ? 'menu-util-btn--active' : ''
                 }`}
@@ -741,9 +754,6 @@ export function NavbarAndMenu({
               </span>
               <span>
                 <kbd>M</kbd> Menu
-              </span>
-              <span>
-                <kbd>Q</kbd> Q&amp;A
               </span>
               <span>
                 <kbd>Space</kbd> Chạy/Dừng

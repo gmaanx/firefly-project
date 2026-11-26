@@ -208,7 +208,7 @@ export function OrchestratedFireflyHeroCanvas({
     renderer.setClearColor(0x010204, 1);
 
     const isMobile = window.innerWidth < 768;
-    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.45);
+    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.1 : 1.25);
     let vw = Math.max(2, window.innerWidth);
     let vh = Math.max(2, window.innerHeight);
     let pixelH = Math.max(2, Math.floor(vh * dpr));
@@ -256,7 +256,7 @@ export function OrchestratedFireflyHeroCanvas({
     };
 
     /* ----------------------------------------------------------------------
-       3. `EffectComposer` (4x MSAA HalfFloat HDR -> Bloom -> ACES Output -> Finish)
+       3. `EffectComposer` (HalfFloat HDR -> Half-Res Bloom -> ACES -> CRT Finish)
        ---------------------------------------------------------------------- */
     const msaaTarget = new THREE.WebGLRenderTarget(
       Math.max(2, Math.floor(vw * dpr)),
@@ -266,7 +266,7 @@ export function OrchestratedFireflyHeroCanvas({
         format: THREE.RGBAFormat,
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
-        samples: isMobile ? 0 : 2,
+        samples: 0,
       }
     );
 
@@ -303,6 +303,7 @@ export function OrchestratedFireflyHeroCanvas({
     let smoothPointerActive = 0;
 
     const onPointerMove = (ev: PointerEvent) => {
+      if (!stageActiveRef.current) return;
       const w = Math.max(1, window.innerWidth);
       const h = Math.max(1, window.innerHeight);
       pointerNdcX = clamp((ev.clientX / w) * 2.0 - 1.0, -1.0, 1.0);
