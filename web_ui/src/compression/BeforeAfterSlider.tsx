@@ -116,7 +116,7 @@ export function BeforeAfterSlider({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
       <div className="ba-toolbar">
         <span className="ba-toolbar__title">
           SO SÁNH TRƯỚC / SAU · KÉO THANH GẠT ({Math.round(splitPct)}%)

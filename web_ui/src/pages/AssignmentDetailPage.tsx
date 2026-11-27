@@ -314,13 +314,30 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
                           replace
                           className="assign-ledger-entry"
                         >
-                          <div className="assign-ledger-entry__who">
-                            <span className="assign-ledger-entry__num">
-                              {String(m.memberNumber).padStart(2, '0')}
+                          <div className="assign-ledger-entry__lead">
+                            <span className="zeit-hover-arrow" aria-hidden="true">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                className="zeit-hover-arrow__svg"
+                              >
+                                <path
+                                  d="M3.5 12H19.5M13.5 6L19.5 12L13.5 18"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
                             </span>
-                            <strong className="assign-ledger-entry__name">
-                              {m.memberName}
-                            </strong>
+                            <div className="assign-ledger-entry__who">
+                              <span className="assign-ledger-entry__num">
+                                {String(m.memberNumber).padStart(2, '0')}
+                              </span>
+                              <strong className="assign-ledger-entry__name">
+                                {m.memberName}
+                              </strong>
+                            </div>
                           </div>
 
                           <div className="assign-ledger-entry__body">
@@ -329,10 +346,6 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
                               <code>{m.files}</code> · {m.bookRefsShort}
                             </span>
                           </div>
-
-                          <span className="assign-ledger-entry__open" aria-hidden="true">
-                            Chi tiết ↗
-                          </span>
                         </Link>
                       ))}
                     </div>

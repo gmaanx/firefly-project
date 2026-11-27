@@ -56,7 +56,7 @@ export function ConvergenceMiniChart({
         </div>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ width: '100%', height: '64px', display: 'block' }}
+          className="mini-chart-box__svg"
           role="img"
           aria-label="Đường hội tụ sai số bình phương trung bình MSE giảm dần theo thế hệ"
         >
@@ -106,7 +106,7 @@ export function ConvergenceMiniChart({
         </div>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ width: '100%', height: '64px', display: 'block' }}
+          className="mini-chart-box__svg"
           role="img"
           aria-label="Đường chất lượng ảnh PSNR tăng dần theo thế hệ"
         >

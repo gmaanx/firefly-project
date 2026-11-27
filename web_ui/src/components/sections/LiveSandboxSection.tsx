@@ -584,7 +584,10 @@ export function LiveSandboxSection({
         <div className="sandbox-grid">
           <div className="sandbox-left">
             <div>
-              <h2 id="sandbox-heading" tabIndex={-1} className="sandbox-title">
+              <span className="algo-chapter-eyebrow">
+                MÔ PHỎNG TRỰC TIẾP · PHẦN 01 / 02
+              </span>
+              <h1 id="sandbox-heading" tabIndex={-1} className="sandbox-title">
                 <span className="block-reveal-lines">
                   <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
                     Thử nghiệm tham số
@@ -595,7 +598,7 @@ export function LiveSandboxSection({
                     </span>
                   </BlockReveal>
                 </span>
-              </h2>
+              </h1>
             </div>
 
             <p className="sandbox-lead">
@@ -793,6 +796,82 @@ export function LiveSandboxSection({
                 Đặt lại
               </button>
             </div>
+          </div>
+
+          <div className="sandbox-right">
+            <div className="sandbox-stage-card">
+              <div className="sandbox-stage-card__bar">
+                <strong>{activeTabMeta.headerTitle}</strong>
+                <span
+                  className={`sandbox-status-dot ${
+                    isPlaying ? 'sandbox-status-dot--live' : ''
+                  }`}
+                >
+                  {snapshot.completed
+                    ? 'HOÀN TẤT'
+                    : isPlaying
+                      ? 'ĐANG CHẠY'
+                      : 'SẴN SÀNG'}
+                </span>
+              </div>
+
+              <div className="sandbox-formula-strip">
+                <div className="sandbox-formula-strip__math">
+                  <MathFormula
+                    tex={activeTabMeta.formulaTex}
+                    ariaLabel={activeProblem.subtitle}
+                  />
+                </div>
+                <p className="sandbox-formula-strip__note">
+                  {activeProblem.scopeNote}
+                </p>
+              </div>
+
+              <div className="sandbox-canvas-box">
+                <canvas
+                  ref={canvasRef}
+                  className="sandbox-canvas"
+                  role="img"
+                  aria-label={`Mô phỏng đàn đom đóm trên bài toán ${activeTabMeta.label} tại thế hệ t = ${snapshot.t}`}
+                />
+              </div>
+
+              <div className="sandbox-bento-bar">
+                <div className="sandbox-bento-cell">
+                  <span>Thế hệ t</span>
+                  <strong>
+                    {snapshot.t} / {config.tMax}
+                  </strong>
+                </div>
+
+                <div className="sandbox-bento-cell">
+                  <span>Giá trị tốt nhất</span>
+                  <strong style={{ color: 'var(--accent-lime)' }}>
+                    {activeProblem.isConstrained && snapshot.constrainedBest ? (
+                      formatFixed(snapshot.constrainedBest.objective, 4)
+                    ) : (
+                      <SciNumber value={snapshot.fbest} sigDigits={2} />
+                    )}
+                  </strong>
+                </div>
+
+                <div className="sandbox-bento-cell">
+                  <span>
+                    Nghiệm <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />
+                  </span>
+                  <strong>{displayVec}</strong>
+                </div>
+
+                <div className="sandbox-bento-cell">
+                  <span>
+                    Bước nhiễu <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />
+                  </span>
+                  <strong style={{ color: 'var(--accent-iris)' }}>
+                    <SciNumber value={snapshot.alphaUsed} sigDigits={2} />
+                  </strong>
+                </div>
+              </div>
+            </div>
 
             <div className="sandbox-sparkline-card">
               <div className="sandbox-sparkline-card__head">
@@ -820,80 +899,6 @@ export function LiveSandboxSection({
                   />
                 ) : null}
               </svg>
-            </div>
-          </div>
-
-          <div className="sandbox-stage-card">
-            <div className="sandbox-stage-card__bar">
-              <strong>{activeTabMeta.headerTitle}</strong>
-              <span
-                className={`sandbox-status-dot ${
-                  isPlaying ? 'sandbox-status-dot--live' : ''
-                }`}
-              >
-                {snapshot.completed
-                  ? 'HOÀN TẤT'
-                  : isPlaying
-                    ? 'ĐANG CHẠY'
-                    : 'SẴN SÀNG'}
-              </span>
-            </div>
-
-            <div className="sandbox-formula-strip">
-              <div className="sandbox-formula-strip__math">
-                <MathFormula
-                  tex={activeTabMeta.formulaTex}
-                  ariaLabel={activeProblem.subtitle}
-                />
-              </div>
-              <p className="sandbox-formula-strip__note">
-                {activeProblem.scopeNote}
-              </p>
-            </div>
-
-            <div className="sandbox-canvas-box">
-              <canvas
-                ref={canvasRef}
-                className="sandbox-canvas"
-                role="img"
-                aria-label={`Mô phỏng đàn đom đóm trên bài toán ${activeTabMeta.label} tại thế hệ t = ${snapshot.t}`}
-              />
-            </div>
-
-            <div className="sandbox-bento-bar">
-              <div className="sandbox-bento-cell">
-                <span>Thế hệ t</span>
-                <strong>
-                  {snapshot.t} / {config.tMax}
-                </strong>
-              </div>
-
-              <div className="sandbox-bento-cell">
-                <span>Giá trị tốt nhất</span>
-                <strong style={{ color: 'var(--accent-lime)' }}>
-                  {activeProblem.isConstrained && snapshot.constrainedBest ? (
-                    formatFixed(snapshot.constrainedBest.objective, 4)
-                  ) : (
-                    <SciNumber value={snapshot.fbest} sigDigits={2} />
-                  )}
-                </strong>
-              </div>
-
-              <div className="sandbox-bento-cell">
-                <span>
-                  Nghiệm <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />
-                </span>
-                <strong>{displayVec}</strong>
-              </div>
-
-              <div className="sandbox-bento-cell">
-                <span>
-                  Bước nhiễu <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />
-                </span>
-                <strong style={{ color: 'var(--accent-iris)' }}>
-                  <SciNumber value={snapshot.alphaUsed} sigDigits={2} />
-                </strong>
-              </div>
             </div>
           </div>
         </div>

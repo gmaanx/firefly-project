@@ -17,6 +17,22 @@ export interface FooterSectionProps {
 
 const DEFAULT_PREVIEW_SLUG = 'gia-man';
 
+function ZeitHoverArrow() {
+  return (
+    <span className="zeit-hover-arrow" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" className="zeit-hover-arrow__svg">
+        <path
+          d="M3.5 12H19.5M13.5 6L19.5 12L13.5 18"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
 export function FooterSection({ reducedMotion }: FooterSectionProps) {
   const footerRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -207,14 +223,16 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                         onFocus={() => setActiveSlug(m.slug)}
                         onClick={(ev) => handleOpenSubpage(`/phan-cong/${m.slug}`, ev)}
                       >
-                        <span className="lando-roster-item__num">
-                          {String(m.memberNumber).padStart(2, '0')}
+                        <span className="lando-roster-item__lead">
+                          <ZeitHoverArrow />
+                          <span className="lando-roster-item__who">
+                            <span className="lando-roster-item__num">
+                              {String(m.memberNumber).padStart(2, '0')}
+                            </span>
+                            <span className="lando-roster-item__name">{m.memberName}</span>
+                          </span>
                         </span>
-                        <span className="lando-roster-item__name">{m.memberName}</span>
                         <span className="lando-roster-item__role">{m.shortRole}</span>
-                        <span className="lando-roster-item__arrow" aria-hidden="true">
-                          ↗
-                        </span>
                       </Link>
                     );
                   })}
@@ -225,12 +243,16 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                     className="lando-roster-item lando-roster-item--all"
                     onClick={(ev) => handleOpenSubpage('/phan-cong', ev)}
                   >
-                    <span className="lando-roster-item__num" aria-hidden="true">∑</span>
-                    <span className="lando-roster-item__name">Đủ 6 giai đoạn</span>
-                    <span className="lando-roster-item__role">Xem toàn bộ lộ trình</span>
-                    <span className="lando-roster-item__arrow" aria-hidden="true">
-                      ↗
+                    <span className="lando-roster-item__lead">
+                      <ZeitHoverArrow />
+                      <span className="lando-roster-item__who">
+                        <span className="lando-roster-item__num" aria-hidden="true">
+                          ∑
+                        </span>
+                        <span className="lando-roster-item__name">Đủ 6 giai đoạn</span>
+                      </span>
                     </span>
+                    <span className="lando-roster-item__role">Xem toàn bộ lộ trình</span>
                   </Link>
                 </div>
 
