@@ -1,11 +1,17 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { NavbarAndMenu } from './components/sections/NavbarAndMenu';
 import { OrchestratedCursor } from './components/shared/OrchestratedCursor';
-import type { QaTabId } from './components/shared/QaDrawer';
 import {
   RouteTransitionProvider,
   useRouteCurtain,
@@ -29,6 +35,8 @@ gsap.registerPlugin(ScrollTrigger);
 // Memoized lazy chunk loaders so preloading on hover / idle / curtain cover shares the exact Promise
 let algoChunkPromise: Promise<{ default: typeof import('./pages/AlgorithmPage')['AlgorithmPage'] }> | null = null;
 let expChunkPromise: Promise<{ default: typeof import('./pages/ExperimentsPage')['ExperimentsPage'] }> | null = null;
+let expDetailChunkPromise: Promise<{ default: typeof import('./pages/ExperimentDetailPage')['ExperimentDetailPage'] }> | null = null;
+let assignDetailChunkPromise: Promise<{ default: typeof import('./pages/AssignmentDetailPage')['AssignmentDetailPage'] }> | null = null;
 let demoChunkPromise: Promise<{ default: typeof import('./pages/DemoPage')['DemoPage'] }> | null = null;
 
 function loadAlgorithmPageChunk() {
@@ -49,6 +57,24 @@ function loadExperimentsPageChunk() {
   return expChunkPromise;
 }
 
+function loadExperimentDetailChunk() {
+  if (!expDetailChunkPromise) {
+    expDetailChunkPromise = import('./pages/ExperimentDetailPage').then((m) => ({
+      default: m.ExperimentDetailPage,
+    }));
+  }
+  return expDetailChunkPromise;
+}
+
+function loadAssignmentDetailChunk() {
+  if (!assignDetailChunkPromise) {
+    assignDetailChunkPromise = import('./pages/AssignmentDetailPage').then((m) => ({
+      default: m.AssignmentDetailPage,
+    }));
+  }
+  return assignDetailChunkPromise;
+}
+
 function loadDemoPageChunk() {
   if (!demoChunkPromise) {
     demoChunkPromise = import('./pages/DemoPage').then((m) => ({
@@ -59,18 +85,21 @@ function loadDemoPageChunk() {
 }
 
 export function preloadRouteChunk(to: AppRoutePath): Promise<unknown> {
-  if (to === '/thuat-toan') return loadAlgorithmPageChunk();
-  if (to === '/thuc-nghiem') return loadExperimentsPageChunk();
+  if (to === '/thuat-toan') {
+    return loadAlgorithmPageChunk();
+  }
+  if (to === '/thuc-nghiem') {
+    return Promise.all([loadExperimentsPageChunk(), loadExperimentDetailChunk()]);
+  }
   if (to === '/demo') return loadDemoPageChunk();
   return Promise.resolve();
 }
 
 const AlgorithmPage = lazy(loadAlgorithmPageChunk);
 const ExperimentsPage = lazy(loadExperimentsPageChunk);
+const ExperimentDetailPage = lazy(loadExperimentDetailChunk);
+const AssignmentDetailPage = lazy(loadAssignmentDetailChunk);
 const DemoPage = lazy(loadDemoPageChunk);
-const QaDrawer = lazy(() =>
-  import('./components/shared/QaDrawer').then((m) => ({ default: m.QaDrawer }))
-);
 
 function getSectionScrollOffset(_id: string): number {
   return -68;
@@ -89,11 +118,12 @@ function AppInner({
   onToggleReducedMotion,
   onScrollToSection,
 }: AppInnerProps) {
+  const location = useLocation();
   const { navigateWithCurtain } = useRouteCurtain();
   const routeMeta =
     APP_ROUTES.find((r) => r.path === activeRoute) ?? APP_ROUTES[0];
 
-  const isHomeActive = activeRoute === '/';
+  const isHomeActive = location.pathname === '/';
   const [hasVisitedHome, setHasVisitedHome] = useState<boolean>(isHomeActive);
   const homeKeepAliveRef = useRef<HTMLDivElement>(null);
 
@@ -109,10 +139,14 @@ function AppInner({
     if (!keepRoot) return;
 
     if (!isHomeActive) {
-      ScrollTrigger.getAll().forEach((st) => {
+      [...ScrollTrigger.getAll()].forEach((st) => {
         const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
         if (trig instanceof Node && keepRoot.contains(trig)) {
-          st.disable(false);
+          if (st.vars.once && st.progress >= 1) {
+            st.kill(false);
+          } else {
+            st.disable(false);
+          }
         }
       });
       return;
@@ -142,6 +176,8 @@ function AppInner({
       const warm = () => {
         void loadAlgorithmPageChunk();
         void loadExperimentsPageChunk();
+        void loadExperimentDetailChunk();
+        void loadAssignmentDetailChunk();
         void loadDemoPageChunk();
       };
       if (typeof win.requestIdleCallback === 'function') {
@@ -163,15 +199,8 @@ function AppInner({
     routeMeta.defaultSurface
   );
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
-  const [qaOpen, setQaOpen] = useState<boolean>(false);
-  const [qaTab, setQaTab] = useState<QaTabId>('guardrails');
   const mainRef = useRef<HTMLElement>(null);
   const spaceToggleRef = useRef<(() => void) | null>(null);
-
-  const handleOpenQa = useCallback((tab: QaTabId = 'guardrails') => {
-    setQaTab(tab);
-    setQaOpen(true);
-  }, []);
 
   const handleRegisterSpaceToggle = useCallback((fn: (() => void) | null) => {
     spaceToggleRef.current = fn;
@@ -278,9 +307,6 @@ function AppInner({
         if ((e.key === 'm' || e.key === 'M') && menuOpen) {
           e.preventDefault();
           setMenuOpen(false);
-        } else if ((e.key === 'q' || e.key === 'Q') && qaOpen) {
-          e.preventDefault();
-          setQaOpen(false);
         }
         return;
       }
@@ -297,12 +323,6 @@ function AppInner({
         return;
       }
 
-      if (e.key === 'q' || e.key === 'Q') {
-        e.preventDefault();
-        setQaOpen((prev) => !prev);
-        return;
-      }
-
       if (e.key === ' ' && activeRoute === '/demo') {
         const tag = (e.target as HTMLElement | null)?.tagName;
         if (tag !== 'BUTTON' && tag !== 'A' && spaceToggleRef.current) {
@@ -314,7 +334,7 @@ function AppInner({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeRoute, menuOpen, navigateWithCurtain, qaOpen]);
+  }, [activeRoute, menuOpen, navigateWithCurtain]);
 
   return (
     <>
@@ -327,7 +347,6 @@ function AppInner({
         activeSurface={activeSurface}
         menuOpen={menuOpen}
         onMenuToggle={setMenuOpen}
-        onOpenQa={handleOpenQa}
         reducedMotion={reducedMotion}
         onToggleReducedMotion={onToggleReducedMotion}
         onPreloadRoute={preloadRouteChunk}
@@ -345,6 +364,7 @@ function AppInner({
             style={{ display: isHomeActive ? 'block' : 'none' }}
           >
             <HomePage
+              isActive={isHomeActive}
               reducedMotion={reducedMotion}
               onScrollToSection={onScrollToSection}
             />
@@ -362,16 +382,19 @@ function AppInner({
               <Route path="/" element={null} />
               <Route
                 path="/thuat-toan"
-                element={
-                  <AlgorithmPage
-                    reducedMotion={reducedMotion}
-                    onOpenQa={handleOpenQa}
-                  />
-                }
+                element={<AlgorithmPage reducedMotion={reducedMotion} />}
               />
               <Route
                 path="/thuc-nghiem"
                 element={<ExperimentsPage reducedMotion={reducedMotion} />}
+              />
+              <Route
+                path="/thuc-nghiem/:experimentId"
+                element={<ExperimentDetailPage reducedMotion={reducedMotion} />}
+              />
+              <Route
+                path="/phan-cong/:memberId?"
+                element={<AssignmentDetailPage reducedMotion={reducedMotion} />}
               />
               <Route
                 path="/demo"
@@ -388,19 +411,10 @@ function AppInner({
         </div>
       </main>
 
-      <Suspense fallback={null}>
-        <QaDrawer
-          open={qaOpen}
-          activeTab={qaTab}
-          onTabChange={setQaTab}
-          onClose={() => setQaOpen(false)}
-        />
-      </Suspense>
-
       <OrchestratedCursor
         activeRoute={activeRoute}
         menuOpen={menuOpen}
-        qaOpen={qaOpen}
+        qaOpen={false}
         reducedMotion={reducedMotion}
       />
     </>
@@ -444,7 +458,7 @@ export function App() {
     }
 
     const lenis = new Lenis({
-      lerp: 0.088,
+      lerp: 0.135,
       smoothWheel: true,
       wheelMultiplier: 1.0,
       syncTouch: false,
@@ -494,33 +508,47 @@ export function App() {
   }, []);
 
   const handleResetScroll = useCallback((hash?: string) => {
-    if (hash) {
-      window.requestAnimationFrame(() => {
-        const el = document.getElementById(hash);
-        if (el) {
-          if (lenisRef.current) {
-            const targetTop = Math.max(
-              0,
-              window.scrollY +
-                el.getBoundingClientRect().top +
-                getSectionScrollOffset(hash)
-            );
-            lenisRef.current.scrollTo(targetTop, {
-              immediate: true,
-              force: true,
-            });
-          } else {
-            el.scrollIntoView({ behavior: 'auto', block: 'start' });
-          }
-        }
-      });
-      return;
-    }
-
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (lenisRef.current) {
       lenisRef.current.scrollTo(0, { immediate: true, force: true });
     }
+
+    if (!hash) return;
+
+    let attempts = 0;
+    const seekHashTarget = () => {
+      const el = document.getElementById(hash);
+      if (el && el.getBoundingClientRect().height > 0) {
+        const targetTop = Math.max(
+          0,
+          window.scrollY + el.getBoundingClientRect().top + getSectionScrollOffset(hash)
+        );
+        window.scrollTo({ top: targetTop, left: 0, behavior: 'auto' });
+        if (lenisRef.current) {
+          lenisRef.current.scrollTo(targetTop, {
+            immediate: true,
+            force: true,
+          });
+        }
+        return;
+      }
+      if (attempts < 24) {
+        attempts += 1;
+        window.requestAnimationFrame(seekHashTarget);
+      }
+    };
+    window.requestAnimationFrame(seekHashTarget);
+  }, []);
+
+  // Support direct initial page loads with a URL hash (e.g. `/demo#nen-anh-fa`)
+  useEffect(() => {
+    const rawHash = location.hash.replace(/^#/, '');
+    if (!rawHash) return;
+    const timer = window.setTimeout(() => {
+      handleResetScroll(rawHash);
+    }, 120);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleScrollToSection = useCallback(
@@ -553,7 +581,7 @@ export function App() {
       <TailordCrtFilterDefs />
       <TailordPreloader
         reducedMotion={reducedMotion}
-        isHomeRoute={activeRoute === '/'}
+        isHomeRoute={location.pathname === '/'}
         onPauseScroll={handlePauseLenis}
       />
       <RouteTransitionProvider

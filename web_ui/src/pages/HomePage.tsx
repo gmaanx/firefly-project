@@ -20,6 +20,7 @@ import { SciNumber } from '../lib/formatters';
 gsap.registerPlugin(ScrollTrigger);
 
 export interface HomePageProps {
+  isActive?: boolean;
   reducedMotion: boolean;
   onScrollToSection: (id: string) => void;
 }
@@ -42,14 +43,18 @@ function ChamferTopRightBorder() {
   );
 }
 
-export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
+export function HomePage({
+  isActive = true,
+  reducedMotion,
+  onScrollToSection,
+}: HomePageProps) {
   const heroStageRef = useRef<HTMLElement>(null);
   const heroHudRef = useRef<HTMLDivElement>(null);
   const heroHudFrameRef = useRef<HTMLDivElement>(null);
   const heroCrtOverlayRef = useRef<HTMLDivElement>(null);
   const heroEyebrowRef = useRef<HTMLDivElement>(null);
   const heroScrollProgressRef = useRef<number>(0);
-  const [heroStageActive, setHeroStageActive] = useState<boolean>(true);
+  const [heroStageActive, setHeroStageActive] = useState<boolean>(isActive);
 
   const showcaseRef = useRef<HTMLElement>(null);
   const { navigateWithCurtain } = useRouteCurtain();
@@ -62,6 +67,11 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
 
   // Zero-layout-thrash Lando Sticky-Track Hero -> Manifesto scroll driver + IO RAF gate
   useEffect(() => {
+    if (!isActive) {
+      setHeroStageActive(false);
+      return;
+    }
+
     const stageEl = heroStageRef.current;
     if (!stageEl) return;
 
@@ -70,9 +80,9 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
 
     const applyHeroScroll = () => {
       const sy = window.scrollY;
-      // 1.02vh shrink/signature runway inside 2.08svh sticky track:
-      // 0 -> 1.08svh stays pinned while Hero shrinks 4-sided into centered 472x306 frame & signature draws;
-      // 1.08svh -> 2.08svh unpins & scrolls UP together (marquee + Hero frame + signature) into Section 2!
+      // 1.02vh shrink/signature runway inside 2.08dvh sticky track:
+      // 0 -> 1.08dvh stays pinned while Hero shrinks 4-sided into centered 472x306 frame & signature draws;
+      // 1.08dvh -> 2.08dvh unpins & scrolls UP together (marquee + Hero frame + signature) into Section 2!
       const heroRunway = vh * 1.02;
       const p = Math.max(0, Math.min(1, sy / heroRunway));
       heroScrollProgressRef.current = p;
@@ -118,18 +128,33 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
     );
     io.observe(heroSecEl);
 
-    // Pause below-the-fold showcase GSAP animations when skipped via content-visibility
+    // Pause below-the-fold showcase animations via contentvisibilityautostatechange + IO fallback
     const showcaseEl = showcaseRef.current;
-    const onShowcaseVisibility = (ev: Event) => {
-      const skipped = Boolean((ev as Event & { skipped?: boolean }).skipped);
+    let showcaseIo: IntersectionObserver | null = null;
+    const setShowcasePaused = (paused: boolean) => {
       showcaseEl
         ?.getAnimations({ subtree: true })
-        .forEach((anim) => (skipped ? anim.pause() : anim.play()));
+        .forEach((anim) => (paused ? anim.pause() : anim.play()));
+    };
+    const onShowcaseVisibility = (ev: Event) => {
+      const skipped = Boolean((ev as Event & { skipped?: boolean }).skipped);
+      setShowcasePaused(skipped);
     };
     showcaseEl?.addEventListener(
       'contentvisibilityautostatechange',
       onShowcaseVisibility
     );
+    if (showcaseEl && !('contentVisibility' in document.documentElement.style)) {
+      showcaseIo = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            setShowcasePaused(!entry.isIntersecting);
+          });
+        },
+        { rootMargin: '200px' }
+      );
+      showcaseIo.observe(showcaseEl);
+    }
 
     applyHeroScroll();
     window.addEventListener('scroll', applyHeroScroll, { passive: true });
@@ -137,6 +162,7 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
 
     return () => {
       io?.disconnect();
+      showcaseIo?.disconnect();
       heroSecEl.removeEventListener('contentvisibilityautostatechange', onHeroContentVisibility);
       showcaseEl?.removeEventListener(
         'contentvisibilityautostatechange',
@@ -145,7 +171,7 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
       window.removeEventListener('scroll', applyHeroScroll);
       window.removeEventListener('resize', onResize);
     };
-  }, [reducedMotion]);
+  }, [isActive, reducedMotion]);
 
   useGSAP(
     () => {
@@ -222,9 +248,9 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
   ];
 
   const marqueeRow1Text =
-    'TỐI ƯU BẦY ĐÀN · THUẬT TOÁN ĐOM ĐÓM · XIN-SHE YANG 2008 · TỐI ƯU BẦY ĐÀN';
+    'TỐI ƯU BẦY ĐÀN · THUẬT TOÁN ĐOM ĐÓM · XIN-SHE YANG 2008 ·';
   const marqueeRow2Text =
-    'TỰ CHIA NHÓM ĐA CỰC TRỊ · KHÔNG CẦN ĐẠO HÀM · HỘI TỤ TOÀN CỤC · ĐA CỰC TRỊ';
+    'TỰ CHIA NHÓM ĐA CỰC TRỊ · KHÔNG CẦN ĐẠO HÀM · HỘI TỤ TOÀN CỤC ·';
 
   return (
     <>
@@ -264,10 +290,18 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
             </span>
           </div>
 
-          {/* 2-Row Full-Bleed Horizontal Band: stationary in place during shrink, scrolls UP together on scroll! */}
-          <div className="lando-bridge-marquee" aria-hidden="true">
+          {/* 2-Row Full-Bleed Horizontal Band: Row 1 glides Left->Right, Row 2 glides Right->Left; scrolls UP together on scroll! */}
+          <div
+            className={`lando-bridge-marquee ${
+              !(isActive && heroStageActive) ? 'lando-bridge-marquee--paused' : ''
+            }`.trim()}
+            aria-hidden="true"
+          >
             <div className="lando-bridge-marquee__row">
               <div className="lando-bridge-marquee__track lando-bridge-marquee__track--serif">
+                <span className="lando-bridge-marquee__chunk">
+                  {marqueeRow1Text}
+                </span>
                 <span className="lando-bridge-marquee__chunk">
                   {marqueeRow1Text}
                 </span>
@@ -276,6 +310,9 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
 
             <div className="lando-bridge-marquee__row">
               <div className="lando-bridge-marquee__track lando-bridge-marquee__track--sans">
+                <span className="lando-bridge-marquee__chunk">
+                  {marqueeRow2Text}
+                </span>
                 <span className="lando-bridge-marquee__chunk">
                   {marqueeRow2Text}
                 </span>
@@ -291,7 +328,7 @@ export function HomePage({ reducedMotion, onScrollToSection }: HomePageProps) {
             hudFrameRef={heroHudFrameRef}
             crtOverlayRef={heroCrtOverlayRef}
             eyebrowRef={heroEyebrowRef}
-            stageActive={heroStageActive}
+            stageActive={isActive && heroStageActive}
             onActivatePortal={() => navigateWithCurtain('/demo')}
           />
 

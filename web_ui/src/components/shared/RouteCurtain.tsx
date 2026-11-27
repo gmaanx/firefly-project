@@ -20,6 +20,17 @@ export interface NavigateCurtainOptions {
   onBeforeSwap?: () => void;
 }
 
+export interface DarkZoomNavigateOptions {
+  returnPath?: string;
+  onBeforeSwap?: () => void;
+}
+
+interface SavedReturnSnapshot {
+  path: string;
+  scrollY: number;
+  rect: { top: number; left: number; width: number; height: number } | null;
+}
+
 export interface RouteTransitionContextValue {
   isTransitioning: boolean;
   navigateWithCurtain: (
@@ -28,11 +39,19 @@ export interface RouteTransitionContextValue {
     hash?: string,
     options?: NavigateCurtainOptions
   ) => void;
+  navigateWithDarkZoom: (
+    toPath: string,
+    origin?: HTMLElement | MouseEvent<HTMLElement> | null,
+    options?: DarkZoomNavigateOptions
+  ) => void;
+  returnFromSubpage: (fallbackPath?: string) => void;
 }
 
 const RouteTransitionContext = createContext<RouteTransitionContextValue>({
   isTransitioning: false,
   navigateWithCurtain: () => {},
+  navigateWithDarkZoom: () => {},
+  returnFromSubpage: () => {},
 });
 
 export function useRouteCurtain(): RouteTransitionContextValue {
@@ -72,10 +91,16 @@ function focusRevealedHeading() {
 
 function suspendOrKillRouteScrollTriggers() {
   const keepAliveRoot = document.querySelector('[data-keepalive-root="home"]');
-  ScrollTrigger.getAll().forEach((st) => {
+  // Snapshot array before mutating so GSAP's internal trigger list never shifts mid-iteration
+  const allTriggers = [...ScrollTrigger.getAll()];
+  allTriggers.forEach((st) => {
     const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
     if (keepAliveRoot && trig instanceof Node && keepAliveRoot.contains(trig)) {
-      st.disable(false);
+      if (st.vars.once && st.progress >= 1) {
+        st.kill(false);
+      } else {
+        st.disable(false);
+      }
       return;
     }
     st.kill();
@@ -84,6 +109,15 @@ function suspendOrKillRouteScrollTriggers() {
 
 function waitOrTimeout(p: Promise<unknown>, ms: number) {
   return Promise.race([p, new Promise((resolve) => window.setTimeout(resolve, ms))]);
+}
+
+function nextDoubleFrame(): Promise<void> {
+  return waitOrTimeout(
+    new Promise<void>((r) =>
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => r()))
+    ),
+    60
+  ).then(() => {});
 }
 
 /**
@@ -106,6 +140,10 @@ export function RouteTransitionProvider({
   const centerLockupRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
   const notchPathRef = useRef<SVGPathElement>(null);
+  const zoomPortalRef = useRef<HTMLDivElement>(null);
+  const zoomScrimRef = useRef<HTMLDivElement>(null);
+  const zoomBoxRef = useRef<HTMLDivElement>(null);
+  const returnStackRef = useRef<SavedReturnSnapshot | null>(null);
   const busyRef = useRef<boolean>(false);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
 
@@ -120,14 +158,14 @@ export function RouteTransitionProvider({
         e.preventDefault();
       }
 
-      const currentPath = normalizeRoutePath(location.pathname);
-      if (currentPath === to && !hash) {
+      const exactPath = location.pathname;
+      if (exactPath === to && !hash) {
         options?.onBeforeSwap?.();
         onResetScroll();
         return;
       }
 
-      if (currentPath === to && hash) {
+      if (exactPath === to && hash) {
         options?.onBeforeSwap?.();
         onResetScroll(hash);
         return;
@@ -180,14 +218,14 @@ export function RouteTransitionProvider({
         await waitOrTimeout(preloadTask, 650);
         options?.onBeforeSwap?.();
         suspendOrKillRouteScrollTriggers();
+        // Reset scroll to 0 BEFORE mounting incoming route so once:true ScrollTriggers never self-kill mid-refresh
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         startTransition(() => {
           navigate(hash ? `${to}#${hash}` : to);
         });
-        onResetScroll(hash);
 
-        await new Promise<void>((r) =>
-          window.requestAnimationFrame(() => window.requestAnimationFrame(() => r()))
-        );
+        await nextDoubleFrame();
+        onResetScroll(hash);
 
         centerLockup?.animate(
           [
@@ -314,9 +352,304 @@ export function RouteTransitionProvider({
     [location.pathname, navigate, onPauseLenis, onPreloadRoute, onResetScroll, reducedMotion]
   );
 
+  const navigateWithDarkZoom = useCallback(
+    (
+      toPath: string,
+      origin?: HTMLElement | MouseEvent<HTMLElement> | null,
+      options?: DarkZoomNavigateOptions
+    ) => {
+      let originEl: HTMLElement | null = null;
+      if (origin && 'currentTarget' in origin) {
+        if (origin.metaKey || origin.ctrlKey || origin.shiftKey || origin.button !== 0) {
+          return;
+        }
+        origin.preventDefault();
+        originEl = origin.currentTarget as HTMLElement;
+      } else if (origin instanceof HTMLElement) {
+        originEl = origin;
+      }
+
+      if (location.pathname === toPath) return;
+
+      const returnPath = options?.returnPath ?? location.pathname;
+      const anchorEl =
+        originEl?.closest<HTMLElement>(
+          '.exp-notch-card, .exp-summary-table__row, .lando-assign-table__row, button, a'
+        ) ?? originEl;
+      const r = anchorEl?.getBoundingClientRect() ?? null;
+
+      returnStackRef.current = {
+        path: returnPath,
+        scrollY: window.scrollY,
+        rect: r
+          ? { top: r.top, left: r.left, width: r.width, height: r.height }
+          : null,
+      };
+
+      const targetBaseRoute = normalizeRoutePath(toPath);
+      const preloadTask = Promise.resolve(onPreloadRoute?.(targetBaseRoute)).catch(
+        () => {}
+      );
+
+      const portal = zoomPortalRef.current;
+      const scrim = zoomScrimRef.current;
+      const box = zoomBoxRef.current;
+
+      if (reducedMotion || !portal || !scrim || !box) {
+        void preloadTask;
+        options?.onBeforeSwap?.();
+        suspendOrKillRouteScrollTriggers();
+        startTransition(() => {
+          navigate(toPath, { state: { from: returnPath } });
+        });
+        window.requestAnimationFrame(() => {
+          onResetScroll();
+          window.requestAnimationFrame(() => {
+            ScrollTrigger.refresh();
+            const backBtn = document.querySelector<HTMLElement>('.top-nav__back-btn');
+            if (backBtn) {
+              backBtn.focus({ preventScroll: true });
+            } else {
+              focusRevealedHeading();
+            }
+          });
+        });
+        return;
+      }
+
+      if (busyRef.current) return;
+      busyRef.current = true;
+      setIsTransitioning(true);
+      onPauseLenis?.(true);
+
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+
+      const seedW = Math.min(vw * 0.72, 460);
+      const seedH = Math.min(vh * 0.56, 280);
+      const startTop = r ? Math.max(0, Math.min(vh - 48, r.top)) : (vh - seedH) * 0.5;
+      const startLeft = r ? Math.max(0, Math.min(vw - 48, r.left)) : (vw - seedW) * 0.5;
+      const startRight = r
+        ? Math.max(0, Math.min(vw - 48, vw - (r.left + r.width)))
+        : (vw - seedW) * 0.5;
+      const startBottom = r
+        ? Math.max(0, Math.min(vh - 48, vh - (r.top + r.height)))
+        : (vh - seedH) * 0.5;
+
+      const clipStart = `inset(${Math.round(startTop)}px ${Math.round(startRight)}px ${Math.round(startBottom)}px ${Math.round(startLeft)}px round 14px)`;
+      const clipFull = 'inset(0px 0px 0px 0px round 0px)';
+
+      portal.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+      portal.style.visibility = 'visible';
+      portal.style.pointerEvents = 'auto';
+      portal.style.opacity = '1';
+
+      void (async () => {
+        scrim.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 240,
+          easing: 'ease-out',
+          fill: 'forwards',
+        });
+
+        const expandAnim = box.animate(
+          [
+            { clipPath: clipStart, opacity: 0.92 },
+            { clipPath: clipFull, opacity: 1 },
+          ],
+          {
+            duration: 430,
+            easing: LANDO_OUT,
+            fill: 'forwards',
+          }
+        );
+
+        await waitOrTimeout(Promise.allSettled([expandAnim.finished, preloadTask]), 620);
+
+        options?.onBeforeSwap?.();
+        suspendOrKillRouteScrollTriggers();
+        startTransition(() => {
+          navigate(toPath, { state: { from: returnPath } });
+        });
+        onResetScroll();
+
+        await nextDoubleFrame();
+
+        const fadeOut = portal.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 210,
+          easing: 'ease-out',
+          fill: 'forwards',
+        });
+
+        await waitOrTimeout(fadeOut.finished, 320);
+
+        portal.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+        portal.style.visibility = 'hidden';
+        portal.style.pointerEvents = 'none';
+        portal.style.opacity = '1';
+
+        onPauseLenis?.(false);
+        busyRef.current = false;
+        setIsTransitioning(false);
+
+        window.requestAnimationFrame(() => {
+          ScrollTrigger.refresh();
+          const backBtn = document.querySelector<HTMLElement>('.top-nav__back-btn');
+          if (backBtn) {
+            backBtn.focus({ preventScroll: true });
+          } else {
+            focusRevealedHeading();
+          }
+        });
+      })();
+    },
+    [location.pathname, navigate, onPauseLenis, onPreloadRoute, onResetScroll, reducedMotion]
+  );
+
+  const returnFromSubpage = useCallback(
+    (fallbackPath: string = '/thuc-nghiem') => {
+      const stateFrom = (location.state as { from?: string } | null)?.from;
+      const saved = returnStackRef.current;
+      const destPath = saved?.path ?? stateFrom ?? fallbackPath;
+      const restoreY = saved?.scrollY ?? 0;
+      const savedRect = saved?.rect ?? null;
+
+      const destBaseRoute = normalizeRoutePath(destPath);
+      const preloadTask = Promise.resolve(onPreloadRoute?.(destBaseRoute)).catch(
+        () => {}
+      );
+
+      const portal = zoomPortalRef.current;
+      const scrim = zoomScrimRef.current;
+      const box = zoomBoxRef.current;
+
+      const applyRestoredScroll = () => {
+        window.scrollTo({ top: restoreY, left: 0, behavior: 'auto' });
+        window.dispatchEvent(
+          new CustomEvent('app:lenis-scroll', {
+            detail: { top: restoreY, immediate: true },
+          })
+        );
+      };
+
+      if (reducedMotion || !portal || !scrim || !box) {
+        void preloadTask;
+        suspendOrKillRouteScrollTriggers();
+        startTransition(() => {
+          navigate(destPath);
+        });
+        window.requestAnimationFrame(() => {
+          applyRestoredScroll();
+          window.requestAnimationFrame(() => {
+            ScrollTrigger.refresh();
+            focusRevealedHeading();
+          });
+        });
+        return;
+      }
+
+      if (busyRef.current) return;
+      busyRef.current = true;
+      setIsTransitioning(true);
+      onPauseLenis?.(true);
+
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const clipFull = 'inset(0px 0px 0px 0px round 0px)';
+      const endTop = savedRect
+        ? Math.max(0, Math.min(vh - 48, savedRect.top))
+        : Math.round(vh * 0.22);
+      const endLeft = savedRect
+        ? Math.max(0, Math.min(vw - 48, savedRect.left))
+        : Math.round(vw * 0.24);
+      const endRight = savedRect
+        ? Math.max(0, Math.min(vw - 48, vw - (savedRect.left + savedRect.width)))
+        : Math.round(vw * 0.24);
+      const endBottom = savedRect
+        ? Math.max(0, Math.min(vh - 48, vh - (savedRect.top + savedRect.height)))
+        : Math.round(vh * 0.22);
+      const clipEnd = `inset(${Math.round(endTop)}px ${Math.round(endRight)}px ${Math.round(endBottom)}px ${Math.round(endLeft)}px round 14px)`;
+
+      portal.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+      portal.style.visibility = 'visible';
+      portal.style.pointerEvents = 'auto';
+      portal.style.opacity = '1';
+      box.style.clipPath = clipFull;
+      scrim.style.opacity = '1';
+
+      void (async () => {
+        const coverIn = portal.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 130,
+          easing: 'ease-out',
+          fill: 'forwards',
+        });
+        await waitOrTimeout(Promise.allSettled([coverIn.finished, preloadTask]), 260);
+
+        suspendOrKillRouteScrollTriggers();
+        startTransition(() => {
+          navigate(destPath);
+        });
+
+        await nextDoubleFrame();
+        applyRestoredScroll();
+
+        scrim.animate([{ opacity: 0.72 }, { opacity: 0 }], {
+          duration: 300,
+          easing: 'ease-out',
+          fill: 'forwards',
+        });
+
+        const shrinkAnim = box.animate(
+          [
+            { clipPath: clipFull, opacity: 1 },
+            { clipPath: clipEnd, opacity: 0 },
+          ],
+          {
+            duration: 340,
+            easing: LANDO_OUT,
+            fill: 'forwards',
+          }
+        );
+
+        await waitOrTimeout(shrinkAnim.finished, 450);
+
+        portal.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+        portal.style.visibility = 'hidden';
+        portal.style.pointerEvents = 'none';
+        portal.style.opacity = '1';
+        box.style.clipPath = clipFull;
+
+        onPauseLenis?.(false);
+        applyRestoredScroll();
+        busyRef.current = false;
+        setIsTransitioning(false);
+
+        window.requestAnimationFrame(() => {
+          ScrollTrigger.refresh();
+          focusRevealedHeading();
+        });
+      })();
+    },
+    [location.state, navigate, onPauseLenis, onPreloadRoute, reducedMotion]
+  );
+
   return (
-    <RouteTransitionContext.Provider value={{ isTransitioning, navigateWithCurtain }}>
+    <RouteTransitionContext.Provider
+      value={{
+        isTransitioning,
+        navigateWithCurtain,
+        navigateWithDarkZoom,
+        returnFromSubpage,
+      }}
+    >
       {children}
+      <div
+        ref={zoomPortalRef}
+        className="subpage-zoom-portal"
+        aria-hidden="true"
+      >
+        <div ref={zoomScrimRef} className="subpage-zoom-portal__scrim" />
+        <div ref={zoomBoxRef} className="subpage-zoom-portal__box" />
+      </div>
       <div ref={stageRef} className="route-curtain-stage" aria-hidden="true">
         <div
           ref={limeWaveRef}

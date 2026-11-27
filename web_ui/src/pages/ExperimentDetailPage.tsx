@@ -1,0 +1,1773 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { FooterSection } from '../components/sections/FooterSection';
+import type { ExperimentCardId } from '../components/sections/ExperimentModal';
+import { BlockReveal } from '../components/shared/BlockReveal';
+import { ContourBackdrop } from '../components/shared/ContourBackdrop';
+import { DatasetStatusCard } from '../components/shared/DatasetStatusCard';
+import { MathFormula } from '../components/shared/MathFormula';
+import { useRouteCurtain } from '../components/shared/RouteCurtain';
+import { useDataset } from '../lib/dataStore';
+import {
+  DATASET_PROVENANCE,
+  SciNumber,
+  SvgSciText,
+  formatFixed,
+  formatVec,
+} from '../lib/formatters';
+import { isInteractiveElement } from '../lib/navigation';
+
+export interface ExperimentDetailPageProps {
+  reducedMotion: boolean;
+}
+
+export const EXPERIMENT_ORDER: readonly ExperimentCardId[] = [
+  'convergence',
+  'scalability',
+  'complexity',
+  'gamma',
+  'cooling_hybrid',
+  'multimodal',
+];
+
+const SLUG_TO_CARD: Record<string, ExperimentCardId> = {
+  convergence: 'convergence',
+  'hoi-tu': 'convergence',
+  scalability: 'scalability',
+  'quy-mo-dan': 'scalability',
+  complexity: 'complexity',
+  'do-phuc-tap': 'complexity',
+  gamma: 'gamma',
+  'tham-so-gamma': 'gamma',
+  cooling_hybrid: 'cooling_hybrid',
+  'cooling-hybrid': 'cooling_hybrid',
+  'giam-nhieu-alpha': 'cooling_hybrid',
+  multimodal: 'multimodal',
+  'da-cuc-tri': 'multimodal',
+};
+
+export const CARD_TO_SLUG: Record<ExperimentCardId, string> = {
+  convergence: 'hoi-tu',
+  scalability: 'quy-mo-dan',
+  complexity: 'do-phuc-tap',
+  gamma: 'tham-so-gamma',
+  cooling_hybrid: 'giam-nhieu-alpha',
+  multimodal: 'da-cuc-tri',
+};
+
+const EXP_HEADING_META: Record<
+  ExperimentCardId,
+  { code: string; eyebrow: string; line1: string; line2: string }
+> = {
+  convergence: {
+    code: '01',
+    eyebrow: 'BÀI ĐO 01 / 06 · HỘI TỤ ĐƠN CỰC TRỊ',
+    line1: 'Tốc độ hội tụ theo thế hệ',
+    line2: 'trên mặt cầu dịch tâm 3D',
+  },
+  scalability: {
+    code: '02',
+    eyebrow: 'BÀI ĐO 02 / 06 · QUY MÔ ĐÀN & SỐ CHIỀU',
+    line1: 'Ảnh hưởng quy mô đàn n',
+    line2: 'khi mở rộng từ 3D lên 10D',
+  },
+  complexity: {
+    code: '03',
+    eyebrow: 'BÀI ĐO 03 / 06 · CHI PHÍ TÍNH TOÁN',
+    line1: 'Độ phức tạp thời gian',
+    line2: 'theo kích thước đàn O(n²)',
+  },
+  gamma: {
+    code: '04',
+    eyebrow: 'BÀI ĐO 04 / 06 · TẦM NHÌN & HẤP THỤ ÁNH SÁNG',
+    line1: 'Độ nhạy hệ số cản sáng γ',
+    line2: 'và bán kính tương tác hiệu dụng',
+  },
+  cooling_hybrid: {
+    code: '05',
+    eyebrow: 'BÀI ĐO 05 / 06 · LÀM NGUỘI NHIỄU αₜ',
+    line1: 'So sánh bước nhảy cố định,',
+    line2: 'giảm hình học θ = 0.97 & Hybrid',
+  },
+  multimodal: {
+    code: '06',
+    eyebrow: 'BÀI ĐO 06 / 06 · ĐA CỰC TRỊ TOÀN CỤC',
+    line1: 'Tự tách đàn tìm nhiều cực trị',
+    line2: 'trên Himmelblau & Rastrigin',
+  },
+};
+
+const LOG_FLOOR = 1e-16;
+function safeLog10(val: number): number {
+  return Math.log10(Math.max(LOG_FLOOR, val));
+}
+
+function evalContourFn(fnName: 'Himmelblau' | 'Rastrigin', x1: number, x2: number): number {
+  if (fnName === 'Himmelblau') {
+    const a = x1 * x1 + x2 - 11;
+    const b = x1 + x2 * x2 - 7;
+    return a * a + b * b;
+  }
+  return (
+    20 +
+    (x1 * x1 - 10 * Math.cos(2 * Math.PI * x1)) +
+    (x2 * x2 - 10 * Math.cos(2 * Math.PI * x2))
+  );
+}
+
+export function ExperimentDetailPage({ reducedMotion }: ExperimentDetailPageProps) {
+  const { experimentId } = useParams<{ experimentId: string }>();
+  const navigate = useNavigate();
+  const { returnFromSubpage } = useRouteCurtain();
+  const pageRef = useRef<HTMLElement>(null);
+  const contourCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const activeCard: ExperimentCardId | null = experimentId
+    ? (SLUG_TO_CARD[experimentId] ?? null)
+    : null;
+
+  const convState = useDataset('convergence_iterations', activeCard === 'convergence');
+  const scaleState = useDataset('scalability_nd', activeCard === 'scalability');
+  const compState = useDataset('tv10_complexity', activeCard === 'complexity');
+  const sensState = useDataset(
+    'parameter_sensitivity',
+    activeCard === 'gamma' || activeCard === 'cooling_hybrid'
+  );
+  const hybridState = useDataset('tv10_alpha_hybrid', activeCard === 'cooling_hybrid');
+  const mmState = useDataset('multimodal_optimization', activeCard === 'multimodal');
+
+  const [selectedThetaForGamma, setSelectedThetaForGamma] = useState<number>(0.97);
+  const [coolingSubTab, setCoolingSubTab] = useState<'theta_sweep' | 'alpha_hybrid'>(
+    'alpha_hybrid'
+  );
+  const [mmFunc, setMmFunc] = useState<'Himmelblau' | 'Rastrigin'>('Himmelblau');
+  const [mmGamma, setMmGamma] = useState<number>(1.0);
+  const [mmFrameIdx, setMmFrameIdx] = useState<number>(0);
+  const [mmPlaying, setMmPlaying] = useState<boolean>(false);
+
+  const activeIdx = activeCard ? EXPERIMENT_ORDER.indexOf(activeCard) : -1;
+
+  const stepExperiment = useCallback(
+    (delta: -1 | 1) => {
+      if (!activeCard) return;
+      const cur = EXPERIMENT_ORDER.indexOf(activeCard);
+      if (cur < 0) return;
+      const nextIdx =
+        (cur + delta + EXPERIMENT_ORDER.length) % EXPERIMENT_ORDER.length;
+      const nextCard = EXPERIMENT_ORDER[nextIdx];
+      setMmPlaying(false);
+      navigate(`/thuc-nghiem/${CARD_TO_SLUG[nextCard]}`);
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      window.dispatchEvent(
+        new CustomEvent('app:lenis-scroll', { detail: { top: 0, immediate: true } })
+      );
+    },
+    [activeCard, navigate]
+  );
+
+  useEffect(() => {
+    if (!activeCard) return;
+    const meta = EXP_HEADING_META[activeCard];
+    document.title = `${meta.code} · ${meta.line1} — Thuật toán Đom đóm`;
+    return () => {
+      document.title = 'Thuật toán Đom đóm';
+    };
+  }, [activeCard]);
+
+  useEffect(() => {
+    if (!activeCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (isInteractiveElement(e.target)) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepExperiment(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepExperiment(1);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        returnFromSubpage('/thuc-nghiem');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeCard, returnFromSubpage, stepExperiment]);
+
+  useGSAP(
+    () => {
+      const root = pageRef.current;
+      if (!root || reducedMotion || !activeCard) return;
+      const blocks = root.querySelectorAll<HTMLElement>('.js-subpage-enter');
+      if (blocks.length > 0) {
+        gsap.fromTo(
+          blocks,
+          { y: 24, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.68,
+            stagger: 0.08,
+            ease: 'power3.out',
+          }
+        );
+      }
+    },
+    { scope: pageRef, dependencies: [activeCard, reducedMotion] }
+  );
+
+  const multimodal = mmState.data;
+  const activeReplay = useMemo(() => {
+    if (!multimodal) return null;
+    const exact = multimodal.replays.find(
+      (r) => r.function_name === mmFunc && Math.abs(r.gamma - mmGamma) < 1e-9
+    );
+    if (exact) return exact;
+    return (
+      multimodal.replays.find((r) => r.function_name === mmFunc) ??
+      multimodal.replays[0]
+    );
+  }, [multimodal, mmFunc, mmGamma]);
+
+  useEffect(() => {
+    if (activeReplay) {
+      setMmFrameIdx(activeReplay.history.length - 1);
+    }
+  }, [activeReplay]);
+
+  useEffect(() => {
+    if (!mmPlaying || !activeReplay) return;
+    const id = window.setInterval(() => {
+      setMmFrameIdx((prev) => {
+        if (prev >= activeReplay.history.length - 1) {
+          setMmPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 140);
+    return () => window.clearInterval(id);
+  }, [mmPlaying, activeReplay]);
+
+  useEffect(() => {
+    if (activeCard !== 'multimodal' || !activeReplay) return;
+    const canvas = contourCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const size = 400;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const [lb, ub] = activeReplay.bounds;
+    const gridN = 96;
+    const cell = size / gridN;
+    const maxCap = activeReplay.function_name === 'Himmelblau' ? 280 : 65;
+
+    for (let gy = 0; gy < gridN; gy += 1) {
+      const x2 = ub - ((gy + 0.5) / gridN) * (ub - lb);
+      for (let gx = 0; gx < gridN; gx += 1) {
+        const x1 = lb + ((gx + 0.5) / gridN) * (ub - lb);
+        const f = evalContourFn(activeReplay.function_name, x1, x2);
+        const norm = Math.min(1, Math.sqrt(Math.max(0, f) / maxCap));
+        const r = Math.round(16 + (1 - norm) * 26);
+        const g = Math.round(17 + (1 - norm) * 38);
+        const b = Math.round(16 + (1 - norm) * 20);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(gx * cell, gy * cell, cell + 0.6, cell + 0.6);
+      }
+    }
+
+    const levels =
+      activeReplay.function_name === 'Himmelblau'
+        ? [2, 12, 40, 100]
+        : [3, 12, 26, 44];
+    ctx.strokeStyle = 'rgba(239, 239, 232, 0.16)';
+    ctx.lineWidth = 0.9;
+    for (const lv of levels) {
+      ctx.beginPath();
+      for (let gy = 0; gy < gridN - 1; gy += 1) {
+        const yA = ub - (gy / gridN) * (ub - lb);
+        const yB = ub - ((gy + 1) / gridN) * (ub - lb);
+        for (let gx = 0; gx < gridN - 1; gx += 1) {
+          const xA = lb + (gx / gridN) * (ub - lb);
+          const xB = lb + ((gx + 1) / gridN) * (ub - lb);
+          const f00 = evalContourFn(activeReplay.function_name, xA, yA);
+          const f10 = evalContourFn(activeReplay.function_name, xB, yA);
+          const f01 = evalContourFn(activeReplay.function_name, xA, yB);
+          if ((f00 - lv) * (f10 - lv) < 0 || (f00 - lv) * (f01 - lv) < 0) {
+            ctx.rect(gx * cell, gy * cell, 1.1, 1.1);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+
+    const toPx = (coordX: number, coordY: number): [number, number] => [
+      ((coordX - lb) / (ub - lb)) * size,
+      ((ub - coordY) / (ub - lb)) * size,
+    ];
+
+    for (const [ox, oy] of activeReplay.global_optima) {
+      const [px, py] = toPx(ox, oy);
+      ctx.strokeStyle = '#EFEFE8';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
+      ctx.moveTo(px - 11, py);
+      ctx.lineTo(px + 11, py);
+      ctx.moveTo(px, py - 11);
+      ctx.lineTo(px, py + 11);
+      ctx.stroke();
+    }
+
+    const frame =
+      activeReplay.history[Math.min(mmFrameIdx, activeReplay.history.length - 1)];
+    const metric =
+      activeReplay.metrics[Math.min(mmFrameIdx, activeReplay.metrics.length - 1)];
+
+    if (metric?.clusters) {
+      const epsPx = (0.6 / (ub - lb)) * size;
+      ctx.strokeStyle = 'rgba(182, 201, 110, 0.55)';
+      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1.2;
+      for (const c of metric.clusters) {
+        const [cx, cy] = toPx(c.center[0], c.center[1]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, epsPx, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    if (frame) {
+      const clusterPalette = ['#C5E84D', '#8FB88D', '#B6C96E', '#8D7AE6', '#D98C4A'];
+      frame.positions.forEach(([x, y], idx) => {
+        const [px, py] = toPx(x, y);
+        const lbl = metric?.labels?.[idx] ?? -1;
+        ctx.fillStyle =
+          lbl >= 0
+            ? clusterPalette[lbl % clusterPalette.length]
+            : 'rgba(239, 239, 232, 0.62)';
+        ctx.beginPath();
+        ctx.arc(px, py, idx === 0 ? 5.2 : 3.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#101110';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    }
+  }, [activeCard, activeReplay, mmFrameIdx]);
+
+  if (!activeCard) {
+    return <Navigate to="/thuc-nghiem" replace />;
+  }
+
+  const meta = EXP_HEADING_META[activeCard];
+  const prevCard =
+    EXPERIMENT_ORDER[
+      (activeIdx - 1 + EXPERIMENT_ORDER.length) % EXPERIMENT_ORDER.length
+    ];
+  const nextCard = EXPERIMENT_ORDER[(activeIdx + 1) % EXPERIMENT_ORDER.length];
+
+  const convergence = convState.data;
+  const scalability = scaleState.data;
+  const complexity = compState.data;
+  const sensitivity = sensState.data;
+  const alphaHybrid = hybridState.data;
+
+  return (
+    <>
+      <section
+        ref={pageRef}
+        className="detail-subpage surface-dark"
+        data-surface="dark"
+        aria-labelledby="exp-detail-heading"
+      >
+        <ContourBackdrop variant="dark" />
+
+        <div className="section-container detail-subpage__container">
+          {/* Subpage Header + Prev/Next Experiment Switcher */}
+          <header className="detail-subpage__header">
+            <div className="detail-subpage__titles">
+              <span className="algo-chapter-eyebrow">{meta.eyebrow}</span>
+              <h1
+                id="exp-detail-heading"
+                tabIndex={-1}
+                className="detail-subpage__title"
+              >
+                <span className="block-reveal-lines">
+                  <BlockReveal
+                    color="olive-lime"
+                    delay={0}
+                    reducedMotion={reducedMotion}
+                  >
+                    {meta.line1}
+                  </BlockReveal>
+                  <BlockReveal
+                    color="olive-lime"
+                    delay={0.18}
+                    reducedMotion={reducedMotion}
+                  >
+                    <span className="editorial-serif editorial-serif--sage-gold">
+                      {meta.line2}
+                    </span>
+                  </BlockReveal>
+                </span>
+              </h1>
+            </div>
+
+            <div
+              className="detail-subpage__pager"
+              role="group"
+              aria-label="Chuyển giữa 6 bài thực nghiệm"
+            >
+              <Link
+                to={`/thuc-nghiem/${CARD_TO_SLUG[prevCard]}`}
+                className="detail-pager-btn"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  stepExperiment(-1);
+                }}
+              >
+                ← Bài {EXP_HEADING_META[prevCard].code}
+              </Link>
+              <span className="detail-pager-count">
+                {String(activeIdx + 1).padStart(2, '0')} / 06
+              </span>
+              <Link
+                to={`/thuc-nghiem/${CARD_TO_SLUG[nextCard]}`}
+                className="detail-pager-btn"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  stepExperiment(1);
+                }}
+              >
+                Bài {EXP_HEADING_META[nextCard].code} →
+              </Link>
+            </div>
+          </header>
+
+          {/* Elevated Content Stage */}
+          <div className="detail-subpage__card js-subpage-enter">
+            {/* 1. CONVERGENCE */}
+            {activeCard === 'convergence' ? (
+              !convergence ? (
+                <DatasetStatusCard
+                  status={convState.status === 'error' ? 'error' : 'loading'}
+                  fileLabel="convergence_iterations.json"
+                  error={convState.error}
+                  onRetry={convState.retry}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <p className="detail-subpage__lead">
+                    Trên lượt chạy chuẩn <code>seed = 42</code> (
+                    <MathFormula tex="n = 20, \; D = 3" ariaLabel="n = 20, D = 3" />
+                    ), sai số mục tiêu giảm hơn 13 bậc độ lớn từ{' '}
+                    <MathFormula tex="t = 1" ariaLabel="t = 1" /> tới{' '}
+                    <MathFormula tex="t = 500" ariaLabel="t = 500" /> nhờ lực hút kết
+                    hợp bước nhiễu thu hẹp dần{' '}
+                    <MathFormula
+                      tex="\alpha_t = \alpha_0 \cdot 0.97^t"
+                      ariaLabel="alpha_t = alpha_0 * 0.97^t"
+                    />
+                    .
+                  </p>
+
+                  {(() => {
+                    const full =
+                      convergence.by_iterations[convergence.by_iterations.length - 1];
+                    const curve = full.curve;
+                    const logs = curve.map(safeLog10);
+                    const minL = Math.floor(Math.min(...logs));
+                    const maxL = Math.ceil(Math.max(...logs));
+                    const spanL = Math.max(1, maxL - minL);
+                    const pathD = logs
+                      .map((lv, idx) => {
+                        const x = 64 + (idx / Math.max(1, logs.length - 1)) * 610;
+                        const y = 228 - ((lv - minL) / spanL) * 188;
+                        return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                      })
+                      .join(' ');
+
+                    return (
+                      <svg
+                        viewBox="0 0 710 268"
+                        className="modal-chart-svg detail-subpage__chart"
+                        role="img"
+                        aria-label="Đồ thị hội tụ sai số log10 theo thế hệ t từ 1 đến 500"
+                      >
+                        {[-14, -10, -6, -2, 0].map((tick) => {
+                          if (tick < minL || tick > maxL) return null;
+                          const y = 228 - ((tick - minL) / spanL) * 188;
+                          return (
+                            <g key={tick}>
+                              <line
+                                x1="64"
+                                y1={y}
+                                x2="674"
+                                y2={y}
+                                stroke="rgba(239,239,232,0.10)"
+                              />
+                              <text
+                                x="14"
+                                y={y + 4}
+                                fill="#939889"
+                                fontSize="10"
+                                fontFamily="var(--font-mono)"
+                              >
+                                10^{tick}
+                              </text>
+                            </g>
+                          );
+                        })}
+                        <line
+                          x1="64"
+                          y1="228"
+                          x2="674"
+                          y2="228"
+                          stroke="rgba(239,239,232,0.24)"
+                        />
+                        <path d={pathD} fill="none" stroke="#C5E84D" strokeWidth="2.2" />
+
+                        {convergence.by_iterations.map((m) => {
+                          const x =
+                            64 +
+                            ((m.t_max - 1) / Math.max(1, logs.length - 1)) * 610;
+                          const y =
+                            228 - ((safeLog10(m.fbest) - minL) / spanL) * 188;
+                          const isLast = m.t_max === 500;
+                          const tx = isLast ? x - 10 : x;
+                          const ty = Math.max(46, isLast ? y - 16 : y - 14);
+                          const boxW = 104;
+                          const boxX = isLast ? tx - boxW + 4 : tx - boxW / 2;
+
+                          return (
+                            <g key={m.t_max}>
+                              <line
+                                x1={x}
+                                y1="38"
+                                x2={x}
+                                y2="228"
+                                stroke="#8D7AE6"
+                                strokeDasharray="3 4"
+                                strokeOpacity="0.55"
+                              />
+                              <circle
+                                cx={x}
+                                cy={y}
+                                r="5"
+                                fill="#C5E84D"
+                                stroke="#101110"
+                                strokeWidth="1.4"
+                              />
+                              <rect
+                                x={boxX}
+                                y={ty - 12}
+                                width={boxW}
+                                height="17"
+                                rx="3"
+                                fill="rgba(16,17,16,0.88)"
+                                stroke="rgba(239,239,232,0.14)"
+                                strokeWidth="0.8"
+                              />
+                              <text
+                                x={tx}
+                                y={ty}
+                                textAnchor={isLast ? 'end' : 'middle'}
+                                fill="#EFEFE8"
+                                fontSize="10"
+                                fontFamily="var(--font-mono)"
+                              >
+                                t={m.t_max}: <SvgSciText value={m.fbest} sigDigits={2} />
+                              </text>
+                            </g>
+                          );
+                        })}
+                        <text
+                          x="275"
+                          y="254"
+                          fill="#939889"
+                          fontSize="10.5"
+                          fontFamily="var(--font-mono)"
+                        >
+                          Thế hệ t (1 → 500) · Trục tung: log10(f_best)
+                        </text>
+                      </svg>
+                    );
+                  })()}
+
+                  <div className="qa-table-wrap">
+                    <table className="qa-table">
+                      <thead>
+                        <tr>
+                          <th>Mốc thế hệ</th>
+                          <th>
+                            <span style={{ textTransform: 'none' }}>
+                              <MathFormula
+                                tex="f_{\text{best}}(t)"
+                                ariaLabel="f_best(t)"
+                              />
+                            </span>
+                          </th>
+                          <th>Nghiệm tốt nhất</th>
+                          <th>Nhận xét</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {convergence.by_iterations.map((row) => (
+                          <tr key={row.t_max}>
+                            <td>
+                              <code>t = {row.t_max}</code>
+                            </td>
+                            <td>
+                              <strong>
+                                <SciNumber value={row.fbest} sigDigits={3} />
+                              </strong>
+                            </td>
+                            <td>
+                              <code>{formatVec(row.nbest, 6)}</code>
+                            </td>
+                            <td>
+                              {row.t_max === 100
+                                ? 'Định vị lân cận nghiệm (1, 1, 1)'
+                                : row.t_max === 200
+                                  ? 'Khai thác sâu quanh tâm hố'
+                                  : 'Hội tụ sát giới hạn dấu chấm động'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{DATASET_PROVENANCE.convergence_iterations.file}</code>{' '}
+                    · {DATASET_PROVENANCE.convergence_iterations.conditionNote}
+                  </p>
+                </div>
+              )
+            ) : null}
+
+            {/* 2. SCALABILITY */}
+            {activeCard === 'scalability' ? (
+              !scalability ? (
+                <DatasetStatusCard
+                  status={scaleState.status === 'error' ? 'error' : 'loading'}
+                  fileLabel="scalability_nd.json"
+                  error={scaleState.error}
+                  onRetry={scaleState.retry}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <p className="detail-subpage__lead">
+                    Khi tăng từ <code>D = 3</code> lên <code>D = 10</code>, đàn nhỏ{' '}
+                    <code>n = 5</code> hụt hơi rõ rệt, trong khi <code>n = 20</code>{' '}
+                    đạt sai số cỡ 10<sup>-12</sup> với thời gian chạy chỉ bằng ~1/7.7
+                    so với <code>n = 50</code>.
+                  </p>
+
+                  <div className="dual-chart-row">
+                    <svg
+                      viewBox="0 0 345 230"
+                      className="modal-chart-svg detail-subpage__chart"
+                      role="img"
+                      aria-label="Sai số trung bình log10 theo n ở D=3 và D=10"
+                    >
+                      <text
+                        x="16"
+                        y="22"
+                        fill="#B6C96E"
+                        fontSize="10"
+                        fontFamily="var(--font-mono)"
+                      >
+                        SAI SỐ TRUNG BÌNH (LOG10, 5 LƯỢT CHẠY)
+                      </text>
+                      {[5, 10, 20, 50].map((nVal, idx) => {
+                        const r3 = scalability.by_scale.find(
+                          (r) => r.n === nVal && r.d === 3
+                        );
+                        const r10 = scalability.by_scale.find(
+                          (r) => r.n === nVal && r.d === 10
+                        );
+                        const mapH = (v: number) => {
+                          const cl = Math.max(-15, Math.min(2, safeLog10(v)));
+                          return ((cl + 15) / 17) * 144 + 8;
+                        };
+                        const xBase = 48 + idx * 72;
+                        const h3 = r3 ? mapH(r3.fbest_mean) : 10;
+                        const h10 = r10 ? mapH(r10.fbest_mean) : 10;
+                        return (
+                          <g key={nVal}>
+                            <rect
+                              x={xBase}
+                              y={192 - h3}
+                              width="20"
+                              height={h3}
+                              rx="1.5"
+                              fill="#5A5F52"
+                            />
+                            <rect
+                              x={xBase + 24}
+                              y={192 - h10}
+                              width="20"
+                              height={h10}
+                              rx="1.5"
+                              fill={nVal === 20 ? '#C5E84D' : '#8D7AE6'}
+                            />
+                            <text
+                              x={xBase + 8}
+                              y="210"
+                              fill="#EFEFE8"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                            >
+                              n={nVal}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      <line
+                        x1="36"
+                        y1="192"
+                        x2="330"
+                        y2="192"
+                        stroke="rgba(239,239,232,0.24)"
+                      />
+                      <text
+                        x="38"
+                        y="42"
+                        fill="#939889"
+                        fontSize="9.5"
+                        fontFamily="var(--font-mono)"
+                      >
+                        Xám đá: D=3 · Vàng cốm / Tím iris: D=10 (thấp = tốt hơn)
+                      </text>
+                    </svg>
+
+                    <svg
+                      viewBox="0 0 345 230"
+                      className="modal-chart-svg detail-subpage__chart"
+                      role="img"
+                      aria-label="Thời gian chạy trung bình ms theo n"
+                    >
+                      <text
+                        x="16"
+                        y="22"
+                        fill="#B6C96E"
+                        fontSize="10"
+                        fontFamily="var(--font-mono)"
+                      >
+                        THỜI GIAN TRUNG BÌNH (ms / LƯỢT 500 VÒNG)
+                      </text>
+                      {[5, 10, 20, 50].map((nVal, idx) => {
+                        const r3 = scalability.by_scale.find(
+                          (r) => r.n === nVal && r.d === 3
+                        );
+                        const r10 = scalability.by_scale.find(
+                          (r) => r.n === nVal && r.d === 10
+                        );
+                        const maxMs = 19000;
+                        const xBase = 48 + idx * 72;
+                        const h3 = r3 ? Math.max(4, (r3.runtime_ms / maxMs) * 144) : 4;
+                        const h10 = r10
+                          ? Math.max(4, (r10.runtime_ms / maxMs) * 144)
+                          : 4;
+                        return (
+                          <g key={nVal}>
+                            <rect
+                              x={xBase}
+                              y={192 - h3}
+                              width="20"
+                              height={h3}
+                              rx="1.5"
+                              fill="#5A5F52"
+                            />
+                            <rect
+                              x={xBase + 24}
+                              y={192 - h10}
+                              width="20"
+                              height={h10}
+                              rx="1.5"
+                              fill={nVal === 20 ? '#C5E84D' : '#B6C96E'}
+                            />
+                            <text
+                              x={xBase + 8}
+                              y="210"
+                              fill="#EFEFE8"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                            >
+                              n={nVal}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      <line
+                        x1="36"
+                        y1="192"
+                        x2="330"
+                        y2="192"
+                        stroke="rgba(239,239,232,0.24)"
+                      />
+                      <text
+                        x="38"
+                        y="42"
+                        fill="#939889"
+                        fontSize="9.5"
+                        fontFamily="var(--font-mono)"
+                      >
+                        n=20 (~2.3s) so với n=50 (~18.3s)
+                      </text>
+                    </svg>
+                  </div>
+
+                  <div className="qa-table-wrap">
+                    <table className="qa-table">
+                      <thead>
+                        <tr>
+                          <th>Số chiều D</th>
+                          <th>Quy mô đàn n</th>
+                          <th>Sai số TB ± Độ lệch chuẩn</th>
+                          <th>Thời gian TB (ms)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scalability.by_scale.map((r) => (
+                          <tr key={`${r.d}-${r.n}`}>
+                            <td>
+                              <code>D = {r.d}</code>
+                            </td>
+                            <td>
+                              <code>n = {r.n}</code>
+                            </td>
+                            <td>
+                              <strong>
+                                <SciNumber value={r.fbest_mean} sigDigits={2} />
+                              </strong>{' '}
+                              ± <SciNumber value={r.fbest_std} sigDigits={2} />
+                            </td>
+                            <td>{formatFixed(r.runtime_ms, 1)} ms</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{DATASET_PROVENANCE.scalability_nd.file}</code> ·{' '}
+                    {DATASET_PROVENANCE.scalability_nd.conditionNote}
+                  </p>
+                </div>
+              )
+            ) : null}
+
+            {/* 3. COMPLEXITY */}
+            {activeCard === 'complexity' ? (
+              !complexity ? (
+                <DatasetStatusCard
+                  status={compState.status === 'error' ? 'error' : 'loading'}
+                  fileLabel="tv10_complexity.json"
+                  error={compState.error}
+                  onRetry={compState.retry}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <p className="detail-subpage__lead">
+                    Trên thang đo log–log với{' '}
+                    <MathFormula
+                      tex="n \in \{10, 20, 40, 80, 160\}"
+                      ariaLabel="n in {10, 20, 40, 80, 160}"
+                    />
+                    , trung vị thời gian mỗi thế hệ khớp với{' '}
+                    <strong>
+                      độ dốc = {formatFixed(complexity.log_log_slope, 3)}
+                    </strong>
+                    , phản ánh xu hướng bậc hai{' '}
+                    <MathFormula tex="n^2" ariaLabel="n^2" /> phép duyệt cặp mỗi vòng.
+                  </p>
+
+                  {(() => {
+                    const pts = complexity.summary.map((s) => ({
+                      n: s.n,
+                      ms: s.median_ms_per_generation,
+                      lx: Math.log10(s.n),
+                      ly: Math.log10(s.median_ms_per_generation),
+                    }));
+                    const minX = Math.min(...pts.map((p) => p.lx));
+                    const maxX = Math.max(...pts.map((p) => p.lx));
+                    const minY = Math.min(...pts.map((p) => p.ly));
+                    const maxY = Math.max(...pts.map((p) => p.ly));
+                    const mapPt = (lx: number, ly: number): [number, number] => [
+                      72 + ((lx - minX) / Math.max(1e-6, maxX - minX)) * 560,
+                      214 - ((ly - minY) / Math.max(1e-6, maxY - minY)) * 164,
+                    ];
+                    const linePath = pts
+                      .map((p, i) => {
+                        const [x, y] = mapPt(p.lx, p.ly);
+                        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                      })
+                      .join(' ');
+
+                    return (
+                      <svg
+                        viewBox="0 0 700 256"
+                        className="modal-chart-svg detail-subpage__chart"
+                        role="img"
+                        aria-label="Đồ thị log-log độ phức tạp thời gian theo n"
+                      >
+                        <line
+                          x1="72"
+                          y1="214"
+                          x2="640"
+                          y2="214"
+                          stroke="rgba(239,239,232,0.24)"
+                        />
+                        <line
+                          x1="72"
+                          y1="42"
+                          x2="72"
+                          y2="214"
+                          stroke="rgba(239,239,232,0.24)"
+                        />
+                        <path
+                          d={linePath}
+                          fill="none"
+                          stroke="#B6C96E"
+                          strokeWidth="2.2"
+                        />
+                        {complexity.runs.map((r, idx) => {
+                          const [rx, ry] = mapPt(
+                            Math.log10(r.n),
+                            Math.log10(r.ms_per_generation)
+                          );
+                          return (
+                            <circle
+                              key={idx}
+                              cx={rx}
+                              cy={ry}
+                              r="3.2"
+                              fill="rgba(239,239,232,0.48)"
+                            />
+                          );
+                        })}
+                        {pts.map((p) => {
+                          const [px, py] = mapPt(p.lx, p.ly);
+                          return (
+                            <g key={p.n}>
+                              <circle
+                                cx={px}
+                                cy={py}
+                                r="5.5"
+                                fill="#C5E84D"
+                                stroke="#101110"
+                                strokeWidth="1.5"
+                              />
+                              <text
+                                x={px - 18}
+                                y={py - 12}
+                                fill="#EFEFE8"
+                                fontSize="10"
+                                fontFamily="var(--font-mono)"
+                              >
+                                n={p.n} ({p.ms.toFixed(1)}ms)
+                              </text>
+                            </g>
+                          );
+                        })}
+                        <text
+                          x="82"
+                          y="56"
+                          fill="#C5E84D"
+                          fontSize="11"
+                          fontFamily="var(--font-mono)"
+                        >
+                          Độ dốc log–log = {formatFixed(complexity.log_log_slope, 4)}
+                        </text>
+                      </svg>
+                    );
+                  })()}
+
+                  <div className="qa-table-wrap">
+                    <table className="qa-table">
+                      <thead>
+                        <tr>
+                          <th>Kích thước đàn n</th>
+                          <th>
+                            Kiểm tra cặp / vòng (
+                            <span style={{ textTransform: 'none' }}>
+                              n<sup>2</sup>
+                            </span>
+                            )
+                          </th>
+                          <th>Trung vị ms / vòng</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {complexity.summary.map((s) => (
+                          <tr key={s.n}>
+                            <td>
+                              <code>n = {s.n}</code>
+                            </td>
+                            <td>
+                              <code>{(s.n * s.n).toLocaleString('en-US')}</code>
+                            </td>
+                            <td>
+                              <strong>
+                                {formatFixed(s.median_ms_per_generation, 3)} ms
+                              </strong>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{DATASET_PROVENANCE.tv10_complexity.file}</code> ·{' '}
+                    {DATASET_PROVENANCE.tv10_complexity.conditionNote}
+                  </p>
+                </div>
+              )
+            ) : null}
+
+            {/* 4. GAMMA SENSITIVITY */}
+            {activeCard === 'gamma' ? (
+              !sensitivity ? (
+                <DatasetStatusCard
+                  status={sensState.status === 'error' ? 'error' : 'loading'}
+                  fileLabel="parameter_sensitivity.json"
+                  error={sensState.error}
+                  onRetry={sensState.retry}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <div className="modal-inline-controls">
+                    <span>
+                      Chọn lát cắt <MathFormula tex="\theta" ariaLabel="theta" />:
+                    </span>
+                    {[0.9, 0.97, 1.0].map((th) => (
+                      <button
+                        key={th}
+                        type="button"
+                        aria-pressed={Math.abs(selectedThetaForGamma - th) < 1e-9}
+                        className={`chip-btn ${
+                          Math.abs(selectedThetaForGamma - th) < 1e-9
+                            ? 'chip-btn--active'
+                            : ''
+                        }`}
+                        onClick={() => setSelectedThetaForGamma(th)}
+                      >
+                        <MathFormula
+                          tex={`\\theta = ${th.toFixed(2)}`}
+                          ariaLabel={`theta = ${th.toFixed(2)}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="detail-subpage__lead">
+                    Tại{' '}
+                    <MathFormula
+                      tex="D = 10, \; \theta = 0.97"
+                      ariaLabel="D = 10, theta = 0.97"
+                    />
+                    :{' '}
+                    <MathFormula
+                      tex="\gamma \in \{0.01, 0.1\}"
+                      ariaLabel="gamma in {0.01, 0.1}"
+                    />{' '}
+                    duy trì vùng nhìn phù hợp để hội tụ sâu xuống cỡ{' '}
+                    <MathFormula tex="10^{-12}" ariaLabel="10^-12" />, trong khi{' '}
+                    <MathFormula tex="\gamma = 50" ariaLabel="gamma = 50" /> triệt tiêu
+                    lực hút tầm xa khiến độ phân tán{' '}
+                    <MathFormula tex="S_t" ariaLabel="S_t" /> và sai số{' '}
+                    <MathFormula tex="E_t" ariaLabel="E_t" /> đứng cao.
+                  </p>
+
+                  {(() => {
+                    const runs = sensitivity.grid.filter(
+                      (g) => Math.abs(g.theta - selectedThetaForGamma) < 1e-9
+                    );
+                    const colors = [
+                      '#939889',
+                      '#C5E84D',
+                      '#B6C96E',
+                      '#8D7AE6',
+                      '#D98C4A',
+                    ];
+                    const maxDisp = Math.max(
+                      1,
+                      ...runs.flatMap((r) => [
+                        r.dispersion[0] ?? 1,
+                        r.dispersion[r.dispersion.length - 1] ?? 1,
+                      ])
+                    );
+
+                    return (
+                      <>
+                        <div className="dual-chart-row">
+                          <svg
+                            viewBox="0 0 345 220"
+                            className="modal-chart-svg detail-subpage__chart"
+                            role="img"
+                            aria-label="Sai số hội tụ theo gamma"
+                          >
+                            <text
+                              x="14"
+                              y="20"
+                              fill="#B6C96E"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                            >
+                              SAI SỐ MỤC TIÊU log10(E_t) · D=10
+                            </text>
+                            {runs.map((r, idx) => {
+                              const d = r.curve
+                                .filter(
+                                  (_, i) => i % 5 === 0 || i === r.curve.length - 1
+                                )
+                                .map((val, k, arr) => {
+                                  const x =
+                                    36 + (k / Math.max(1, arr.length - 1)) * 292;
+                                  const lv = Math.max(-14, Math.min(3, safeLog10(val)));
+                                  const y = 194 - ((lv + 14) / 17) * 156;
+                                  return `${k === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                                })
+                                .join(' ');
+                              return (
+                                <path
+                                  key={r.gamma}
+                                  d={d}
+                                  fill="none"
+                                  stroke={colors[idx % colors.length]}
+                                  strokeWidth="1.9"
+                                  strokeDasharray={r.gamma >= 50 ? '5 3' : undefined}
+                                />
+                              );
+                            })}
+                            <line
+                              x1="36"
+                              y1="194"
+                              x2="328"
+                              y2="194"
+                              stroke="rgba(239,239,232,0.24)"
+                            />
+                          </svg>
+
+                          <svg
+                            viewBox="0 0 345 220"
+                            className="modal-chart-svg detail-subpage__chart"
+                            role="img"
+                            aria-label="Độ phân tán cặp trung bình theo gamma"
+                          >
+                            <text
+                              x="14"
+                              y="20"
+                              fill="#B6C96E"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                            >
+                              ĐỘ PHÂN TÁN CẶP TRUNG BÌNH S_t
+                            </text>
+                            {runs.map((r, idx) => {
+                              const d = r.dispersion
+                                .filter(
+                                  (_, i) =>
+                                    i % 5 === 0 || i === r.dispersion.length - 1
+                                )
+                                .map((val, k, arr) => {
+                                  const x =
+                                    36 + (k / Math.max(1, arr.length - 1)) * 292;
+                                  const y = 194 - (val / maxDisp) * 156;
+                                  return `${k === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                                })
+                                .join(' ');
+                              return (
+                                <path
+                                  key={r.gamma}
+                                  d={d}
+                                  fill="none"
+                                  stroke={colors[idx % colors.length]}
+                                  strokeWidth="1.9"
+                                  strokeDasharray={r.gamma >= 50 ? '5 3' : undefined}
+                                />
+                              );
+                            })}
+                            <line
+                              x1="36"
+                              y1="194"
+                              x2="328"
+                              y2="194"
+                              stroke="rgba(239,239,232,0.24)"
+                            />
+                          </svg>
+                        </div>
+
+                        <div className="qa-table-wrap">
+                          <table className="qa-table">
+                            <thead>
+                              <tr>
+                                <th>
+                                  <span style={{ textTransform: 'none' }}>
+                                    γ (θ = {selectedThetaForGamma.toFixed(2)})
+                                  </span>
+                                </th>
+                                <th>
+                                  Sai số cuối E<sub>500</sub>
+                                </th>
+                                <th>
+                                  Phân tán S<sub>1</sub> → S<sub>500</sub>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {runs.map((r, idx) => (
+                                <tr key={r.gamma}>
+                                  <td>
+                                    <span
+                                      style={{ color: colors[idx % colors.length] }}
+                                    >
+                                      ●
+                                    </span>{' '}
+                                    <code>γ = {r.gamma}</code>
+                                  </td>
+                                  <td>
+                                    <strong>
+                                      <SciNumber value={r.fbest} sigDigits={3} />
+                                    </strong>
+                                  </td>
+                                  <td>
+                                    {formatFixed(r.dispersion[0], 3)} →{' '}
+                                    {formatFixed(
+                                      r.dispersion[r.dispersion.length - 1],
+                                      4
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="exp-modal__takeaway">
+                          Lưu ý: Trên mặt cầu lồi 10D không có bẫy cực tiểu cục bộ nên
+                          mức làm nguội nhanh{' '}
+                          <MathFormula tex="\theta = 0.90" ariaLabel="theta = 0.90" />{' '}
+                          vẫn hội tụ về sát <MathFormula tex="0" ariaLabel="0" /> khi{' '}
+                          <MathFormula tex="\gamma \le 0.1" ariaLabel="gamma <= 0.1" />;
+                          đồng thời từ{' '}
+                          <MathFormula tex="\gamma = 1.0" ariaLabel="gamma = 1.0" /> trở
+                          lên, <MathFormula tex="e^{-\gamma r^2}" ariaLabel="e^(-gamma r^2)" />{' '}
+                          trong 10D đã tiến sát <MathFormula tex="0" ariaLabel="0" /> nên
+                          kết quả <MathFormula tex="\gamma = 1.0" ariaLabel="gamma = 1.0" />{' '}
+                          và <MathFormula tex="\gamma = 50" ariaLabel="gamma = 50" />{' '}
+                          trùng nhau.
+                        </p>
+                      </>
+                    );
+                  })()}
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{DATASET_PROVENANCE.parameter_sensitivity.file}</code>{' '}
+                    · {DATASET_PROVENANCE.parameter_sensitivity.conditionNote}
+                  </p>
+                </div>
+              )
+            ) : null}
+
+            {/* 5. COOLING THETA & HYBRID */}
+            {activeCard === 'cooling_hybrid' ? (
+              !sensitivity || !alphaHybrid ? (
+                <DatasetStatusCard
+                  status={
+                    sensState.status === 'error' || hybridState.status === 'error'
+                      ? 'error'
+                      : 'loading'
+                  }
+                  fileLabel="tv10_alpha_hybrid.json"
+                  error={sensState.error ?? hybridState.error}
+                  onRetry={() => {
+                    sensState.retry();
+                    hybridState.retry();
+                  }}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <div className="modal-inline-controls">
+                    <button
+                      type="button"
+                      aria-pressed={coolingSubTab === 'alpha_hybrid'}
+                      className={`chip-btn ${
+                        coolingSubTab === 'alpha_hybrid' ? 'chip-btn--active' : ''
+                      }`}
+                      onClick={() => setCoolingSubTab('alpha_hybrid')}
+                    >
+                      Fixed / Decaying / Hybrid (D=5, 5 seed)
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={coolingSubTab === 'theta_sweep'}
+                      className={`chip-btn ${
+                        coolingSubTab === 'theta_sweep' ? 'chip-btn--active' : ''
+                      }`}
+                      onClick={() => setCoolingSubTab('theta_sweep')}
+                    >
+                      Độ nhạy θ ∈ &#123;0.90, 0.97, 1.00&#125; (D=10)
+                    </button>
+                  </div>
+
+                  {coolingSubTab === 'alpha_hybrid' ? (
+                    <>
+                      <p className="detail-subpage__lead">
+                        Với ngưỡng mục tiêu{' '}
+                        <MathFormula tex="f \le 10^{-3}" ariaLabel="f <= 10^-3" /> trên
+                        5 seed độc lập: giữ cố định{' '}
+                        <MathFormula tex="\theta = 1.0" ariaLabel="theta = 1.0" /> đạt{' '}
+                        <strong>0/5 (0%)</strong>, giảm hình học{' '}
+                        <MathFormula tex="\theta = 0.97" ariaLabel="theta = 0.97" />{' '}
+                        đạt <strong>5/5 (100%)</strong>; nhánh Hybrid cộng thêm 201 lượt
+                        tìm kiếm cục bộ Gaussian để tinh chỉnh sâu hơn.
+                      </p>
+
+                      {(() => {
+                        const fixed0 = alphaHybrid.runs.find(
+                          (r) => r.mode === 'fixed' && r.seed === 0
+                        );
+                        const decay0 = alphaHybrid.runs.find(
+                          (r) => r.mode === 'decaying' && r.seed === 0
+                        );
+                        const toPath = (arr: number[]) =>
+                          arr
+                            .map((v, idx) => {
+                              const x =
+                                58 + (idx / Math.max(1, arr.length - 1)) * 590;
+                              const lv = Math.max(-5, Math.min(2, safeLog10(v)));
+                              const y = 198 - ((lv + 5) / 7) * 150;
+                              return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                            })
+                            .join(' ');
+                        const targetY = 198 - ((-3 + 5) / 7) * 150;
+
+                        return (
+                          <svg
+                            viewBox="0 0 690 232"
+                            className="modal-chart-svg detail-subpage__chart"
+                            role="img"
+                            aria-label="So sánh hội tụ alpha cố định và alpha giảm dần"
+                          >
+                            <line
+                              x1="58"
+                              y1={targetY}
+                              x2="648"
+                              y2={targetY}
+                              stroke="rgba(182,201,110,0.36)"
+                              strokeDasharray="3 3"
+                            />
+                            <text
+                              x="64"
+                              y={targetY - 6}
+                              fill="#B6C96E"
+                              fontSize="9.5"
+                              fontFamily="var(--font-mono)"
+                            >
+                              Ngưỡng mục tiêu f ≤ 10⁻³
+                            </text>
+                            {fixed0 ? (
+                              <path
+                                d={toPath(fixed0.curve)}
+                                fill="none"
+                                stroke="#8D7AE6"
+                                strokeWidth="1.9"
+                                strokeDasharray="6 4"
+                              />
+                            ) : null}
+                            {decay0 ? (
+                              <path
+                                d={toPath(decay0.curve)}
+                                fill="none"
+                                stroke="#C5E84D"
+                                strokeWidth="2.2"
+                              />
+                            ) : null}
+                            <line
+                              x1="58"
+                              y1="198"
+                              x2="648"
+                              y2="198"
+                              stroke="rgba(239,239,232,0.24)"
+                            />
+                          </svg>
+                        );
+                      })()}
+
+                      <div className="qa-table-wrap">
+                        <table className="qa-table">
+                          <thead>
+                            <tr>
+                              <th>Phương thức</th>
+                              <th>Sai số cuối TB (5 seed)</th>
+                              <th>
+                                Tỷ lệ đạt{' '}
+                                <span style={{ textTransform: 'none' }}>
+                                  f ≤ 10<sup>-3</sup>
+                                </span>
+                              </th>
+                              <th>
+                                Tổng lượt gọi{' '}
+                                <span style={{ textTransform: 'none' }}>f(x)</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {alphaHybrid.summary.map((s) => {
+                              const sampleRun = alphaHybrid.runs.find(
+                                (r) => r.mode === s.mode && r.seed === 0
+                              );
+                              const hits = Math.round(s.target_success_rate * 5);
+                              return (
+                                <tr key={s.mode}>
+                                  <td>
+                                    <code>
+                                      {s.mode === 'fixed'
+                                        ? 'Fixed α (θ = 1.00)'
+                                        : 'Decaying α (θ = 0.97)'}
+                                    </code>
+                                  </td>
+                                  <td>
+                                    <strong>
+                                      <SciNumber value={s.fbest_mean} sigDigits={3} />
+                                    </strong>
+                                  </td>
+                                  <td>
+                                    {hits} / 5 ({(s.target_success_rate * 100).toFixed(0)}
+                                    %)
+                                  </td>
+                                  <td>
+                                    {sampleRun
+                                      ? `${sampleRun.evaluations.toLocaleString('en-US')} lượt`
+                                      : '—'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            <tr>
+                              <td>
+                                <code>Hybrid FA + Local Search</code>
+                              </td>
+                              <td>
+                                <strong>
+                                  <SciNumber
+                                    value={
+                                      alphaHybrid.hybrid_runs.reduce(
+                                        (acc, r) => acc + r.fbest,
+                                        0
+                                      ) / alphaHybrid.hybrid_runs.length
+                                    }
+                                    sigDigits={3}
+                                  />
+                                </strong>
+                              </td>
+                              <td>5 / 5 (100%)</td>
+                              <td>
+                                {alphaHybrid.hybrid_runs[0]?.total_evaluations.toLocaleString(
+                                  'en-US'
+                                )}{' '}
+                                lượt (+201 local)
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="qa-table-wrap">
+                      <table className="qa-table">
+                        <thead>
+                          <tr>
+                            <th>
+                              Hệ số làm nguội{' '}
+                              <span style={{ textTransform: 'none' }}>
+                                θ (γ = 0.1)
+                              </span>
+                            </th>
+                            <th>
+                              Sai số cuối E<sub>500</sub>
+                            </th>
+                            <th>
+                              <span style={{ textTransform: 'none' }}>
+                                α<sub>500</sub>
+                              </span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sensitivity.theta_sweep.map((row) => (
+                            <tr key={row.theta}>
+                              <td>
+                                <code>θ = {row.theta.toFixed(2)}</code>
+                              </td>
+                              <td>
+                                <strong>
+                                  <SciNumber value={row.fbest} sigDigits={3} />
+                                </strong>
+                              </td>
+                              <td>
+                                <SciNumber
+                                  value={Math.pow(row.theta, 500)}
+                                  sigDigits={2}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {(() => {
+                    const prov =
+                      coolingSubTab === 'alpha_hybrid'
+                        ? DATASET_PROVENANCE.tv10_alpha_hybrid
+                        : DATASET_PROVENANCE.parameter_sensitivity;
+                    return (
+                      <p className="modal-provenance-foot">
+                        Nguồn: <code>{prov.file}</code> · {prov.conditionNote}
+                      </p>
+                    );
+                  })()}
+                </div>
+              )
+            ) : null}
+
+            {/* 6. MULTIMODAL SUB-SWARMING */}
+            {activeCard === 'multimodal' ? (
+              !multimodal || !activeReplay ? (
+                <DatasetStatusCard
+                  status={mmState.status === 'error' ? 'error' : 'loading'}
+                  fileLabel="multimodal_optimization.json"
+                  error={mmState.error}
+                  onRetry={mmState.retry}
+                />
+              ) : (
+                <div className="exp-modal__body">
+                  <div className="modal-inline-controls">
+                    <div
+                      className="chip-group"
+                      role="group"
+                      aria-label="Chọn hàm đa cực trị"
+                    >
+                      {(['Himmelblau', 'Rastrigin'] as const).map((fn) => (
+                        <button
+                          key={fn}
+                          type="button"
+                          aria-pressed={mmFunc === fn}
+                          className={`chip-btn ${mmFunc === fn ? 'chip-btn--active' : ''}`}
+                          onClick={() => {
+                            setMmFunc(fn);
+                            setMmGamma(1.0);
+                          }}
+                        >
+                          {fn} 2D
+                        </button>
+                      ))}
+                    </div>
+
+                    <span className="modal-controls-sep" aria-hidden="true" />
+
+                    <div
+                      className="chip-group"
+                      role="group"
+                      aria-label="Chọn hệ số gamma cho replay"
+                    >
+                      {[1e-5, 0.01, 0.1, 1.0, 5.0].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          aria-pressed={Math.abs(mmGamma - g) < 1e-9}
+                          className={`chip-btn ${
+                            Math.abs(mmGamma - g) < 1e-9 ? 'chip-btn--active' : ''
+                          }`}
+                          onClick={() => setMmGamma(g)}
+                        >
+                          γ ={' '}
+                          {g === 1e-5 ? (
+                            <>
+                              10<sup>-5</sup>
+                            </>
+                          ) : (
+                            g
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="detail-subpage__lead">
+                    Trên <strong>Himmelblau</strong>, <code>γ = 1.0</code> cho tầm nhìn
+                    cục bộ L = 1 vừa khít khoảng cách giữa 4 hố nên chiếm lĩnh trọn{' '}
+                    <strong>4 / 4 cực tiểu toàn cục</strong>. Trên{' '}
+                    <strong>Rastrigin</strong> (<code>γ = 5.0</code>), đàn tách cụm
+                    nhưng dễ kẹt ở các hố cục bộ xung quanh.
+                  </p>
+
+                  <div className="mm-replay-layout">
+                    <div className="mm-canvas-box">
+                      <canvas
+                        ref={contourCanvasRef}
+                        className="mm-contour-canvas"
+                        role="img"
+                        aria-label={`Bản đồ đường đồng mức và vị trí đàn trên hàm ${activeReplay.function_name}`}
+                      />
+                      <div className="mm-scrubber">
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="action-pill action-pill--ivory"
+                            onClick={() => {
+                              if (mmFrameIdx >= activeReplay.history.length - 1) {
+                                setMmFrameIdx(0);
+                              }
+                              setMmPlaying((p) => !p);
+                            }}
+                          >
+                            {mmPlaying ? '⏸ Tạm dừng' : '▶ Phát lại'}
+                          </button>
+                          <label htmlFor="mm-frame-range">
+                            t = {activeReplay.history[mmFrameIdx]?.t ?? 0} /{' '}
+                            {activeReplay.t_max}
+                          </label>
+                        </div>
+                        <input
+                          id="mm-frame-range"
+                          type="range"
+                          min={0}
+                          max={Math.max(0, activeReplay.history.length - 1)}
+                          value={mmFrameIdx}
+                          onChange={(e) => {
+                            setMmPlaying(false);
+                            setMmFrameIdx(Number(e.target.value));
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mm-stats-col">
+                      {(() => {
+                        const currFrame = activeReplay.history[mmFrameIdx];
+                        const currMet = activeReplay.metrics[mmFrameIdx];
+                        return (
+                          <div className="hairline-bento">
+                            <div className="hairline-bento__cell">
+                              <span className="hairline-bento__label">
+                                Đỉnh toàn cục xác nhận
+                              </span>
+                              <span className="hairline-bento__val hairline-bento__val--lime">
+                                {currMet?.global_optima_found ?? 0} /{' '}
+                                {activeReplay.global_optima.length}
+                              </span>
+                            </div>
+                            <div className="hairline-bento__cell">
+                              <span className="hairline-bento__label">
+                                Số cụm bán kính (eps=0.6)
+                              </span>
+                              <span className="hairline-bento__val">
+                                {currMet?.n_clusters ?? 0} cụm
+                              </span>
+                            </div>
+                            <div className="hairline-bento__cell">
+                              <span className="hairline-bento__label">
+                                Sai số hiện tại
+                              </span>
+                              <span className="hairline-bento__val">
+                                <SciNumber value={currFrame?.fbest} sigDigits={3} />
+                              </span>
+                            </div>
+                            <div className="hairline-bento__cell">
+                              <span className="hairline-bento__label">
+                                Độ phân tán S<sub>t</sub>
+                              </span>
+                              <span className="hairline-bento__val">
+                                {formatFixed(currMet?.dispersion, 3)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="qa-table-wrap">
+                        <table className="qa-table">
+                          <thead>
+                            <tr>
+                              <th>
+                                <span style={{ textTransform: 'none' }}>γ</span> (
+                                {mmFunc})
+                              </th>
+                              <th>Số cụm TB</th>
+                              <th>Đỉnh toàn cục TB</th>
+                              <th>Sai số TB</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {multimodal.gamma_summary
+                              .filter((s) => s.function_name === mmFunc)
+                              .map((s) => {
+                                const isActiveRow = Math.abs(s.gamma - mmGamma) < 1e-9;
+                                return (
+                                  <tr
+                                    key={s.gamma}
+                                    className={
+                                      isActiveRow
+                                        ? 'qa-table__row qa-table__row--active'
+                                        : 'qa-table__row'
+                                    }
+                                    onClick={() => setMmGamma(s.gamma)}
+                                  >
+                                    <td>
+                                      <code>γ = {s.gamma}</code>
+                                    </td>
+                                    <td>
+                                      {s.n_clusters_mean.toFixed(2)} ±{' '}
+                                      {s.n_clusters_std.toFixed(2)}
+                                    </td>
+                                    <td>
+                                      <strong>
+                                        {s.global_optima_found_mean.toFixed(2)}
+                                      </strong>{' '}
+                                      / {mmFunc === 'Himmelblau' ? 4 : 1}
+                                    </td>
+                                    <td>
+                                      <SciNumber value={s.fbest_mean} sigDigits={2} />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{DATASET_PROVENANCE.multimodal_optimization.file}</code>{' '}
+                    · {DATASET_PROVENANCE.multimodal_optimization.conditionNote}
+                  </p>
+                </div>
+              )
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <FooterSection reducedMotion={reducedMotion} />
+    </>
+  );
+}

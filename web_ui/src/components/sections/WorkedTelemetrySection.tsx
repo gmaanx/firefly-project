@@ -1,4 +1,10 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -8,21 +14,18 @@ import { BlockReveal } from '../shared/BlockReveal';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { DatasetStatusCard } from '../shared/DatasetStatusCard';
 import { MathFormula } from '../shared/MathFormula';
-import type { QaTabId } from '../shared/QaDrawer';
 import { Worked3DStage } from '../webgl/Worked3DStage';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export interface WorkedTelemetrySectionProps {
   reducedMotion: boolean;
-  onOpenQa: (tab?: QaTabId) => void;
 }
 
-const TIMELINE_MILESTONES = [0, 1, 5, 20, 50, 200] as const;
+const TIMELINE_MILESTONES = [1, 5, 20, 50, 100, 200] as const;
 
 export function WorkedTelemetrySection({
   reducedMotion,
-  onOpenQa,
 }: WorkedTelemetrySectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const stageColRef = useRef<HTMLDivElement>(null);
@@ -31,7 +34,7 @@ export function WorkedTelemetrySection({
   const tabPrefix = useId();
   const [mode, setMode] = useState<'unconstrained' | 'constrained'>('unconstrained');
   const [activeStep, setActiveStep] = useState<0 | 1 | 2>(1);
-  const [milestoneIdx, setMilestoneIdx] = useState<number>(2);
+  const [milestoneIdx, setMilestoneIdx] = useState<number>(1);
 
   const workedState = useDataset('worked_example_13_5', true);
   const constrainedState = useDataset('constrained_demo', true);
@@ -51,14 +54,11 @@ export function WorkedTelemetrySection({
 
   const activeGenT = TIMELINE_MILESTONES[milestoneIdx] ?? 5;
   const targetFAtT = useMemo(() => {
-    if (activeGenT === 0) {
-      return wData?.initial_population[0]?.f ?? 18.0;
-    }
     if (convCurve && convCurve.length >= activeGenT) {
       return convCurve[activeGenT - 1];
     }
     return 18 * Math.pow(0.86, activeGenT);
-  }, [activeGenT, convCurve, wData]);
+  }, [activeGenT, convCurve]);
 
   const targetAlphaAtT = useMemo(() => Math.pow(0.97, activeGenT), [activeGenT]);
 
@@ -516,7 +516,7 @@ export function WorkedTelemetrySection({
                         <div className="worked-subblock-head">
                           <span className="worked-subblock-head__badge">PHẦN B · n = 20</span>
                           <strong>
-                            Chạy thực tế trên Python (t = 0 → 200 thế hệ)
+                            Chạy thực tế trên Python (t = 1 → 200 thế hệ)
                           </strong>
                         </div>
                         <code>t = {activeGenT}</code>
@@ -717,7 +717,7 @@ export function WorkedTelemetrySection({
                             fontSize="11"
                             fontFamily="var(--font-mono)"
                           >
-                            Π(0) = {constrainedChart.initF.toFixed(2)}
+                            Π(1) = {constrainedChart.initF.toFixed(2)}
                           </text>
                           <text
                             x={constrainedChart.endX - 6}
@@ -737,7 +737,7 @@ export function WorkedTelemetrySection({
                             fontSize="10.5"
                             fontFamily="var(--font-mono)"
                           >
-                            t = 0
+                            t = 1
                           </text>
                           <text
                             x="546"
@@ -754,16 +754,6 @@ export function WorkedTelemetrySection({
                     </div>
                   </div>
                 )}
-
-                <div style={{ marginTop: '0.9rem' }}>
-                  <button
-                    type="button"
-                    className="qa-text-link"
-                    onClick={() => onOpenQa('guardrails')}
-                  >
-                    Xem chứng minh chi tiết &amp; Q&amp;A →
-                  </button>
-                </div>
               </div>
             )}
           </div>

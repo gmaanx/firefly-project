@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -6,13 +12,11 @@ import { BlockReveal } from '../shared/BlockReveal';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { LandoSignatureFlourish } from '../shared/LandoSignatureFlourish';
 import { MathFormula } from '../shared/MathFormula';
-import type { QaTabId } from '../shared/QaDrawer';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export interface FlowchartTrackSectionProps {
   reducedMotion: boolean;
-  onOpenQa: (tab?: QaTabId) => void;
 }
 
 interface PhaseItem {
@@ -61,7 +65,7 @@ const PHASES: readonly PhaseItem[] = [
         Đánh giá <MathFormula tex="f(\mathbf{x}_i)" ariaLabel="f(x_i)" /> trên toàn đàn
       </>
     ),
-    fnName: 'evaluate_light',
+    fnName: 'problem.evaluate',
     title: 'Đánh giá hàm mục tiêu & cường độ sáng',
     desc: (
       <>
@@ -84,7 +88,7 @@ const PHASES: readonly PhaseItem[] = [
         Duyệt 2 vòng lặp lồng nhau <MathFormula tex="\mathcal{O}(n^2)" ariaLabel="O(n^2)" />
       </>
     ),
-    fnName: 'compare_pairs',
+    fnName: 'move_firefly_pair',
     title: (
       <>
         Đối chiếu độ sáng từng cặp <MathFormula tex="(i, j)" ariaLabel="(i, j)" />
@@ -112,7 +116,7 @@ const PHASES: readonly PhaseItem[] = [
         Chỉ thực hiện khi <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)" ariaLabel="f(x_j) < f(x_i)" />
       </>
     ),
-    fnName: 'move_and_clamp',
+    fnName: 'find_limits',
     title: 'Dịch chuyển kết hợp nhiễu & giữ trong biên',
     desc: (
       <>
@@ -129,29 +133,32 @@ const PHASES: readonly PhaseItem[] = [
   {
     idx: 4,
     code: '05',
-    mapTitle: 'Giảm biên độ nhiễu & xếp hạng x*',
+    mapTitle: 'Xếp hạng đàn & làm nguội bước nhảy',
     mapSub: (
       <>
-        Làm nguội <MathFormula tex="\alpha_{t+1} = \theta\alpha_t" ariaLabel="alpha_{t+1} = theta alpha_t" /> cuối mỗi thế hệ
+        Hạ <MathFormula tex="\alpha_t = \alpha_0 \theta^t" ariaLabel="alpha_t = alpha_0 * theta^t" /> đầu vòng &amp; xếp hạng{' '}
+        <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" /> cuối vòng
       </>
     ),
-    fnName: 'update_alpha',
+    fnName: 'rank_fireflies',
     title: (
       <>
-        Hạ dần bước nhảy <MathFormula tex="\alpha_t" ariaLabel="alpha_t" /> để hội tụ sâu
+        Xếp hạng đàn &amp; hạ bước nhảy <MathFormula tex="\alpha_t" ariaLabel="alpha_t" />
       </>
     ),
     desc: (
       <>
-        Kết thúc thế hệ <MathFormula tex="t" ariaLabel="t" />, nhân biên độ nhiễu với{' '}
-        <MathFormula tex="\theta \approx 0.97" ariaLabel="theta ~ 0.97" /> để thu hẹp
-        dao động quanh đáy hố và lưu lại nghiệm tốt nhất{' '}
+        Đầu mỗi thế hệ <MathFormula tex="t" ariaLabel="t" />,{' '}
+        <code>update_alpha()</code> hạ biên độ nhiễu theo{' '}
+        <MathFormula tex="\alpha_t = \alpha_0 \theta^t" ariaLabel="alpha_t = alpha_0 * theta^t" />{' '}
+        (<MathFormula tex="\theta \approx 0.97" ariaLabel="theta ~ 0.97" />); cuối
+        thế hệ, <code>rank_fireflies()</code> sắp xếp lại đàn và lưu nghiệm tốt nhất{' '}
         <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" />.
       </>
     ),
-    formulaTex: '\\alpha_{t+1} = \\theta \\cdot \\alpha_t = \\alpha_0 \\theta^{t+1}',
+    formulaTex: '\\alpha_t = \\alpha_0 \\theta^t',
     formulaSecondTex: '\\theta = 0.97',
-    formulaAria: 'Giam dan buoc nhay ngau nhien alpha_(t+1) = alpha_0 * theta^(t+1)',
+    formulaAria: 'Giam dan buoc nhay ngau nhien alpha_t = alpha_0 * theta^t',
   },
 ];
 
@@ -167,13 +174,13 @@ const PSEUDOCODE_LINES: readonly PseudocodeLine[] = [
     lineNo: '01',
     indent: 0,
     stepTag: 'B01',
-    code: 'Khởi tạo ngẫu nhiên n đom đóm x_i ∈ [Lb, Ub] (i = 1..n)',
+    code: 'ns, Lightn ← init_population(n, problem)      // khởi tạo n đom đóm trong [Lb, Ub]',
   },
   {
     lineNo: '02',
     indent: 0,
     stepTag: 'B02',
-    code: 'Tính f(x_i) cho mọi cá thể; xác định nghiệm tốt nhất đầu tiên x*',
+    code: 'ns, Lightn, nbest, fbest ← rank_fireflies(ns, Lightn)',
   },
   {
     lineNo: '03',
@@ -183,38 +190,38 @@ const PSEUDOCODE_LINES: readonly PseudocodeLine[] = [
   {
     lineNo: '04',
     indent: 1,
-    stepTag: 'B03',
-    code: 'for i = 1 to n do          // duyệt từng đom đóm nhận tín hiệu',
+    stepTag: 'B05',
+    code: 'α ← update_alpha(α)                          // α_t = α_0 · θ^t ở đầu thế hệ t',
   },
   {
     lineNo: '05',
-    indent: 2,
+    indent: 1,
     stepTag: 'B03',
-    code: 'for j = 1 to n do        // so sánh với mọi đom đóm j trong đàn',
+    code: 'for i = 1 to n do',
   },
   {
     lineNo: '06',
-    indent: 3,
+    indent: 2,
     stepTag: 'B03',
-    code: 'if f(x_j) < f(x_i) then   // j sáng hơn i (bài toán cực tiểu)',
+    code: 'for j = 1 to n do',
   },
   {
     lineNo: '07',
-    indent: 4,
+    indent: 3,
     stepTag: 'B03',
-    code: 'r_ij ← ||x_i − x_j||_2 ;  β ← β_0 · exp(−γ · r_ij²)',
+    code: 'if Lightn[j] < Lightn[i] then               // j sáng hơn i (bài toán cực tiểu)',
   },
   {
     lineNo: '08',
     indent: 4,
-    stepTag: 'B04',
-    code: 'x_i ← clip(x_i + β(x_j − x_i) + α_t · S · ε_i, Lb, Ub)',
+    stepTag: 'B03',
+    code: 'new_pos ← move_firefly_pair(ns[i], ns[j], α, β_0, γ, scale)',
   },
   {
     lineNo: '09',
     indent: 4,
-    stepTag: 'B02',
-    code: 'Cập nhật lại ngay độ sáng f(x_i) tại vị trí vừa di chuyển',
+    stepTag: 'B04',
+    code: 'ns[i] ← find_limits(new_pos, Lb, Ub) ; Lightn[i] ← problem.evaluate(ns[i])',
   },
   {
     lineNo: '10',
@@ -225,12 +232,12 @@ const PSEUDOCODE_LINES: readonly PseudocodeLine[] = [
     lineNo: '11',
     indent: 1,
     stepTag: 'B05',
-    code: 'α_{t+1} ← θ · α_t ;  Xếp hạng đàn và cập nhật nghiệm tốt nhất x*',
+    code: 'ns, Lightn, nbest, fbest ← rank_fireflies(ns, Lightn)',
   },
   {
     lineNo: '12',
     indent: 0,
-    code: 'end for; return x*, f(x*)',
+    code: 'end for; return nbest, fbest',
   },
 ];
 
@@ -399,7 +406,6 @@ function SpotlightIllustration({ idx, active }: { idx: number; active: boolean }
 
 export function FlowchartTrackSection({
   reducedMotion,
-  onOpenQa,
 }: FlowchartTrackSectionProps) {
   const flowSectionRef = useRef<HTMLElement>(null);
   const pseudoSectionRef = useRef<HTMLElement>(null);
@@ -424,7 +430,7 @@ export function FlowchartTrackSection({
 
     const syncScroll = () => {
       const runway = runwayRef.current;
-      if (!runway || window.innerWidth < 1024) return;
+      if (!runway || window.innerWidth < 1024 || window.innerHeight <= 560) return;
 
       const rect = runway.getBoundingClientRect();
       const scrollable = Math.max(1, rect.height - window.innerHeight);
@@ -465,7 +471,7 @@ export function FlowchartTrackSection({
       const cards = cardRefs.current.filter((c): c is HTMLElement => c !== null);
       if (cards.length === 0) return;
 
-      if (reducedMotion || window.innerWidth < 1024) {
+      if (reducedMotion || window.innerWidth < 1024 || window.innerHeight <= 560) {
         cards.forEach((el) => {
           gsap.set(el, {
             clearProps: 'transform,opacity,visibility,zIndex,pointerEvents',
@@ -512,8 +518,8 @@ export function FlowchartTrackSection({
           if (depth <= 2) {
             gsap.to(el, {
               autoAlpha: 1,
-              y: -depth * 14,
-              scale: 1 - depth * 0.035,
+              y: -depth * 10,
+              scale: 1 - depth * 0.032,
               zIndex: 30 - depth,
               pointerEvents: 'none',
               duration: isInitial ? 0 : 0.46,
@@ -616,7 +622,12 @@ export function FlowchartTrackSection({
       setActivePhase(idx);
 
       const runway = runwayRef.current;
-      if (runway && window.innerWidth >= 1024 && !reducedMotion) {
+      if (
+        runway &&
+        window.innerWidth >= 1024 &&
+        window.innerHeight > 560 &&
+        !reducedMotion
+      ) {
         const runwayTop = window.scrollY + runway.getBoundingClientRect().top;
         const scrollable = Math.max(0, runway.offsetHeight - window.innerHeight);
         const ratio =
@@ -681,14 +692,6 @@ export function FlowchartTrackSection({
                     </span>
                     <span className="flowchart-live-counter__tot">/ 05</span>
                   </div>
-
-                  <button
-                    type="button"
-                    className="qa-text-link"
-                    onClick={() => onOpenQa('comparison')}
-                  >
-                    Đối chiếu mã nguồn &amp; Q&amp;A →
-                  </button>
                 </div>
               </div>
 
@@ -734,7 +737,7 @@ export function FlowchartTrackSection({
                         VÒNG LẶP <MathFormula tex="t = 1 \to t_{\max}" ariaLabel="t = 1 -> t_max" />
                       </span>
                       <span className="flowchart-vloop-box__return">
-                        ↺ Hết Bước 05 quay lại Bước 02 khi{' '}
+                        ↺ Lặp Bước 02 → 05 khi{' '}
                         <MathFormula tex="t < t_{\max}" ariaLabel="t < t_max" />
                       </span>
                     </div>
@@ -779,8 +782,8 @@ export function FlowchartTrackSection({
                       <span className="flowchart-vbranch__diamond">
                         ◇ <MathFormula tex="f(\mathbf{x}_j) < f(\mathbf{x}_i)?" ariaLabel="f(x_j) < f(x_i)?" />
                       </span>
-                      <span className="flowchart-vbranch__yes">Đúng ↓ vào Bước 04</span>
-                      <span className="flowchart-vbranch__no">Sai ↷ giữ nguyên, qua 05</span>
+                      <span className="flowchart-vbranch__yes">Đúng ↓ qua Bước 04</span>
+                      <span className="flowchart-vbranch__no">Sai ↷ giữ nguyên, cặp kế</span>
                     </div>
 
                     {[3, 4].map((stepIdx) => {
@@ -930,16 +933,6 @@ export function FlowchartTrackSection({
                 triggerRef={pseudoSectionRef}
                 reducedMotion={reducedMotion}
               />
-            </div>
-
-            <div className="flowchart-header__actions">
-              <button
-                type="button"
-                className="qa-text-link"
-                onClick={() => onOpenQa('comparison')}
-              >
-                Đối chiếu mã Python thực tế →
-              </button>
             </div>
           </div>
 

@@ -863,9 +863,27 @@ export default function ExperimentModal({
                         </tbody>
                       </table>
                     </div>
+                    <p className="exp-modal__takeaway">
+                      Lưu ý: Trên mặt cầu lồi 10D không có bẫy cực tiểu cục bộ nên
+                      mức làm nguội nhanh{' '}
+                      <MathFormula tex="\theta = 0.90" ariaLabel="theta = 0.90" />{' '}
+                      vẫn hội tụ về sát <MathFormula tex="0" ariaLabel="0" /> khi{' '}
+                      <MathFormula tex="\gamma \le 0.1" ariaLabel="gamma <= 0.1" />;
+                      đồng thời từ{' '}
+                      <MathFormula tex="\gamma = 1.0" ariaLabel="gamma = 1.0" /> trở
+                      lên, <MathFormula tex="e^{-\gamma r^2}" ariaLabel="e^(-gamma r^2)" />{' '}
+                      trong 10D đã tiến sát <MathFormula tex="0" ariaLabel="0" /> nên
+                      kết quả <MathFormula tex="\gamma = 1.0" ariaLabel="gamma = 1.0" />{' '}
+                      và <MathFormula tex="\gamma = 50" ariaLabel="gamma = 50" />{' '}
+                      trùng nhau.
+                    </p>
                   </>
                 );
               })()}
+              <p className="modal-provenance-foot">
+                Nguồn: <code>{DATASET_PROVENANCE.parameter_sensitivity.file}</code>{' '}
+                · {DATASET_PROVENANCE.parameter_sensitivity.conditionNote}
+              </p>
             </div>
           ) : null}
 
@@ -1037,6 +1055,17 @@ export default function ExperimentModal({
                   </table>
                 </div>
               )}
+              {(() => {
+                const prov =
+                  coolingSubTab === 'alpha_hybrid'
+                    ? DATASET_PROVENANCE.tv10_alpha_hybrid
+                    : DATASET_PROVENANCE.parameter_sensitivity;
+                return (
+                  <p className="modal-provenance-foot">
+                    Nguồn: <code>{prov.file}</code> · {prov.conditionNote}
+                  </p>
+                );
+              })()}
             </div>
           ) : null}
 

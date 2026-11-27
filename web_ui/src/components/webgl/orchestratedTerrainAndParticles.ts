@@ -400,8 +400,8 @@ export function createOrchestratedTerrainAndParticles(
         - `6` continuous shutter subsamples across `screen0 -> screen1` + crisp
           `uHardness = 0.80` circular lens bokeh discs!
      ------------------------------------------------------------------------ */
-  const gridX = isMobile ? 28 : 36;
-  const gridY = isMobile ? 25 : 32;
+  const gridX = isMobile ? 20 : 24;
+  const gridY = isMobile ? 16 : 20;
   const fireflyCount = gridX * gridY;
 
   let prng = 0x9e3779b9;
@@ -572,10 +572,10 @@ export function createOrchestratedTerrainAndParticles(
       uPositions1: { value: stateRing[1].tex },
       uViewProjection0: { value: viewProj0 },
       uViewProjection1: { value: viewProj1 },
-      uPointSize: { value: 0.072 },
+      uPointSize: { value: 0.082 },
       uScreenHeight: { value: initialPixelHeight },
       // Optical lens bokeh glow calibrated 1:1 to orches_0.4s / 4.0s / 8.0s!
-      uBrightness: { value: 1.42 },
+      uBrightness: { value: 1.48 },
       uIntroBrightness: { value: 0.0 },
       uHardness: { value: 0.62 },
       uColor0: { value: color0 },
@@ -824,17 +824,13 @@ export function createOrchestratedTerrainAndParticles(
 
     stateRing[ringIdx].tex.needsUpdate = true;
 
-    // Splat real-time firefly pools of light onto the ground & 405k-blade 3D grass meadow!
+    // Splat real-time firefly pools of light onto the ground & 3D grass meadow!
     splatMat.uniforms.uPositions.value = stateRing[ringIdx].tex;
-    splatMat.uniforms.uBrightness.value = 0.072 * introProgress * (1.0 - scrollP * 0.85);
+    splatMat.uniforms.uBrightness.value = 0.105 * introProgress * (1.0 - scrollP * 0.85);
     r.setRenderTarget(particleLightRT);
     r.clear(true, false, false);
     r.render(splatScene, splatCam);
     r.setRenderTarget(null);
-
-    // Low-skimming firefly murmuration breeze + single clean viscoelastic wind step on the 405k 3D grass blades!
-    grassMeadow.injectSwarmBreeze(flockSmooth[0].x, flockSmooth[0].z, (1.0 - scrollP) * motionScale);
-    grassMeadow.update(elapsed, simDt, scrollP);
 
     fireflyMat.uniforms.uPositions0.value = stateRing[ringIdx].tex;
     fireflyMat.uniforms.uPositions1.value = stateRing[prevSlot].tex;

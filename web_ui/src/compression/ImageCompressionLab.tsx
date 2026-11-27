@@ -269,9 +269,11 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
           <p className="compression-lab-lead">
             Mỗi đom đóm biểu diễn một bộ <MathFormula tex="K" ariaLabel="K" />{' '}
             màu đại diện trong không gian RGB{' '}
-            <MathFormula tex="[0, 255]^{3K}" ariaLabel="[0, 255]^{3K}" />, tự động
-            di chuyển để giảm sai số bình phương trung bình (MSE) giúp giảm dung
-            lượng ảnh mà vẫn giữ rõ chi tiết.
+            <MathFormula tex="[0, 255]^{3K}" ariaLabel="[0, 255]^{3K}" />. Bộ giải
+            dùng <strong>Hybrid FA</strong> (kết hợp lực hút đom đóm toàn cục với
+            bước kéo tâm cụm cục bộ theo mật độ điểm ảnh và giữ cá thể tốt nhất)
+            để giảm sai số bình phương trung bình (MSE) trong 32 thế hệ thời gian
+            thực.
           </p>
         </div>
 

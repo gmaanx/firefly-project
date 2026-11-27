@@ -70,25 +70,6 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
           },
         });
       });
-
-      // Lenis-scrubbed multi-depth glide as user scrolls out of Hero into Experiment Cards
-      const mm = gsap.matchMedia();
-      mm.add('(min-width: 1024px)', () => {
-        kpiCells.forEach((cell, idx) => {
-          gsap.to(cell, {
-            y: -10 - (idx % 2) * 12,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: hero,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: 0.65,
-            },
-          });
-        });
-      });
-
-      return () => mm.revert();
     },
     { scope: heroRef, dependencies: [reducedMotion] }
   );

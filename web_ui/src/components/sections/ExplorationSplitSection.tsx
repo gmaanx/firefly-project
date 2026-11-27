@@ -562,14 +562,14 @@ export function ExplorationSplitSection({
         }
       }
 
-      // 4. Chapter 02 Mountain Cutaway Stage: parallax + ridge draw + 3-Epoch Timeline cascade
+      // 4. Chapter 02 Mountain Cutaway Stage: subtle parallax + ridge draw + 3-Epoch Timeline cascade
       const stageEl = cutawayStageRef.current;
       if (stageEl && exploreSecRef.current) {
         gsap.fromTo(
           stageEl,
-          { y: 34 },
+          { y: 10 },
           {
-            y: -22,
+            y: -10,
             ease: 'none',
             scrollTrigger: {
               trigger: exploreSecRef.current,
