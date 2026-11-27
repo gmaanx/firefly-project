@@ -53,6 +53,7 @@ html {
   width: 3.5px;
   z-index: 125;
   pointer-events: none;
+  contain: layout style paint;
   opacity: 0;
   transition: opacity 0.34s var(--ease-out);
 }
@@ -1875,6 +1876,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   height: 100%;
   z-index: 2;
   pointer-events: none;
+  contain: layout style paint;
   opacity: 1;
   visibility: visible;
   background-color: #2b3024;
@@ -1915,6 +1917,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   height: 100%;
   pointer-events: none;
   overflow: hidden;
+  contain: layout style paint;
 }
 
 /* Stationary 1:1 tailord.design CRT screen filter locked to viewport pixels */
@@ -1939,11 +1942,8 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   left: 50%;
   top: 44%;
   width: min(92vw, 880px);
-  transform: translate3d(
-    calc(-50% + var(--hero-px, 0) * -16px),
-    calc(-50% + var(--hero-py, 0) * 10px),
-    0
-  );
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform;
   text-align: center;
   user-select: none;
 }

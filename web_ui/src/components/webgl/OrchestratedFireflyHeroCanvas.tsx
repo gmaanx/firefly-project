@@ -28,6 +28,8 @@ export interface OrchestratedFireflyHeroCanvasProps {
   hudFrameRef?: RefObject<HTMLDivElement | null>;
   /** Optional ref to Hero CRT screen overlay for frame-locked scroll fade */
   crtOverlayRef?: RefObject<HTMLDivElement | null>;
+  /** Optional ref to Hero centerpiece lockup for compositor-only parallax */
+  centerpieceRef?: RefObject<HTMLDivElement | null>;
   /** Optional ref to Lando top-center bridge eyebrow for synchronized reveal */
   eyebrowRef?: RefObject<HTMLDivElement | null>;
   /** True while the Hero + Manifesto top stage is active */
@@ -152,6 +154,7 @@ export function OrchestratedFireflyHeroCanvas({
   hudContentRef,
   hudFrameRef,
   crtOverlayRef,
+  centerpieceRef,
   eyebrowRef,
   stageActive,
 }: OrchestratedFireflyHeroCanvasProps) {
@@ -171,6 +174,9 @@ export function OrchestratedFireflyHeroCanvas({
 
   const crtRefLatest = useRef(crtOverlayRef);
   crtRefLatest.current = crtOverlayRef;
+
+  const centerpieceRefLatest = useRef(centerpieceRef);
+  centerpieceRefLatest.current = centerpieceRef;
 
   const eyebrowRefLatest = useRef(eyebrowRef);
   eyebrowRefLatest.current = eyebrowRef;
@@ -234,6 +240,12 @@ export function OrchestratedFireflyHeroCanvas({
     scene.add(terrainAndParticles.terrainMesh);
     scene.add(terrainAndParticles.grassCarpetMesh);
     scene.add(terrainAndParticles.fireflyPoints);
+    terrainAndParticles.terrainMesh.updateMatrixWorld(true);
+    terrainAndParticles.grassCarpetMesh.updateMatrixWorld(true);
+    terrainAndParticles.fireflyPoints.updateMatrixWorld(true);
+    terrainAndParticles.terrainMesh.matrixAutoUpdate = false;
+    terrainAndParticles.grassCarpetMesh.matrixAutoUpdate = false;
+    terrainAndParticles.fireflyPoints.matrixAutoUpdate = false;
 
     /* ----------------------------------------------------------------------
        2. Real `.glb` Wrecked White Sedans, Verdigris Pipe, Shrubs & 3D Roses
@@ -350,7 +362,6 @@ export function OrchestratedFireflyHeroCanvas({
     /* ----------------------------------------------------------------------
        5. `THREE.Timer` Render Loop (3D Parallax + Raycast + GPGPU Fireflies)
        ---------------------------------------------------------------------- */
-    const heroEl = document.getElementById('hero');
     const raycaster = new THREE.Raycaster();
     const ptrVec2 = new THREE.Vector2();
     const cursorWorld = new THREE.Vector3(0, -0.75, 1.8);
@@ -364,19 +375,17 @@ export function OrchestratedFireflyHeroCanvas({
     let running = false;
     let elapsed = 0;
     let introProgress = 0;
-    let lastRenderTs = 0;
     let lastClipVal = '';
     let lastCanvasTf = '';
     let lastHudOp = '';
     let lastEbOp = '';
     let lastCrtOp = '';
-    let lastPxStr = '';
-    let lastPyStr = '';
+    let lastCenterpieceTf = '';
     let lastRayPtrX = 999;
     let lastRayPtrY = 999;
 
-    const renderSingleStep = (timestamp: number, forceRender = false) => {
-      // Always sync lightweight DOM scroll frame/HUD at native 60Hz/120Hz/144Hz refresh rate (zero scroll judder!)
+    const renderSingleStep = (timestamp: number) => {
+      // Uncapped native 120Hz/144Hz/240Hz VSync render loop: DOM + WebGL stay locked together!
       const scrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
 
       const hudEl = hudRefLatest.current?.current;
@@ -446,14 +455,8 @@ export function OrchestratedFireflyHeroCanvas({
         }
       }
 
-      // Throttle heavy 3D WebGL scene passes to ~65fps while keeping 144Hz DOM scroll sync above!
-      if (!forceRender && timestamp - lastRenderTs < 14.8) {
-        return;
-      }
-      lastRenderTs = timestamp;
-
       timer.update(timestamp);
-      const dt = clamp(timer.getDelta(), 0.004, 0.033);
+      const dt = clamp(timer.getDelta(), 0.001, 0.033);
       const motionScale = reducedMotionRef.current ? 0.22 : 1.0;
       elapsed += dt * motionScale;
 
@@ -469,14 +472,12 @@ export function OrchestratedFireflyHeroCanvas({
         (pointerActive * (1.0 - framePhase * 0.85) - smoothPointerActive) *
         (1.0 - Math.exp(-dt * 4.5));
 
-      if (heroEl) {
-        const pxStr = smoothPtrX.toFixed(3);
-        const pyStr = smoothPtrY.toFixed(3);
-        if (pxStr !== lastPxStr || pyStr !== lastPyStr) {
-          lastPxStr = pxStr;
-          lastPyStr = pyStr;
-          heroEl.style.setProperty('--hero-px', pxStr);
-          heroEl.style.setProperty('--hero-py', pyStr);
+      const centerpieceEl = centerpieceRefLatest.current?.current;
+      if (centerpieceEl) {
+        const nextCpTf = `translate3d(calc(-50% + ${(smoothPtrX * -16).toFixed(2)}px), calc(-50% + ${(smoothPtrY * 10).toFixed(2)}px), 0)`;
+        if (nextCpTf !== lastCenterpieceTf) {
+          lastCenterpieceTf = nextCpTf;
+          centerpieceEl.style.transform = nextCpTf;
         }
       }
 
@@ -602,7 +603,7 @@ export function OrchestratedFireflyHeroCanvas({
     const stepFrame = (timestamp: number) => {
       if (!running) return;
       rafId = window.requestAnimationFrame(stepFrame);
-      renderSingleStep(timestamp, false);
+      renderSingleStep(timestamp);
     };
 
     const syncRunState = () => {
@@ -612,9 +613,10 @@ export function OrchestratedFireflyHeroCanvas({
         lastClipVal = '';
         lastCanvasTf = '';
         lastHudOp = '';
+        lastCenterpieceTf = '';
         running = true;
         timer.reset();
-        renderSingleStep(performance.now(), true);
+        renderSingleStep(performance.now());
         rafId = window.requestAnimationFrame(stepFrame);
       } else if (!shouldRun && running) {
         running = false;

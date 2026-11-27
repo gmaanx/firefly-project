@@ -170,16 +170,19 @@ function createGrassTuftTemplateGeometry(
 
   const positions: number[] = [];
   const uvs: number[] = [];
-  const shootParams: number[] = []; // vec4(yawOff, hScale, ox, oz)
-  const shootExtra: number[] = [];  // vec2(wScale, phaseOff)
+  const shootParams: number[] = []; // vec4(cosYawOff, sinYawOff, ox, oz)
+  const shootExtra: number[] = [];  // vec4(hScale, wScale, phaseOff, flexProfile)
   const indices: number[] = [];
 
   for (let b = 0; b < shootSpecs.length; b += 1) {
     const sp = shootSpecs[b];
+    const csOff = Math.cos(sp.yawOff);
+    const snOff = Math.sin(sp.yawOff);
     const baseVertex = positions.length / 3;
 
     for (let s = 0; s <= segments; s += 1) {
       const t = s / segments;
+      const flexP = Math.pow(t, 1.68);
       if (s < segments) {
         const widthProfile =
           (0.74 + 0.28 * Math.sin(Math.min(1.0, t * 1.45) * Math.PI * 0.70)) *
@@ -188,19 +191,19 @@ function createGrassTuftTemplateGeometry(
 
         positions.push(-widthProfile, t, -ribZ);
         uvs.push(0.0, t);
-        shootParams.push(sp.yawOff, sp.hScale, sp.ox, sp.oz);
-        shootExtra.push(sp.wScale, sp.phaseOff);
+        shootParams.push(csOff, snOff, sp.ox, sp.oz);
+        shootExtra.push(sp.hScale, sp.wScale, sp.phaseOff, flexP);
 
         positions.push(widthProfile, t, ribZ * 0.25);
         uvs.push(1.0, t);
-        shootParams.push(sp.yawOff, sp.hScale, sp.ox, sp.oz);
-        shootExtra.push(sp.wScale, sp.phaseOff);
+        shootParams.push(csOff, snOff, sp.ox, sp.oz);
+        shootExtra.push(sp.hScale, sp.wScale, sp.phaseOff, flexP);
       } else {
         // True pointed botanical tip (zero squared quad top!)
         positions.push(0.0, 1.0, 0.0);
         uvs.push(0.5, 1.0);
-        shootParams.push(sp.yawOff, sp.hScale, sp.ox, sp.oz);
-        shootExtra.push(sp.wScale, sp.phaseOff);
+        shootParams.push(csOff, snOff, sp.ox, sp.oz);
+        shootExtra.push(sp.hScale, sp.wScale, sp.phaseOff, flexP);
       }
     }
 
@@ -220,7 +223,7 @@ function createGrassTuftTemplateGeometry(
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setAttribute('aShootParam', new THREE.Float32BufferAttribute(shootParams, 4));
-  geo.setAttribute('aShootExtra', new THREE.Float32BufferAttribute(shootExtra, 2));
+  geo.setAttribute('aShootExtra', new THREE.Float32BufferAttribute(shootExtra, 4));
   geo.setIndex(indices);
   return geo;
 }
@@ -307,11 +310,16 @@ export function createNocturnalGrassMeadow(
   disposables.push(windTexture);
 
   let windAwake = false;
+  let dirtyIuMin = windW;
+  let dirtyIuMax = -1;
+  let dirtyIvMin = windH;
+  let dirtyIvMax = -1;
   let hasPrevPtr = false;
   let prevPtrX = 0;
   let prevPtrZ = 0;
   const smoothDir = new THREE.Vector2(1.0, 0.0);
   let boundSpotLight: THREE.SpotLight | null = null;
+  let syncedShadowTex: THREE.Texture | null = null;
 
   // Pre-baked 256x256 Terrain Albedo DataTexture (eliminates 7 `vnoise` / 28 `hash21` ALU calls per ground pixel every frame!)
   const albedoRes = 256;
@@ -368,6 +376,7 @@ export function createNocturnalGrassMeadow(
     uHasShadow: { value: 0.0 },
     uSpotPos: { value: new THREE.Vector3(0.1, 8.6, 3.85) },
     uSpotTarget: { value: new THREE.Vector3(0.0, -1.35, 1.45) },
+    uSpotAxis: { value: new THREE.Vector3(0.1, 9.95, 2.4).normalize() },
     uSpotColor: { value: new THREE.Color('#FFDD9C') },
     uUVMin: { value: new THREE.Vector2(MEADOW_U_MIN, MEADOW_V_MIN) },
     uUVInvSpan: { value: new THREE.Vector2(1.0 / U_SPAN, 1.0 / V_SPAN) },
@@ -482,7 +491,7 @@ export function createNocturnalGrassMeadow(
       uniform float uTerrainSpan;
       uniform float uScrollDim;
       uniform vec3 uSpotPos;
-      uniform vec3 uSpotTarget;
+      uniform vec3 uSpotAxis;
       uniform vec3 uSpotColor;
       uniform vec3 uLeftRedPos;
       uniform vec3 uRightGreenPos;
@@ -504,8 +513,7 @@ export function createNocturnalGrassMeadow(
         vec3 toLight = uSpotPos - vWorldPos;
         float spotDist = length(toLight);
         vec3 L = toLight / max(spotDist, 0.001);
-        vec3 spotAxis = normalize(uSpotPos - uSpotTarget);
-        float coneCos = dot(L, spotAxis);
+        float coneCos = dot(L, uSpotAxis);
         float spotCone = smoothstep(0.56, 0.90, coneCos);
         float distAtten = 1.0 / (1.0 + 0.028 * spotDist * spotDist);
 
@@ -709,7 +717,7 @@ export function createNocturnalGrassMeadow(
       #include <packing>
 
       attribute vec4 aShootParam;
-      attribute vec2 aShootExtra;
+      attribute vec4 aShootExtra;
       attribute vec4 aRootAndYaw;
       attribute vec4 aShape;
       attribute vec2 aBotany;
@@ -725,7 +733,7 @@ export function createNocturnalGrassMeadow(
       uniform vec2 uUVMin;
       uniform vec2 uUVInvSpan;
       uniform vec3 uSpotPos;
-      uniform vec3 uSpotTarget;
+      uniform vec3 uSpotAxis;
       uniform vec3 uSpotColor;
       uniform vec3 uLeftRedPos;
       uniform vec3 uRightGreenPos;
@@ -746,16 +754,19 @@ export function createNocturnalGrassMeadow(
       ${SHARED_LIGHT_GLSL}
 
       void main() {
-        float shootYawOff = aShootParam.x;
-        float shootHScale = aShootParam.y;
+        float csOff = aShootParam.x;
+        float snOff = aShootParam.y;
         vec2 shootRootOff = aShootParam.zw;
-        float shootWScale = aShootExtra.x;
-        float shootPhase  = aShootExtra.y;
+        float shootHScale = aShootExtra.x;
+        float shootWScale = aShootExtra.y;
+        float shootPhase  = aShootExtra.z;
+        float flexProfile = aShootExtra.w;
 
         float baseYaw = aRootAndYaw.w;
-        float yaw = baseYaw + shootYawOff;
         float cb = cos(baseYaw);
         float sb = sin(baseYaw);
+        float cy = cb * csOff - sb * snOff;
+        float sy = sb * csOff + cb * snOff;
 
         vec3 rootPos = aRootAndYaw.xyz;
         rootPos.x += cb * shootRootOff.x - sb * shootRootOff.y;
@@ -775,8 +786,6 @@ export function createNocturnalGrassMeadow(
         float camDist = distance(cameraPosition, rootPos);
         float distWidthBoost = 1.0 + smoothstep(5.5, 13.5, camDist) * 0.65;
 
-        float cy = cos(yaw);
-        float sy = sin(yaw);
         vec2 dirW = vec2(cy, sy);
         vec2 dirF = vec2(-sy, cy);
 
@@ -786,16 +795,15 @@ export function createNocturnalGrassMeadow(
         vec2 springDisp = windSample.rg;
         float gustEnv = clamp(windSample.b, 0.0, 1.2);
 
-        // Rolling nocturnal meadow breeze + silky leaf-tip sigh inside cursor/swarm wake (matches Up GrassMeadow.js!)
+        // Rolling nocturnal meadow breeze + silky leaf-tip sigh inside cursor/swarm wake (zero runtime normalize/pow!)
+        const vec2 BREEZE_DIR = vec2(0.82119206, 0.57065180);
         float breezePhase = uTime * 1.18 - rootPos.x * 0.42 - rootPos.z * 0.34 + seed * 6.283185;
         float breezeWave = sin(breezePhase) + 0.44 * sin(uTime * 0.68 - rootPos.x * 0.22 + rootPos.z * 0.26 + shootPhase);
-        vec2 breezeDir = normalize(vec2(0.82, 0.57));
-        vec2 ambientBreeze = breezeDir * (breezeWave * 0.025 * (0.38 + 0.62 * bladeH * 4.2));
+        vec2 ambientBreeze = BREEZE_DIR * (breezeWave * 0.025 * (0.38 + 0.62 * bladeH * 4.2));
 
-        float sighPhase = uTime * 2.25 - dot(rootPos.xz, breezeDir) * 0.95 + seed * 6.283185 + shootPhase;
+        float sighPhase = uTime * 2.25 - dot(rootPos.xz, BREEZE_DIR) * 0.95 + seed * 6.283185 + shootPhase;
         vec2 wakeSigh = vec2(sin(sighPhase), cos(sighPhase * 0.88 + 1.1)) * (0.032 * gustEnv * bladeH * 3.2);
 
-        float flexProfile = pow(t, 1.68);
         float archProfile = t * t;
         vec2 naturalArchXZ = dirF * (droop * archProfile);
 
@@ -804,7 +812,7 @@ export function createNocturnalGrassMeadow(
         float maxWindReach = bladeH * 1.18;
         float rawWindLen = length(rawWindFull);
         if (rawWindLen > 0.0001) {
-          float softClamp = maxWindReach / sqrt(maxWindReach * maxWindReach + rawWindLen * rawWindLen);
+          float softClamp = maxWindReach * inversesqrt(maxWindReach * maxWindReach + rawWindLen * rawWindLen);
           rawWindFull *= softClamp * 1.12;
         }
         vec2 windTipXZ = rawWindFull * flexProfile;
@@ -822,35 +830,37 @@ export function createNocturnalGrassMeadow(
         worldPos.z = rootPos.z + dirW.y * localX + dirF.y * localZ + totalTipXZ.y;
         worldPos.y = rootPos.y + verticalArcY;
 
-        // Analytical stem tangent & V-rib beveled 3D normal (from GrassMeadow.js!)
-        vec2 dTipDt = dirF * (2.0 * droop * t) + rawWindFull * (1.68 * pow(max(t, 0.001), 0.68));
+        // Analytical stem tangent & V-rib beveled 3D normal (exact flexProfile/t derivative — zero pow()!)
+        float dFlexDt = t > 0.01 ? (1.68 * flexProfile / t) : 0.0153;
+        vec2 dTipDt = dirF * (2.0 * droop * t) + rawWindFull * dFlexDt;
         vec3 stemTan = normalize(vec3(dTipDt.x, max(0.06, bladeH), dTipDt.y));
         vec3 widthAxis = vec3(dirW.x, 0.0, dirW.y);
         vec3 flatNormal = normalize(cross(stemTan, widthAxis));
         float ribSign = (uv.x - 0.5) * 2.0;
         vec3 beveledNormal = normalize(flatNormal + widthAxis * (ribSign * 0.28) + vec3(0.0, 0.34, 0.0));
 
-        float windBendAmt = clamp(length(springDisp) / 0.35, 0.0, 1.0);
+        float windBendAmt = clamp(length(springDisp) * 2.8571428, 0.0, 1.0);
         vec2 bushDelta = worldPos.xz - vec2(0.34, 0.54);
         vBushZone = exp(-dot(bushDelta, bushDelta) * 0.58);
 
-        // Per-vertex lighting along all 4 height rings (eliminates 17M fragment texture reads/frame while preserving 216k lush blades!)
+        // Per-vertex lighting along all 4 height rings (120fps zero-pow fast hardware math!)
         vec3 macroN = normalize(mix(beveledNormal, vec3(0.0, 1.0, 0.0), 0.52));
         vec3 V = normalize(cameraPosition - worldPos);
         vec3 toLight = uSpotPos - worldPos;
-        float spotDist = length(toLight);
-        vec3 L = toLight / max(spotDist, 0.001);
-        vec3 spotAxis = normalize(uSpotPos - uSpotTarget);
-        float spotCone = smoothstep(0.56, 0.90, dot(L, spotAxis));
-        float distAtten = 1.0 / (1.0 + 0.028 * spotDist * spotDist);
+        float spotDistSq = dot(toLight, toLight);
+        float invSpotDist = inversesqrt(max(spotDistSq, 1e-6));
+        vec3 L = toLight * invSpotDist;
+        float spotCone = smoothstep(0.56, 0.90, dot(L, uSpotAxis));
+        float distAtten = 1.0 / (1.0 + 0.028 * spotDistSq);
 
         vec4 shadowCoord = uShadowMatrix * vec4(worldPos + vec3(0.0, 0.04, 0.0), 1.0);
         float shadowFactor = sampleSpotShadow(shadowCoord);
 
-        float nDotL = clamp((dot(macroN, L) + 0.42) / 1.42, 0.0, 1.0);
+        float nDotL = clamp((dot(macroN, L) + 0.42) * 0.70422535, 0.0, 1.0);
         vSpotDiffuse = uSpotColor * (nDotL * 2.65 * spotCone * distAtten * shadowFactor);
 
-        float sunBack = pow(clamp(dot(V, -L) * 0.5 + 0.5, 0.0, 1.0), 2.6);
+        float sbL = clamp(dot(V, -L) * 0.5 + 0.5, 0.0, 1.0);
+        float sunBack = sbL * sbL * sqrt(sbL);
         float leafThinness = smoothstep(0.28, 0.96, t);
         vTranslucencyLight = uSpotColor * (sunBack * leafThinness * spotCone * shadowFactor * 0.68);
 
@@ -945,18 +955,27 @@ export function createNocturnalGrassMeadow(
   });
   disposables.push(grassMat);
 
-  const grassMesh = new THREE.Mesh(instGeo, grassMat);
-  grassMesh.frustumCulled = false;
-  grassMesh.onBeforeRender = () => {
+  const syncSpotLightUniforms = () => {
     const shadow = boundSpotLight?.shadow;
-    if (shadow?.map?.texture) {
-      uniforms.uShadowMap.value = shadow.map.texture;
-      uniforms.uShadowMatrix.value.copy(shadow.matrix);
+    const tex = shadow?.map?.texture ?? null;
+    if (tex && tex !== syncedShadowTex) {
+      syncedShadowTex = tex;
+      uniforms.uShadowMap.value = tex;
+      uniforms.uShadowMatrix.value.copy(shadow!.matrix);
       uniforms.uHasShadow.value = 1.0;
       boundSpotLight!.getWorldPosition(uniforms.uSpotPos.value);
       boundSpotLight!.target.getWorldPosition(uniforms.uSpotTarget.value);
+      uniforms.uSpotAxis.value
+        .subVectors(uniforms.uSpotPos.value, uniforms.uSpotTarget.value)
+        .normalize();
     }
   };
+
+  const grassMesh = new THREE.Mesh(instGeo, grassMat);
+  grassMesh.frustumCulled = false;
+  grassMesh.matrixAutoUpdate = false;
+  terrainMesh.matrixAutoUpdate = false;
+  grassMesh.onBeforeRender = syncSpotLightUniforms;
   group.add(grassMesh);
 
   /* ------------------------------------------------------------------------
@@ -1009,6 +1028,11 @@ export function createNocturnalGrassMeadow(
       const iuMax = Math.min(windW - 1, centerIu + radCellsU);
       const ivMin = Math.max(0, centerIv - radCellsV);
       const ivMax = Math.min(windH - 1, centerIv + radCellsV);
+
+      if (iuMin < dirtyIuMin) dirtyIuMin = iuMin;
+      if (iuMax > dirtyIuMax) dirtyIuMax = iuMax;
+      if (ivMin < dirtyIvMin) dirtyIvMin = ivMin;
+      if (ivMax > dirtyIvMax) dirtyIvMax = ivMax;
 
       for (let iv = ivMin; iv <= ivMax; iv += 1) {
         const cellZ = MEADOW_V_MIN + (iv / (windH - 1)) * V_SPAN;
@@ -1148,7 +1172,10 @@ export function createNocturnalGrassMeadow(
   };
 
   const stepWindSimulation = (safeDt: number) => {
-    if (!windAwake) return;
+    if (!windAwake || dirtyIuMax < dirtyIuMin || dirtyIvMax < dirtyIvMin) {
+      windAwake = false;
+      return;
+    }
 
     const springK = 14.0;
     const springDamp = 8.2; // zeta = 1.096 (overdamped silk reed, zero rubber bounce!)
@@ -1158,75 +1185,93 @@ export function createNocturnalGrassMeadow(
     const toHalf = THREE.DataUtils.toHalfFloat;
 
     let activeCount = 0;
-    for (let i = 0; i < windCells; i += 1) {
-      let dx = dispX[i];
-      let dz = dispZ[i];
-      let vx = velX[i];
-      let vz = velZ[i];
-      let tx = targetX[i];
-      let tz = targetZ[i];
-      let g = gustEnv[i];
+    let nextIuMin = windW;
+    let nextIuMax = -1;
+    let nextIvMin = windH;
+    let nextIvMax = -1;
 
-      if (dx === 0 && dz === 0 && vx === 0 && vz === 0 && tx === 0 && tz === 0 && g === 0) {
-        continue;
-      }
+    for (let iv = dirtyIvMin; iv <= dirtyIvMax; iv += 1) {
+      const rowOffset = iv * windW;
+      for (let iu = dirtyIuMin; iu <= dirtyIuMax; iu += 1) {
+        const i = rowOffset + iu;
+        let dx = dispX[i];
+        let dz = dispZ[i];
+        let vx = velX[i];
+        let vz = velZ[i];
+        let tx = targetX[i];
+        let tz = targetZ[i];
+        let g = gustEnv[i];
 
-      tx *= targetDecay;
-      tz *= targetDecay;
+        if (dx === 0 && dz === 0 && vx === 0 && vz === 0 && tx === 0 && tz === 0 && g === 0) {
+          continue;
+        }
 
-      const ax = springK * (tx - dx) - springDamp * vx;
-      const az = springK * (tz - dz) - springDamp * vz;
-      vx += ax * safeDt;
-      vz += az * safeDt;
-      dx += vx * safeDt;
-      dz += vz * safeDt;
+        tx *= targetDecay;
+        tz *= targetDecay;
 
-      const mag = Math.hypot(dx, dz);
-      if (mag > maxDisp) {
-        const s = maxDisp / mag;
-        dx *= s;
-        dz *= s;
-        vx *= 0.85;
-        vz *= 0.85;
-      }
+        const ax = springK * (tx - dx) - springDamp * vx;
+        const az = springK * (tz - dz) - springDamp * vz;
+        vx += ax * safeDt;
+        vz += az * safeDt;
+        dx += vx * safeDt;
+        dz += vz * safeDt;
 
-      g *= gustDecay;
-      const i4 = i * 4;
-      if (
-        Math.abs(dx) < 0.0005 &&
-        Math.abs(dz) < 0.0005 &&
-        Math.abs(vx) < 0.0015 &&
-        Math.abs(vz) < 0.0015 &&
-        Math.abs(tx) < 0.0005 &&
-        Math.abs(tz) < 0.0005 &&
-        g < 0.002
-      ) {
-        dispX[i] = 0;
-        dispZ[i] = 0;
-        velX[i] = 0;
-        velZ[i] = 0;
-        targetX[i] = 0;
-        targetZ[i] = 0;
-        gustEnv[i] = 0;
-        windHalfData[i4] = zeroH;
-        windHalfData[i4 + 1] = zeroH;
-        windHalfData[i4 + 2] = zeroH;
-        windHalfData[i4 + 3] = zeroH;
-      } else {
-        dispX[i] = dx;
-        dispZ[i] = dz;
-        velX[i] = vx;
-        velZ[i] = vz;
-        targetX[i] = tx;
-        targetZ[i] = tz;
-        gustEnv[i] = g;
-        windHalfData[i4] = toHalf(dx);
-        windHalfData[i4 + 1] = toHalf(dz);
-        windHalfData[i4 + 2] = toHalf(g);
-        windHalfData[i4 + 3] = zeroH;
-        activeCount += 1;
+        const mag = Math.hypot(dx, dz);
+        if (mag > maxDisp) {
+          const s = maxDisp / mag;
+          dx *= s;
+          dz *= s;
+          vx *= 0.85;
+          vz *= 0.85;
+        }
+
+        g *= gustDecay;
+        const i4 = i * 4;
+        if (
+          Math.abs(dx) < 0.0005 &&
+          Math.abs(dz) < 0.0005 &&
+          Math.abs(vx) < 0.0015 &&
+          Math.abs(vz) < 0.0015 &&
+          Math.abs(tx) < 0.0005 &&
+          Math.abs(tz) < 0.0005 &&
+          g < 0.002
+        ) {
+          dispX[i] = 0;
+          dispZ[i] = 0;
+          velX[i] = 0;
+          velZ[i] = 0;
+          targetX[i] = 0;
+          targetZ[i] = 0;
+          gustEnv[i] = 0;
+          windHalfData[i4] = zeroH;
+          windHalfData[i4 + 1] = zeroH;
+          windHalfData[i4 + 2] = zeroH;
+          windHalfData[i4 + 3] = zeroH;
+        } else {
+          dispX[i] = dx;
+          dispZ[i] = dz;
+          velX[i] = vx;
+          velZ[i] = vz;
+          targetX[i] = tx;
+          targetZ[i] = tz;
+          gustEnv[i] = g;
+          windHalfData[i4] = toHalf(dx);
+          windHalfData[i4 + 1] = toHalf(dz);
+          windHalfData[i4 + 2] = toHalf(g);
+          windHalfData[i4 + 3] = zeroH;
+          activeCount += 1;
+          if (iu < nextIuMin) nextIuMin = iu;
+          if (iu > nextIuMax) nextIuMax = iu;
+          if (iv < nextIvMin) nextIvMin = iv;
+          if (iv > nextIvMax) nextIvMax = iv;
+        }
       }
     }
+
+    dirtyIuMin = nextIuMin;
+    dirtyIuMax = nextIuMax;
+    dirtyIvMin = nextIvMin;
+    dirtyIvMax = nextIvMax;
 
     windTexture.needsUpdate = true;
     if (activeCount === 0) {
@@ -1241,6 +1286,12 @@ export function createNocturnalGrassMeadow(
     totalBladeCount,
     bindSpotLight: (spot: THREE.SpotLight) => {
       boundSpotLight = spot;
+      syncedShadowTex = null;
+      boundSpotLight.getWorldPosition(uniforms.uSpotPos.value);
+      boundSpotLight.target.getWorldPosition(uniforms.uSpotTarget.value);
+      uniforms.uSpotAxis.value
+        .subVectors(uniforms.uSpotPos.value, uniforms.uSpotTarget.value)
+        .normalize();
     },
     updatePointerWind,
     injectPointerGust,
@@ -1248,16 +1299,7 @@ export function createNocturnalGrassMeadow(
     update: (elapsed, dt, scrollDim, practicalPositions) => {
       uniforms.uTime.value = elapsed;
       uniforms.uScrollDim.value = scrollDim;
-      if (boundSpotLight) {
-        boundSpotLight.getWorldPosition(uniforms.uSpotPos.value);
-        boundSpotLight.target.getWorldPosition(uniforms.uSpotTarget.value);
-        const shadow = boundSpotLight.shadow;
-        if (shadow?.map?.texture) {
-          uniforms.uShadowMap.value = shadow.map.texture;
-          uniforms.uShadowMatrix.value.copy(shadow.matrix);
-          uniforms.uHasShadow.value = 1.0;
-        }
-      }
+      syncSpotLightUniforms();
       if (practicalPositions) {
         if (practicalPositions.leftRed) uniforms.uLeftRedPos.value.copy(practicalPositions.leftRed);
         if (practicalPositions.rightGreen) uniforms.uRightGreenPos.value.copy(practicalPositions.rightGreen);

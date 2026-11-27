@@ -86,6 +86,12 @@ export function evalMeadowClearingHeight(wx: number, wz: number): number {
    AND gives 100% deterministic control over velocity, anti-clump aging, and
    exact 3-frame ViewProjection shutter motion blur without float-RT quirks!)
    -------------------------------------------------------------------------- */
+function hash3(a: number, b: number, c: number): number {
+  let n = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(c, 1442695041)) >>> 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177) >>> 0;
+  return ((n ^ (n >>> 16)) >>> 0) / 2147483648.0 - 1.0;
+}
+
 function fastNoise3(x: number, y: number, z: number): number {
   const ix = Math.floor(x);
   const iy = Math.floor(y);
@@ -97,20 +103,14 @@ function fastNoise3(x: number, y: number, z: number): number {
   const uy = fy * fy * (3.0 - 2.0 * fy);
   const uz = fz * fz * (3.0 - 2.0 * fz);
 
-  const h = (a: number, b: number, c: number) => {
-    let n = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(c, 1442695041)) >>> 0;
-    n = Math.imul(n ^ (n >>> 13), 1274126177) >>> 0;
-    return ((n ^ (n >>> 16)) >>> 0) / 2147483648.0 - 1.0;
-  };
-
-  const c000 = h(ix, iy, iz);
-  const c100 = h(ix + 1, iy, iz);
-  const c010 = h(ix, iy + 1, iz);
-  const c110 = h(ix + 1, iy + 1, iz);
-  const c001 = h(ix, iy, iz + 1);
-  const c101 = h(ix + 1, iy, iz + 1);
-  const c011 = h(ix, iy + 1, iz + 1);
-  const c111 = h(ix + 1, iy + 1, iz + 1);
+  const c000 = hash3(ix, iy, iz);
+  const c100 = hash3(ix + 1, iy, iz);
+  const c010 = hash3(ix, iy + 1, iz);
+  const c110 = hash3(ix + 1, iy + 1, iz);
+  const c001 = hash3(ix, iy, iz + 1);
+  const c101 = hash3(ix + 1, iy, iz + 1);
+  const c011 = hash3(ix, iy + 1, iz + 1);
+  const c111 = hash3(ix + 1, iy + 1, iz + 1);
 
   const x00 = c000 + (c100 - c000) * ux;
   const x10 = c010 + (c110 - c010) * ux;
@@ -602,6 +602,12 @@ export function createOrchestratedTerrainAndParticles(
   ];
   const flockGoal = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   const centerpiecePos = new THREE.Vector3(0.0, 0.22, 0.35);
+  const curlScratch: [number, number, number] = [0, 0, 0];
+  const spawnScratch: [number, number, number] = [0, 0, 0];
+  const flockPulls = [1.0, 0.92, 0.88] as const;
+  const idleX = [0, 0, 0];
+  const idleY = [0, 0, 0];
+  const idleZ = [0, 0, 0];
 
   // Exact Orchestrated Module 8645 Constants (calibrated for moderate, dreamy murmuration!)
   const INERTIA = 0.956;
@@ -644,16 +650,16 @@ export function createOrchestratedTerrainAndParticles(
     const f2y = sampleHeight(f2x, f2z) + 0.74 + Math.sin(elapsed * 0.29 + 1.4) * 0.24;
 
     const curTargetY = Math.max(cursorWorld.y, sampleHeight(cursorWorld.x, cursorWorld.z) + 0.38);
-    const idleTargets: Array<[number, number, number, number]> = [
-      [f0x, f0y, f0z, 1.0],
-      [f1x, f1y, f1z, 0.92],
-      [f2x, f2y, f2z, 0.88],
-    ];
+    idleX[0] = f0x; idleY[0] = f0y; idleZ[0] = f0z;
+    idleX[1] = f1x; idleY[1] = f1y; idleZ[1] = f1z;
+    idleX[2] = f2x; idleY[2] = f2y; idleZ[2] = f2z;
 
     const followAlpha = 1.0 - Math.exp(-dt * (2.6 + cursorOn * 1.8));
     for (let f = 0; f < 3; f += 1) {
-      const [ix, iy, iz, cPull] = idleTargets[f];
-      const k = cursorOn * cPull;
+      const ix = idleX[f];
+      const iy = idleY[f];
+      const iz = idleZ[f];
+      const k = cursorOn * flockPulls[f];
       flockGoal[f].set(
         ix + (cursorWorld.x - ix) * k,
         iy + (curTargetY - iy) * k,
@@ -678,8 +684,8 @@ export function createOrchestratedTerrainAndParticles(
     const axisY = axisY0 / axisLen;
     const axisZ = axisZ0 / axisLen;
 
-    const curlTmp: [number, number, number] = [0, 0, 0];
-    const spawnTmp: [number, number, number] = [0, 0, 0];
+    const curlTmp = curlScratch;
+    const spawnTmp = spawnScratch;
 
     for (let i = 0; i < fireflyCount; i += 1) {
       const i4 = i * 4;

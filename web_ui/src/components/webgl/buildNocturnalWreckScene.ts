@@ -20,6 +20,7 @@ import {
   createDirtyWindshieldTexture,
   createPatinaBumpTexture,
   createWeatheredCarPanelTextures,
+  mergeStaticBufferGeometries,
   type WeatheredCarTextureSet,
 } from './sancturnalPatinaAndTextures';
 
@@ -510,17 +511,30 @@ export function buildNocturnalWreckScene(
       })
     );
 
+    const blackCableGeos: THREE.BufferGeometry[] = [];
+
+    const makeGroundCableGeo = (
+      pts2D: Array<[number, number, number?]>,
+      radius: number
+    ): THREE.TubeGeometry => {
+      const vecs = pts2D.map(([x, z, lift = 0.072]) => {
+        return new THREE.Vector3(x, sampleHeight(x, z) + lift, z);
+      });
+      const curve = new THREE.CatmullRomCurve3(vecs);
+      return new THREE.TubeGeometry(curve, 68, radius, 6, false);
+    };
+
     const makeGroundCable = (
       pts2D: Array<[number, number, number?]>,
       radius: number,
       mat: THREE.Material
     ) => {
-      const vecs = pts2D.map(([x, z, lift = 0.072]) => {
-        return new THREE.Vector3(x, sampleHeight(x, z) + lift, z);
-      });
-      const curve = new THREE.CatmullRomCurve3(vecs);
-      const geo = track(new THREE.TubeGeometry(curve, 68, radius, 6, false));
-      const m = new THREE.Mesh(geo, mat);
+      const geo = makeGroundCableGeo(pts2D, radius);
+      if (mat === cableMatBlack) {
+        blackCableGeos.push(geo);
+        return;
+      }
+      const m = new THREE.Mesh(track(geo), mat);
       m.castShadow = true;
       m.receiveShadow = true;
       group.add(m);
@@ -586,6 +600,15 @@ export function buildNocturnalWreckScene(
       0.042,
       cableMatBlack
     );
+
+    if (blackCableGeos.length > 0) {
+      const mergedBlackCables = track(mergeStaticBufferGeometries(blackCableGeos));
+      blackCableGeos.forEach((g) => g.dispose());
+      const blackCablesMesh = new THREE.Mesh(mergedBlackCables, cableMatBlack);
+      blackCablesMesh.castShadow = true;
+      blackCablesMesh.receiveShadow = true;
+      group.add(blackCablesMesh);
+    }
 
     // Dark round air-filter housing in center junkyard heap (`ref_center_pipe_roses.png`!)
     const airMat = track(
@@ -1152,8 +1175,9 @@ export function buildNocturnalWreckScene(
           group.add(junkEng);
         }
 
-        // Tangled engine hoses & spark-plug wires glinting blue inside the sunken hood cavity (`ref_left_car_hood.png`)
+        // Tangled engine hoses & spark-plug wires glinting blue inside the sunken hood cavity (batched into 1 draw call!)
         const hoseRng = createSeededRandom(31337);
+        const hoseGeos: THREE.BufferGeometry[] = [];
         for (let h = 0; h < 11; h += 1) {
           const p0 = new THREE.Vector3(
             (hoseRng() - 0.5) * 0.88,
@@ -1170,7 +1194,7 @@ export function buildNocturnalWreckScene(
             0.52 + hoseRng() * 0.10,
             1.05 + hoseRng() * 0.78
           );
-          const hGeo = track(
+          hoseGeos.push(
             new THREE.TubeGeometry(
               new THREE.CatmullRomCurve3([p0, p1, p2]),
               12,
@@ -1179,8 +1203,10 @@ export function buildNocturnalWreckScene(
               false
             )
           );
-          leftCarRoot.add(new THREE.Mesh(hGeo, engineBlueChromeMat));
         }
+        const mergedHoseGeo = track(mergeStaticBufferGeometries(hoseGeos));
+        hoseGeos.forEach((g) => g.dispose());
+        leftCarRoot.add(new THREE.Mesh(mergedHoseGeo, engineBlueChromeMat));
 
         // Rusty coil spring & control arm inside the front-left wheel arch (`ref_left_car_hood.png`)
         const sprObj = sedanDonorGltf.scene.getObjectByName('spring_74');
@@ -1609,7 +1635,6 @@ export function buildNocturnalWreckScene(
         pipeMesh.receiveShadow = true;
         pipePivot.add(pipeMesh);
 
-        const collarGeo = track(new THREE.CylinderGeometry(0.124, 0.124, 0.032, 20));
         const collarMat = track(
           new THREE.MeshStandardMaterial({
             color: 0x6c3416,
@@ -1618,13 +1643,17 @@ export function buildNocturnalWreckScene(
             metalness: 0.45,
           })
         );
+        const collarGeos: THREE.BufferGeometry[] = [];
         for (const cy of [1.06, 1.54, 1.86]) {
-          const collar = new THREE.Mesh(collarGeo, collarMat);
-          collar.position.set(0, cy, 0);
-          pipePivot.add(collar);
+          const cg = new THREE.CylinderGeometry(0.124, 0.124, 0.032, 20);
+          cg.translate(0, cy, 0);
+          collarGeos.push(cg);
         }
+        const mergedCollars = track(mergeStaticBufferGeometries(collarGeos));
+        collarGeos.forEach((g) => g.dispose());
+        pipePivot.add(new THREE.Mesh(mergedCollars, collarMat));
 
-        // Gnarled, kinked dead fibrous roots spilling wildly from pipe top & draping down right side (`ref_center_pipe_roses.png`)!
+        // Gnarled, kinked dead fibrous roots spilling wildly from pipe top & draping down right side (36 roots batched into 1 draw call!)
         const twigRng = createSeededRandom(7719);
         const twigMat = track(
           new THREE.MeshStandardMaterial({
@@ -1633,6 +1662,7 @@ export function buildNocturnalWreckScene(
             metalness: 0.0,
           })
         );
+        const twigGeos: THREE.BufferGeometry[] = [];
         for (let t = 0; t < 36; t += 1) {
           const drapeRight = t < 24;
           const ang = drapeRight
@@ -1657,7 +1687,7 @@ export function buildNocturnalWreckScene(
               )
             );
           }
-          const tGeo = track(
+          twigGeos.push(
             new THREE.TubeGeometry(
               new THREE.CatmullRomCurve3(cPts),
               14,
@@ -1666,8 +1696,10 @@ export function buildNocturnalWreckScene(
               false
             )
           );
-          pipePivot.add(new THREE.Mesh(tGeo, twigMat));
         }
+        const mergedTwigs = track(mergeStaticBufferGeometries(twigGeos));
+        twigGeos.forEach((g) => g.dispose());
+        pipePivot.add(new THREE.Mesh(mergedTwigs, twigMat));
 
         pipePivot.updateMatrixWorld(true);
         pipeCyanLight.position
@@ -2094,7 +2126,14 @@ export function buildNocturnalWreckScene(
       }
 
       if (!disposed) {
-        // Bake static 2048x2048 spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
+        // Freeze static world matrices across the entire sanctuary hierarchy -> zero CPU matrix traversal at 120fps!
+        group.updateMatrixWorld(true);
+        group.traverse((obj) => {
+          obj.matrixAutoUpdate = false;
+        });
+        group.matrixAutoUpdate = false;
+
+        // Bake static spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
         renderer.shadowMap.needsUpdate = true;
         onLoadProgress?.(TOTAL_BOOT_STEPS, TOTAL_BOOT_STEPS, 'SYSTEM READY');
         onReady?.();
@@ -2113,7 +2152,13 @@ export function buildNocturnalWreckScene(
       }
 
       if (!disposed) {
-        // Bake static 2048x2048 spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
+        group.updateMatrixWorld(true);
+        group.traverse((obj) => {
+          obj.matrixAutoUpdate = false;
+        });
+        group.matrixAutoUpdate = false;
+
+        // Bake static spotlight shadow map once all 3D props have mounted (zero per-frame shadow re-renders!)
         renderer.shadowMap.needsUpdate = true;
         onLoadProgress?.(TOTAL_BOOT_STEPS, TOTAL_BOOT_STEPS, 'SYSTEM READY');
         onReady?.();
