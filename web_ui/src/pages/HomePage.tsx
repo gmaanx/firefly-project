@@ -268,18 +268,19 @@ export const HomePage = memo(function HomePage({
 
   return (
     <>
-      {/* 1. Lando Norris 2.08svh Sticky Hero -> Center Window + Fixed-In-Stage 2-Row Marquee + Neon-Lime Signature */}
-      <section
-        id="hero"
-        ref={heroStageRef}
-        className="lando-hero-sticky-track section-hero surface-dark"
-        data-surface="dark"
-        aria-labelledby="hero-heading"
-      >
-        <div className="lando-hero-sticky-item">
-          <ContourBackdrop variant="olive" />
+      <div className="lando-olive-opening-continuum">
+        <ContourBackdrop variant="olive" />
 
-          {/* Top-center Lando Emblem + Eyebrow unveiled above the shrunk 472x306 center window */}
+        {/* 1. Lando Norris 2.08svh Sticky Hero -> Center Window + Fixed-In-Stage 2-Row Marquee + Neon-Lime Signature */}
+        <section
+          id="hero"
+          ref={heroStageRef}
+          className="lando-hero-sticky-track section-hero surface-dark"
+          data-surface="dark"
+          aria-labelledby="hero-heading"
+        >
+          <div className="lando-hero-sticky-item">
+            {/* Top-center Lando Emblem + Eyebrow unveiled above the shrunk 472x306 center window */}
           <div
             ref={heroEyebrowRef}
             className="lando-bridge-top-eyebrow"
@@ -368,7 +369,8 @@ export const HomePage = memo(function HomePage({
       </section>
 
       {/* 2. Matte-Olive Editorial Manifesto (`#24281E`) rising cleanly right underneath the sticky stage */}
-      <ManifestoSection reducedMotion={reducedMotion} />
+        <ManifestoSection reducedMotion={reducedMotion} />
+      </div>
 
       <LandoSectionBlend
         from="olive"

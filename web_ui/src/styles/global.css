@@ -321,37 +321,31 @@ h3[id] {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   background-position: center top;
-  background-size: max(100%, 160vh) auto;
+  background-size: clamp(1360px, 100vw, 1920px) auto;
   background-attachment: scroll;
 }
 
-/* Authentic Lando Norris `.exe-top-visor` Sculpted Elliptical Section Bridge (Zero Muddy Blur!) */
+/* Authentic Lando Norris `.exe-top-visor` Sculpted Elliptical Section Bridge (Zero Muddy Blur & Zero Pattern Seam!) */
 .lando-visor-bridge {
+  --visor-bridge-h: clamp(50px, 6.4vw, 84px);
   position: relative;
-  z-index: 5;
+  z-index: 6;
   width: 100%;
-  height: clamp(50px, 6.4vw, 84px);
-  margin-block: -2px;
+  height: var(--visor-bridge-h);
+  margin-top: -2px;
+  margin-bottom: calc(-1 * var(--visor-bridge-h));
   pointer-events: none;
-  overflow: hidden;
+  overflow: clip;
+  background: transparent;
 }
 
-.lando-visor-bridge--to-alabaster {
-  background-color: var(--bg-alabaster);
-}
-
-.lando-visor-bridge--to-obsidian {
-  background-color: var(--bg-obsidian);
-}
-
-.lando-visor-bridge--to-olive {
-  background-color: var(--bg-olive);
-}
-
-.lando-visor-bridge--to-olive-dark {
-  background-color: #1c2017;
+.lando-visor-bridge + *::before {
+  content: '';
+  display: block;
+  block-size: clamp(50px, 6.4vw, 84px);
+  pointer-events: none;
 }
 
 .lando-visor-bridge__svg {
@@ -951,17 +945,9 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
 }
 
 .top-nav--scrolled {
-  pointer-events: auto;
-}
-
-.top-nav--scrolled.top-nav--on-dark {
-  background: rgba(16, 17, 16, 0.95);
-  border-bottom: 1px solid rgba(239, 239, 232, 0.08);
-}
-
-.top-nav--scrolled.top-nav--on-light {
-  background: rgba(243, 242, 236, 0.96);
-  border-bottom: 1px solid rgba(20, 21, 19, 0.08);
+  pointer-events: none;
+  background: transparent;
+  border-bottom-color: transparent;
 }
 
 .top-nav__brand,
@@ -1717,6 +1703,12 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
 /* ==========================================================================
    ROUTE 1 (`/`): LANDO NORRIS STICKY HERO -> CENTER WINDOW + 2-ROW MARQUEE
    ========================================================================== */
+.lando-olive-opening-continuum {
+  position: relative;
+  background-color: var(--bg-olive);
+  overflow: clip;
+}
+
 .lando-hero-sticky-track {
   --hero-px: 0;
   --hero-py: 0;
@@ -1724,7 +1716,7 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   z-index: 3;
   height: 208vh;
   height: 208dvh;
-  background-color: var(--bg-olive);
+  background-color: transparent;
   color: var(--ink-light);
 }
 
@@ -1742,7 +1734,7 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   height: 100vh;
   height: 100dvh;
   overflow: clip;
-  background-color: var(--bg-olive);
+  background-color: transparent;
 }
 
 /* Layer 1A: Top-center Lando Emblem + Eyebrow (`y ~ 16.5%`) */
@@ -2105,7 +2097,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 .section-manifesto {
   position: relative;
   z-index: 4;
-  background: var(--bg-olive);
+  background: transparent;
   color: var(--ink-light);
   margin-top: 0;
 }
@@ -2139,9 +2131,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 
 .manifesto-solid-backdrop {
   position: relative;
-  background-color: var(--bg-olive);
+  background-color: transparent;
   padding: clamp(2.4rem, 4.8dvh, 3.8rem) 0 clamp(2.6rem, 5dvh, 4rem);
-  overflow: hidden;
+  overflow: clip;
 }
 
 .manifesto-statement-stage {
@@ -2440,9 +2432,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   border-inline-start: 1px solid var(--line-on-light-strong);
   min-inline-size: 0;
   background: radial-gradient(
-    ellipse 68% 64% at 54% 48%,
-    var(--bg-alabaster) 64%,
-    rgba(243, 242, 236, 0) 100%
+    ellipse 96% 94% at 52% 50% var(--in-oklab),
+    var(--bg-alabaster) 80%,
+    transparent 100%
   );
 }
 
@@ -3445,16 +3437,26 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 /* Flowchart Track (#F3F2EC Alabaster — Seamless Continuation, Zero Divider Lines!) */
+.flowchart-continuum {
+  position: relative;
+  z-index: 5;
+  background-color: var(--bg-alabaster);
+  color: var(--ink-dark);
+  overflow: clip;
+}
+
 .section-flowchart {
   position: relative;
-  background-color: var(--bg-alabaster);
+  z-index: 2;
+  background-color: transparent;
   color: var(--ink-dark);
   overflow: visible;
 }
 
 .section-pseudocode {
   position: relative;
-  background-color: var(--bg-alabaster);
+  z-index: 2;
+  background-color: transparent;
   color: var(--ink-dark);
   padding: clamp(1.6rem, 3.2dvh, 2.8rem) 0 clamp(2.2rem, 4.4dvh, 3.4rem);
 }
@@ -4209,9 +4211,18 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 /* Worked 3D Stage & Scrubber (#101110 Obsidian — Single-Screen Presentation Fit!) */
+.obsidian-tail-continuum {
+  position: relative;
+  z-index: 5;
+  background-color: var(--bg-obsidian);
+  color: var(--ink-light);
+  overflow: clip;
+}
+
 .section-worked {
   position: relative;
-  background-color: var(--bg-obsidian);
+  z-index: 2;
+  background-color: transparent;
   color: var(--ink-light);
   padding: clamp(1.5rem, 3.2dvh, 2.8rem) 0 clamp(2rem, 4dvh, 3.2rem);
   overflow-x: clip;
@@ -4705,9 +4716,17 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   color: var(--ink-light);
   margin-block: -2px;
   padding: calc(2.2rem + 2px) 0;
+  overflow: clip;
+}
+
+.next-page-banner--in-continuum {
+  background: transparent;
+  margin-top: 0;
 }
 
 .next-page-banner__inner {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

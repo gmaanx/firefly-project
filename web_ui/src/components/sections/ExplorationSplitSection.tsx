@@ -685,6 +685,7 @@ export const ExplorationSplitSection = memo(function ExplorationSplitSection({
 
   return (
     <div ref={continuumRef} className="dynamics-continuum surface-light">
+      <ContourBackdrop variant="light" />
       {/* ====================================================================
           CHAPTER 01: ASYMMETRIC MONOGRAPH (LEFT THESIS | RIGHT OPEN PAPER MAP)
           ==================================================================== */}
@@ -695,7 +696,6 @@ export const ExplorationSplitSection = memo(function ExplorationSplitSection({
         data-surface="light"
         aria-labelledby={`${idPrefix}-exploit-heading`}
       >
-        <ContourBackdrop variant="light" />
         <div className="section-container">
           <div className="exploit-layout">
             {/* LEFT 5-COL: MONUMENTAL HEADING + INLINE EQUATION + SLIDERS */}
@@ -1183,7 +1183,6 @@ export const ExplorationSplitSection = memo(function ExplorationSplitSection({
         data-surface="light"
         aria-labelledby={`${idPrefix}-explore-heading`}
       >
-        <ContourBackdrop variant="light" />
         <div className="section-container">
           <div className="explore-counter-layout">
             {/* EDITORIAL + 3-EPOCH TIMELINE */}

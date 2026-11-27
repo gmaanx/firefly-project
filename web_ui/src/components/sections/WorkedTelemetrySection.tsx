@@ -11,7 +11,6 @@ import { useGSAP } from '@gsap/react';
 import { useDataset } from '../../lib/dataStore';
 import { SciNumber, formatFixed, formatVec } from '../../lib/formatters';
 import { BlockReveal } from '../shared/BlockReveal';
-import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { DatasetStatusCard } from '../shared/DatasetStatusCard';
 import { MathFormula } from '../shared/MathFormula';
 import { Worked3DStage } from '../webgl/Worked3DStage';
@@ -203,8 +202,6 @@ export function WorkedTelemetrySection({
       data-surface="dark"
       aria-labelledby="worked-heading"
     >
-      <ContourBackdrop variant="dark" />
-
       <div className="section-container">
         <div className="worked-top-row">
           <div className="worked-top-row__copy">
