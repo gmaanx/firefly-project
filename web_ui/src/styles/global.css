@@ -6085,27 +6085,32 @@ input[type='range']::-moz-range-thumb {
   position: relative;
   z-index: 6;
   margin-top: -2px;
-  padding: calc(clamp(6.6rem, 13.5dvh, 8.8rem) + 2px) 12px 12px;
+  padding: calc(clamp(4.5rem, 8.8dvh, 5.6rem) + 2px) 12px 12px;
   color: var(--ink-light);
-  background:
-    radial-gradient(
-      ellipse 72% 116px at 50% 0%,
-      var(--footer-lead-bg) 0%,
-      var(--footer-lead-bg) 34%,
-      transparent 100%
-    ),
-    linear-gradient(
-      to bottom var(--in-oklab),
-      var(--footer-lead-bg) 0px,
-      var(--footer-lead-bg) 4px,
-      #d2ff00 108px,
-      #d2ff00 100%
-    )
-    var(--footer-lead-bg);
+  background-color: #d2ff00;
+  overflow-x: clip;
 }
 
 .lando-footer-frame--compact {
-  padding-top: calc(clamp(5.6rem, 11.5dvh, 7.6rem) + 2px);
+  padding-top: calc(clamp(4.1rem, 8dvh, 5.1rem) + 2px);
+}
+
+.lando-footer-top-visor {
+  position: absolute;
+  inset: -2px 0 auto;
+  height: clamp(50px, 6.2vw, 72px);
+  pointer-events: none;
+  z-index: 1;
+  color: var(--footer-lead-bg);
+}
+
+.lando-footer-top-visor__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 0%;
+  transform: scaleY(0.82);
+  will-change: transform;
 }
 
 .lando-footer-chamber {
