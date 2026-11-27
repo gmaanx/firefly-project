@@ -419,22 +419,42 @@ export function FlowchartTrackSection({
   const [activePhase, setActivePhase] = useState<number>(0);
   const [selectedPseudoLine, setSelectedPseudoLine] = useState<string | null>(null);
 
-  // Scroll-threshold step tracker + smooth vertical spine fill (`#so-do`)
+  // Scroll-threshold step tracker + smooth vertical spine fill (`#so-do`) — ZERO scroll layout thrashing!
   useEffect(() => {
     if (reducedMotion) {
       if (spineFillRef.current) {
         spineFillRef.current.style.transform = `scaleY(${((activePhase + 1) / PHASES.length).toFixed(3)})`;
       }
-      return;
     }
+  }, [reducedMotion, activePhase]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    let cachedTop = 0;
+    let cachedScrollable = 1;
+    let isDesktopSticky = false;
+
+    const measureRunway = () => {
+      const runway = runwayRef.current;
+      isDesktopSticky = Boolean(
+        runway && window.innerWidth >= 1024 && window.innerHeight > 560
+      );
+      if (!runway || !isDesktopSticky) return;
+      const rect = runway.getBoundingClientRect();
+      cachedTop = window.scrollY + rect.top;
+      cachedScrollable = Math.max(1, rect.height - window.innerHeight);
+    };
 
     const syncScroll = () => {
-      const runway = runwayRef.current;
-      if (!runway || window.innerWidth < 1024 || window.innerHeight <= 560) return;
+      if (!isDesktopSticky) return;
+      const sy = window.scrollY;
+      // Skip DOM writes completely when far outside the runway
+      if (sy < cachedTop - window.innerHeight || sy > cachedTop + cachedScrollable + window.innerHeight) {
+        return;
+      }
 
-      const rect = runway.getBoundingClientRect();
-      const scrollable = Math.max(1, rect.height - window.innerHeight);
-      const rawProgress = Math.min(1, Math.max(0, -rect.top / scrollable));
+      const rawProgress = Math.min(1, Math.max(0, (sy - cachedTop) / cachedScrollable));
 
       if (spineFillRef.current) {
         spineFillRef.current.style.transform = `scaleY(${Math.max(0.08, rawProgress).toFixed(4)})`;
@@ -456,14 +476,20 @@ export function FlowchartTrackSection({
       }
     };
 
+    const onResize = () => {
+      measureRunway();
+      syncScroll();
+    };
+
+    measureRunway();
     syncScroll();
     window.addEventListener('scroll', syncScroll, { passive: true });
-    window.addEventListener('resize', syncScroll);
+    window.addEventListener('resize', onResize, { passive: true });
     return () => {
       window.removeEventListener('scroll', syncScroll);
-      window.removeEventListener('resize', syncScroll);
+      window.removeEventListener('resize', onResize);
     };
-  }, [reducedMotion, activePhase]);
+  }, [reducedMotion]);
 
   // Discrete GSAP 3D Deck Choreography: Always completes to 100% crisp, solid resting pose!
   useGSAP(

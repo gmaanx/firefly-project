@@ -27,8 +27,8 @@ export const MEADOW_V_MAX = 7.2;  // wz = +7.2 (right under camera lens)
 const U_SPAN = MEADOW_U_MAX - MEADOW_U_MIN;
 const V_SPAN = MEADOW_V_MAX - MEADOW_V_MIN;
 
-const DESKTOP_TUFT_COUNT = 18000; // 36,000 lush wide 3D V-ribbed blades (locked 60fps on laptop iGPUs!)
-const MOBILE_TUFT_COUNT = 10000;  // 20,000 3D V-ribbed blades!
+const DESKTOP_TUFT_COUNT = 12500; // 25,000 wide 3D V-ribbed blades (locked 60fps on laptop iGPUs!)
+const MOBILE_TUFT_COUNT = 7500;   // 15,000 3D V-ribbed blades!
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -313,10 +313,54 @@ export function createNocturnalGrassMeadow(
   const smoothDir = new THREE.Vector2(1.0, 0.0);
   let boundSpotLight: THREE.SpotLight | null = null;
 
+  // Pre-baked 256x256 Terrain Albedo DataTexture (eliminates 7 `vnoise` / 28 `hash21` ALU calls per ground pixel every frame!)
+  const albedoRes = 256;
+  const albedoBytes = new Uint8Array(albedoRes * albedoRes * 4);
+  for (let iy = 0; iy < albedoRes; iy += 1) {
+    const wz = ((iy + 0.5) / albedoRes - 0.5) * terrainSpan;
+    for (let ix = 0; ix < albedoRes; ix += 1) {
+      const wx = ((ix + 0.5) / albedoRes - 0.5) * terrainSpan;
+      const macro = valueNoise2D(wx * 0.45, wz * 0.45) * 0.62 + valueNoise2D(wx * 1.35, wz * 1.35) * 0.38;
+      const patchStraw = valueNoise2D(wx * 3.2, wz * 3.2) * 0.56 + valueNoise2D(wx * 8.5, wz * 8.5) * 0.44;
+      const thatchFine = valueNoise2D(wx * 18.0, wz * 18.0) * 0.6 + valueNoise2D(wx * 42.0, wz * 42.0) * 0.4;
+
+      let r = 0.048 + (0.115 - 0.048) * macro;
+      let g = 0.038 + (0.098 - 0.038) * macro;
+      let b = 0.016 + (0.036 - 0.016) * macro;
+
+      const strawMix = smoothstepJS(0.32, 0.84, patchStraw) * 0.62;
+      r += (0.215 - r) * strawMix;
+      g += (0.168 - g) * strawMix;
+      b += (0.062 - b) * strawMix;
+
+      const dxB = wx - 0.32;
+      const dzB = wz - 0.52;
+      const bushZone = Math.exp(-(dxB * dxB + dzB * dzB) * 0.55) * 0.72;
+      r += (0.065 - r) * bushZone;
+      g += (0.125 - g) * bushZone;
+      b += (0.032 - b) * bushZone;
+
+      const mod = 0.84 + 0.32 * thatchFine;
+      const idx4 = (iy * albedoRes + ix) * 4;
+      albedoBytes[idx4] = Math.min(255, Math.round(r * mod * 255));
+      albedoBytes[idx4 + 1] = Math.min(255, Math.round(g * mod * 255));
+      albedoBytes[idx4 + 2] = Math.min(255, Math.round(b * mod * 255));
+      albedoBytes[idx4 + 3] = 255;
+    }
+  }
+  const terrainAlbedoTex = new THREE.DataTexture(albedoBytes, albedoRes, albedoRes, THREE.RGBAFormat);
+  terrainAlbedoTex.minFilter = THREE.LinearFilter;
+  terrainAlbedoTex.magFilter = THREE.LinearFilter;
+  terrainAlbedoTex.wrapS = THREE.ClampToEdgeWrapping;
+  terrainAlbedoTex.wrapT = THREE.ClampToEdgeWrapping;
+  terrainAlbedoTex.needsUpdate = true;
+  disposables.push(terrainAlbedoTex);
+
   const uniforms = {
     uTime: { value: 0.0 },
     uScrollDim: { value: 0.0 },
     uWindTex: { value: windTexture },
+    uTerrainAlbedoTex: { value: terrainAlbedoTex },
     uParticleLightMap: { value: particleLightTex },
     uTerrainSpan: { value: terrainSpan },
     uShadowMap: { value: fallbackShadowTex as THREE.Texture },
@@ -433,6 +477,7 @@ export function createNocturnalGrassMeadow(
 
       uniform sampler2D uShadowMap;
       uniform float uHasShadow;
+      uniform sampler2D uTerrainAlbedoTex;
       uniform sampler2D uParticleLightMap;
       uniform float uTerrainSpan;
       uniform float uScrollDim;
@@ -448,48 +493,14 @@ export function createNocturnalGrassMeadow(
       varying vec3 vNormalW;
       varying vec4 vShadowCoord;
 
-      float hash21(vec2 p) {
-        p = fract(p * vec2(123.34, 456.21));
-        p += dot(p, p + 45.32);
-        return fract(p.x * p.y);
-      }
-
-      float vnoise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),
-          mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x),
-          u.y
-        );
-      }
-
       ${SHARED_LIGHT_GLSL}
 
       void main() {
         vec2 xz = vWorldPos.xz;
-        float macro = vnoise(xz * 0.45) * 0.62 + vnoise(xz * 1.35) * 0.38;
-        float patchStraw = vnoise(xz * 3.2) * 0.56 + vnoise(xz * 8.5) * 0.44;
-        float thatchFine = vnoise(xz * 24.0) * 0.55 + vnoise(xz * 58.0) * 0.45;
-        float microStipple = vnoise(xz * 118.0);
+        vec2 plUv = clamp(xz / uTerrainSpan + 0.5, 0.002, 0.998);
+        vec3 albedo = texture2D(uTerrainAlbedoTex, plUv).rgb;
 
-        // Synchronized autumn dry-thatch & moss base palette matching _buildInstancedGrass roots/mids!
-        vec3 colDarkPeat   = vec3(0.048, 0.038, 0.016);
-        vec3 colOliveThatch = vec3(0.115, 0.098, 0.036);
-        vec3 colGoldenStraw = vec3(0.215, 0.168, 0.062);
-        vec3 colLushMoss   = vec3(0.065, 0.125, 0.032);
-
-        vec3 albedo = mix(colDarkPeat, colOliveThatch, macro);
-        albedo = mix(albedo, colGoldenStraw, smoothstep(0.32, 0.84, patchStraw) * 0.62);
-
-        // Lush mossy-green shift around the central wildflower briar mound!
-        float bushZone = exp(-dot(xz - vec2(0.32, 0.52), xz - vec2(0.32, 0.52)) * 0.55);
-        albedo = mix(albedo, colLushMoss, bushZone * 0.72);
-
-        albedo *= (0.82 + 0.34 * thatchFine) * (0.92 + 0.16 * microStipple);
-
-        // Overhead nocturnal clearing spotlight cone + 5-tap PCF shadow!
+        // Overhead nocturnal clearing spotlight cone + shadow!
         vec3 toLight = uSpotPos - vWorldPos;
         float spotDist = length(toLight);
         vec3 L = toLight / max(spotDist, 0.001);
@@ -507,7 +518,6 @@ export function createNocturnalGrassMeadow(
         vec3 nightAmbient  = vec3(0.032, 0.036, 0.048);
 
         // Live firefly ground-splat light map + practical car/pipe spill!
-        vec2 plUv = clamp(xz / uTerrainSpan + 0.5, 0.002, 0.998);
         vec3 pLight = texture2D(uParticleLightMap, plUv).rgb;
         float pPeak = max(pLight.r, max(pLight.g, pLight.b));
         pLight /= pow(1.0 + pow(pPeak / 0.88, 3.0), 1.0 / 3.0);
@@ -543,7 +553,7 @@ export function createNocturnalGrassMeadow(
   const aBotany = new Float32Array(targetCount * 2);
 
   const rng = mulberry32(19730529);
-  const widthMobileComp = isMobile ? 1.72 : 1.58;
+  const widthMobileComp = isMobile ? 1.85 : 1.74;
   let placed = 0;
 
   const emitTuftAtXZ = (wx: number, wz: number, tuftScale: number): boolean => {
