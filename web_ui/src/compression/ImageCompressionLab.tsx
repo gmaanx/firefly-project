@@ -15,6 +15,7 @@ import {
   SAMPLE_PRESETS,
   generateSampleImage,
   loadCustomImageFile,
+  loadStarryNightImage,
   type LoadedImageAsset,
   type SamplePresetMeta,
 } from './sampleImages';
@@ -59,16 +60,33 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
   const leftPanelRef = useRef<HTMLDivElement>(null);
 
   const [activeAsset, setActiveAsset] = useState<LoadedImageAsset>(() =>
-    getOrCreateSampleAsset('chromatic-sunset')
+    getOrCreateSampleAsset('starry-night')
   );
   const [, setWarmupTick] = useState<number>(0);
 
   useEffect(() => {
-    if (isTransitioning) return;
     let cancelled = false;
+    void loadStarryNightImage()
+      .then((realStarry) => {
+        cachedSampleAssets.set('starry-night', realStarry);
+        if (cancelled) return;
+        setActiveAsset((prev) =>
+          prev.id === 'starry-night' ? realStarry : prev
+        );
+        setWarmupTick((n) => n + 1);
+      })
+      .catch(() => {});
+
+    if (isTransitioning) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     void (async () => {
       for (const preset of SAMPLE_PRESETS) {
         if (cancelled) return;
+        if (preset.id === 'starry-night') continue;
         if (!cachedSampleAssets.has(preset.id)) {
           await yieldToMain();
           if (cancelled) return;
@@ -356,10 +374,6 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
                   aria-label="Tải tệp ảnh riêng từ máy tính"
                 />
               </div>
-
-              <span className="ba-toolbar__title">
-                {activeAsset.uniqueColorsCount.toLocaleString('vi-VN')} màu
-              </span>
             </div>
 
             <BeforeAfterSlider
@@ -374,41 +388,11 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
               isRunning={isRunning}
             />
 
-            <div className="hairline-bento hairline-bento--4col">
-              <div className="hairline-bento__cell">
-                <span className="hairline-bento__label">THẾ HỆ ĐÀN ĐOM ĐÓM</span>
-                <strong className="hairline-bento__val">
-                  {telemetry
-                    ? `t = ${telemetry.iteration} / ${telemetry.maxIterations}`
-                    : `t = 0 / ${params.maxIterations}`}
-                </strong>
-              </div>
-              <div className="hairline-bento__cell">
-                <span className="hairline-bento__label">SAI SỐ MSE (RGB)</span>
-                <strong className="hairline-bento__val hairline-bento__val--iris">
-                  {telemetry ? telemetry.mse.toFixed(1) : '—'}
-                </strong>
-              </div>
-              <div className="hairline-bento__cell">
-                <span className="hairline-bento__label">CHẤT LƯỢNG PSNR</span>
-                <strong className="hairline-bento__val hairline-bento__val--lime">
-                  {telemetry ? `${telemetry.psnr.toFixed(2)} dB` : '—'}
-                </strong>
-              </div>
-              <div className="hairline-bento__cell">
-                <span className="hairline-bento__label">MỨC GIẢM DUNG LƯỢNG</span>
-                <strong className="hairline-bento__val">
-                  {telemetry
-                    ? `${telemetry.compressionRatioPct.toFixed(1)}% (${telemetry.bppCompressed} bpp)`
-                    : '—'}
-                </strong>
-              </div>
-            </div>
-
             <div>
               <div className="palette-strip-head">
                 <span>
-                  Bảng màu ({telemetry?.palette.length ?? params.kColors} màu)
+                  Bảng màu ({telemetry?.palette.length ?? params.kColors} màu · gốc{' '}
+                  {activeAsset.uniqueColorsCount.toLocaleString('vi-VN')} màu)
                 </span>
                 {copiedNotice ? (
                   <span style={{ color: 'var(--accent-sage-gold)' }}>
@@ -476,6 +460,37 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
                 <button type="button" className="chip-btn" onClick={handleReset}>
                   Đặt lại
                 </button>
+              </div>
+            </div>
+
+            <div className="compression-telemetry-strip">
+              <div className="compression-telemetry-chip">
+                <span>Thế hệ</span>
+                <strong>
+                  {telemetry
+                    ? `${telemetry.iteration}/${telemetry.maxIterations}`
+                    : `0/${params.maxIterations}`}
+                </strong>
+              </div>
+              <div className="compression-telemetry-chip">
+                <span>MSE</span>
+                <strong className="hairline-bento__val--iris">
+                  {telemetry ? telemetry.mse.toFixed(1) : '—'}
+                </strong>
+              </div>
+              <div className="compression-telemetry-chip">
+                <span>PSNR</span>
+                <strong className="hairline-bento__val--lime">
+                  {telemetry ? `${telemetry.psnr.toFixed(2)} dB` : '—'}
+                </strong>
+              </div>
+              <div className="compression-telemetry-chip">
+                <span>Giảm</span>
+                <strong>
+                  {telemetry
+                    ? `${telemetry.compressionRatioPct.toFixed(1)}%`
+                    : '—'}
+                </strong>
               </div>
             </div>
 

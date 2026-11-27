@@ -1,4 +1,5 @@
 export type SampleImageId =
+  | 'starry-night'
   | 'bioluminescent-canopy'
   | 'chromatic-sunset'
   | 'spectral-macaw'
@@ -27,20 +28,26 @@ export interface LoadedImageAsset {
 
 export const SAMPLE_PRESETS: readonly SamplePresetMeta[] = [
   {
-    id: 'bioluminescent-canopy',
+    id: 'starry-night',
     code: 'IMG_01',
+    titleVi: 'Starry Night',
+    subtitleEn: 'Vincent van Gogh, 1889',
+  },
+  {
+    id: 'bioluminescent-canopy',
+    code: 'IMG_02',
     titleVi: 'Rừng phát quang',
     subtitleEn: 'Bioluminescent Canopy',
   },
   {
     id: 'chromatic-sunset',
-    code: 'IMG_02',
+    code: 'IMG_03',
     titleVi: 'Hoàng hôn cảng thị',
     subtitleEn: 'Chromatic Sunset',
   },
   {
     id: 'spectral-macaw',
-    code: 'IMG_03',
+    code: 'IMG_04',
     titleVi: 'Quang phổ nhiệt đới',
     subtitleEn: 'Spectral Macaw',
   },
@@ -480,7 +487,27 @@ export function generateSampleImage(
   }
 
   let seed = 1001;
-  if (presetId === 'bioluminescent-canopy') {
+  if (presetId === 'starry-night') {
+    fillVerticalSweep(ctx, 0, 0, width, height, [
+      [0, [18, 36, 98, 1]],
+      [0.45, [34, 68, 146, 1]],
+      [0.75, [48, 86, 128, 1]],
+      [1, [20, 32, 44, 1]],
+    ]);
+    paintConcentricGlow(
+      ctx,
+      width * 0.84,
+      height * 0.22,
+      46,
+      [
+        [0, [248, 214, 72, 0.95]],
+        [0.45, [224, 198, 86, 0.55]],
+        [1, [34, 68, 146, 0]],
+      ],
+      10
+    );
+    seed = 1889;
+  } else if (presetId === 'bioluminescent-canopy') {
     paintBioluminescentCanopy(ctx, width, height);
     seed = 1001;
   } else if (presetId === 'chromatic-sunset') {
@@ -504,6 +531,67 @@ export function generateSampleImage(
     subtitleEn: meta.subtitleEn,
     width,
     height,
+    rgbaData: rgbaCopy,
+    previewDataUrl,
+    pointCloudPositions,
+    pointCloudColors,
+    uniqueColorsCount,
+  };
+}
+
+export async function loadStarryNightImage(
+  maxDimension = 384
+): Promise<LoadedImageAsset> {
+  const meta = SAMPLE_PRESETS[0];
+  const srcUrl = `${import.meta.env.BASE_URL}textures/starry_night.jpg`;
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.decoding = 'async';
+    element.onload = () => resolve(element);
+    element.onerror = () =>
+      reject(new Error('Không thể tải ảnh Starry Night.'));
+    element.src = srcUrl;
+  });
+
+  const srcW = Math.max(1, img.naturalWidth || img.width);
+  const srcH = Math.max(1, img.naturalHeight || img.height);
+  const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
+  const targetW = Math.max(32, Math.round(srcW * scale));
+  const targetH = Math.max(32, Math.round(srcH * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    throw new Error('Không thể khởi tạo bộ đệm xử lý ảnh 2D.');
+  }
+
+  ctx.fillStyle = '#111112';
+  ctx.fillRect(0, 0, targetW, targetH);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+
+  const imgData = ctx.getImageData(0, 0, targetW, targetH);
+  for (let i = 3; i < imgData.data.length; i += 4) {
+    imgData.data[i] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  const rgbaCopy = new Uint8ClampedArray(imgData.data);
+  const previewDataUrl = canvas.toDataURL('image/jpeg', 0.86);
+  const { pointCloudPositions, pointCloudColors, uniqueColorsCount } =
+    analyzeImageColors(rgbaCopy);
+
+  return {
+    id: 'starry-night',
+    code: meta.code,
+    titleVi: meta.titleVi,
+    subtitleEn: meta.subtitleEn,
+    width: targetW,
+    height: targetH,
     rgbaData: rgbaCopy,
     previewDataUrl,
     pointCloudPositions,
