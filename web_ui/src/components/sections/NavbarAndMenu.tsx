@@ -735,7 +735,7 @@ export function NavbarAndMenu({
             aria-hidden="true"
           />
 
-          <div ref={shellRef} className="split-menu__shell">
+          <div ref={shellRef} className="split-menu__shell" data-lenis-prevent="">
             <ContourBackdrop variant="olive" />
 
             {/* Spacer matching fixed `.top-nav` height so grid layout stays optically balanced */}

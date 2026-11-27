@@ -105,11 +105,69 @@ function getSectionScrollOffset(_id: string): number {
   return -68;
 }
 
+function LandoFloatingScrollThumb({ activeRoute }: { activeRoute: AppRoutePath }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    const thumb = thumbRef.current;
+    if (!rail || !thumb) return;
+
+    let maxScroll = 0;
+    let railTravel = 0;
+    let hideTimer = 0;
+
+    const measureDoc = () => {
+      const vh = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      maxScroll = Math.max(0, docH - vh);
+      const thumbH = Math.max(40, Math.min(108, Math.round((vh / Math.max(docH, 1)) * (vh - 20))));
+      thumb.style.height = `${thumbH}px`;
+      railTravel = Math.max(0, vh - 20 - thumbH);
+      if (maxScroll <= 8) {
+        rail.classList.remove('lando-scroll-rail--visible');
+      }
+    };
+
+    const syncThumb = () => {
+      if (maxScroll <= 8) return;
+      const ratio = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+      thumb.style.transform = `translate3d(0, ${(ratio * railTravel).toFixed(1)}px, 0)`;
+      rail.classList.add('lando-scroll-rail--visible');
+      if (hideTimer) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        rail.classList.remove('lando-scroll-rail--visible');
+      }, 720);
+    };
+
+    measureDoc();
+    const ro = new ResizeObserver(measureDoc);
+    ro.observe(document.body);
+    window.addEventListener('resize', measureDoc, { passive: true });
+    window.addEventListener('scroll', syncThumb, { passive: true });
+
+    return () => {
+      if (hideTimer) window.clearTimeout(hideTimer);
+      ro.disconnect();
+      window.removeEventListener('resize', measureDoc);
+      window.removeEventListener('scroll', syncThumb);
+    };
+  }, [activeRoute]);
+
+  return (
+    <div ref={railRef} className="lando-scroll-rail" aria-hidden="true">
+      <div ref={thumbRef} className="lando-scroll-rail__thumb" />
+    </div>
+  );
+}
+
 interface AppInnerProps {
   activeRoute: AppRoutePath;
   reducedMotion: boolean;
   onToggleReducedMotion: () => void;
   onScrollToSection: (id: string) => void;
+  onMenuPauseScroll: (paused: boolean) => void;
 }
 
 function AppInner({
@@ -117,6 +175,7 @@ function AppInner({
   reducedMotion,
   onToggleReducedMotion,
   onScrollToSection,
+  onMenuPauseScroll,
 }: AppInnerProps) {
   const location = useLocation();
   const { navigateWithCurtain } = useRouteCurtain();
@@ -311,7 +370,8 @@ function AppInner({
 
   useEffect(() => {
     document.documentElement.dataset.menuOpen = menuOpen ? 'true' : 'false';
-  }, [menuOpen]);
+    onMenuPauseScroll(menuOpen);
+  }, [menuOpen, onMenuPauseScroll]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -432,6 +492,8 @@ function AppInner({
         </div>
       </main>
 
+      <LandoFloatingScrollThumb activeRoute={activeRoute} />
+
       <OrchestratedCursor
         activeRoute={activeRoute}
         menuOpen={menuOpen}
@@ -455,6 +517,17 @@ export function App() {
   const reducedMotion = manualReduced ?? sysReduced;
 
   const lenisRef = useRef<Lenis | null>(null);
+  const pauseReasonsRef = useRef<Set<string>>(new Set());
+
+  const syncLenisPauseState = useCallback(() => {
+    const lenis = lenisRef.current;
+    if (!lenis) return;
+    if (pauseReasonsRef.current.size > 0) {
+      lenis.stop();
+    } else {
+      lenis.start();
+    }
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -479,19 +552,25 @@ export function App() {
     }
 
     const lenis = new Lenis({
-      lerp: 0.17,
+      lerp: 0.085,
       smoothWheel: true,
-      wheelMultiplier: 1.0,
+      wheelMultiplier: 0.92,
+      touchMultiplier: 1.45,
       syncTouch: false,
+      autoRaf: false,
+      allowNestedScroll: true,
+      stopInertiaOnNavigate: true,
     });
     lenisRef.current = lenis;
+    syncLenisPauseState();
     lenis.on('scroll', ScrollTrigger.update);
 
     const tickerUpdate = (time: number) => {
       lenis.raf(time * 1000);
     };
     gsap.ticker.add(tickerUpdate);
-    gsap.ticker.lagSmoothing(500, 33);
+    // Required by official Lenis + GSAP ScrollTrigger integration so ticker time never warps dt!
+    gsap.ticker.lagSmoothing(0);
 
     const onCustomLenisScroll = (ev: Event) => {
       const detail = (
@@ -502,7 +581,7 @@ export function App() {
         lenis.scrollTo(detail.top, { immediate: true, force: true });
       } else {
         lenis.scrollTo(detail.top, {
-          duration: detail.duration ?? 0.55,
+          duration: detail.duration ?? 1.05,
           easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         });
       }
@@ -515,18 +594,40 @@ export function App() {
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, syncLenisPauseState]);
 
-  const handlePauseLenis = useCallback((paused: boolean) => {
-    if (paused) {
-      lenisRef.current?.stop();
-    } else {
-      lenisRef.current?.start();
-      window.requestAnimationFrame(() => {
-        ScrollTrigger.refresh();
-      });
-    }
-  }, []);
+  const handlePausePreloader = useCallback(
+    (paused: boolean) => {
+      if (paused) pauseReasonsRef.current.add('preloader');
+      else pauseReasonsRef.current.delete('preloader');
+      syncLenisPauseState();
+      if (!paused) {
+        window.requestAnimationFrame(() => ScrollTrigger.refresh());
+      }
+    },
+    [syncLenisPauseState]
+  );
+
+  const handlePauseCurtain = useCallback(
+    (paused: boolean) => {
+      if (paused) pauseReasonsRef.current.add('curtain');
+      else pauseReasonsRef.current.delete('curtain');
+      syncLenisPauseState();
+      if (!paused) {
+        window.requestAnimationFrame(() => ScrollTrigger.refresh());
+      }
+    },
+    [syncLenisPauseState]
+  );
+
+  const handlePauseMenu = useCallback(
+    (paused: boolean) => {
+      if (paused) pauseReasonsRef.current.add('menu');
+      else pauseReasonsRef.current.delete('menu');
+      syncLenisPauseState();
+    },
+    [syncLenisPauseState]
+  );
 
   const handleResetScroll = useCallback((hash?: string) => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -603,12 +704,12 @@ export function App() {
       <TailordPreloader
         reducedMotion={reducedMotion}
         isHomeRoute={location.pathname === '/'}
-        onPauseScroll={handlePauseLenis}
+        onPauseScroll={handlePausePreloader}
       />
       <RouteTransitionProvider
         reducedMotion={reducedMotion}
         onResetScroll={handleResetScroll}
-        onPauseLenis={handlePauseLenis}
+        onPauseLenis={handlePauseCurtain}
         onPreloadRoute={preloadRouteChunk}
       >
         <AppInner
@@ -618,6 +719,7 @@ export function App() {
             setManualReduced((prev) => !(prev ?? sysReduced))
           }
           onScrollToSection={handleScrollToSection}
+          onMenuPauseScroll={handlePauseMenu}
         />
       </RouteTransitionProvider>
     </>

@@ -376,20 +376,7 @@ export function OrchestratedFireflyHeroCanvas({
     let lastRayPtrY = 999;
 
     const renderSingleStep = (timestamp: number, forceRender = false) => {
-      if (!forceRender && timestamp - lastRenderTs < 15.2) {
-        return;
-      }
-      lastRenderTs = timestamp;
-
-      timer.update(timestamp);
-      const dt = clamp(timer.getDelta(), 0.004, 0.033);
-      const motionScale = reducedMotionRef.current ? 0.22 : 1.0;
-      elapsed += dt * motionScale;
-
-      introProgress = Math.min(1.0, introProgress + dt / 1.05);
-      const introEased = smoothstep(0.0, 1.0, introProgress);
-
-      // Direct 1:1 lock to Lenis scroll position (eliminates double-smoothing lag!)
+      // Always sync lightweight DOM scroll frame/HUD at native 60Hz/120Hz/144Hz refresh rate (zero scroll judder!)
       const scrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
 
       const hudEl = hudRefLatest.current?.current;
@@ -458,6 +445,20 @@ export function OrchestratedFireflyHeroCanvas({
           crtEl.style.opacity = crtOpStr;
         }
       }
+
+      // Throttle heavy 3D WebGL scene passes to ~65fps while keeping 144Hz DOM scroll sync above!
+      if (!forceRender && timestamp - lastRenderTs < 14.8) {
+        return;
+      }
+      lastRenderTs = timestamp;
+
+      timer.update(timestamp);
+      const dt = clamp(timer.getDelta(), 0.004, 0.033);
+      const motionScale = reducedMotionRef.current ? 0.22 : 1.0;
+      elapsed += dt * motionScale;
+
+      introProgress = Math.min(1.0, introProgress + dt / 1.05);
+      const introEased = smoothstep(0.0, 1.0, introProgress);
 
       const rush = 0.0;
 
