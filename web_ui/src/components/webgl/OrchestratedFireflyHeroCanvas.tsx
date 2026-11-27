@@ -34,6 +34,8 @@ export interface OrchestratedFireflyHeroCanvasProps {
   eyebrowRef?: RefObject<HTMLDivElement | null>;
   /** True while the Hero + Manifesto top stage is active */
   stageActive: boolean;
+  /** Imperative scroll-gate handle so crossing 2.25vh never triggers a full HomePage React re-render */
+  stageGateRef?: MutableRefObject<((inRange: boolean) => void) | null>;
   /** Optional handler (kept for prop compatibility) */
   onActivatePortal?: () => void;
 }
@@ -157,11 +159,13 @@ export function OrchestratedFireflyHeroCanvas({
   centerpieceRef,
   eyebrowRef,
   stageActive,
+  stageGateRef,
 }: OrchestratedFireflyHeroCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stageActiveRef = useRef<boolean>(stageActive);
-  stageActiveRef.current = stageActive;
+  const routeActiveRef = useRef<boolean>(stageActive);
+  routeActiveRef.current = stageActive;
+  const inScrollRangeRef = useRef<boolean>(true);
 
   const reducedMotionRef = useRef<boolean>(reducedMotion);
   reducedMotionRef.current = reducedMotion;
@@ -247,12 +251,15 @@ export function OrchestratedFireflyHeroCanvas({
     terrainAndParticles.grassCarpetMesh.matrixAutoUpdate = false;
     terrainAndParticles.fireflyPoints.matrixAutoUpdate = false;
 
+    const camera = new THREE.PerspectiveCamera(47, vw / vh, 0.15, 65.0);
+
     /* ----------------------------------------------------------------------
        2. Real `.glb` Wrecked White Sedans, Verdigris Pipe, Shrubs & 3D Roses
        ---------------------------------------------------------------------- */
     const wreckSanctuary = buildNocturnalWreckScene({
       renderer,
       scene,
+      camera,
       isMobile,
       sampleHeight: terrainAndParticles.sampleHeight,
       particleLightTex: terrainAndParticles.particleLightRT.texture,
@@ -261,8 +268,6 @@ export function OrchestratedFireflyHeroCanvas({
     });
     terrainAndParticles.grassMeadow.bindSpotLight(wreckSanctuary.clearingSpot);
     scene.add(wreckSanctuary.group);
-
-    const camera = new THREE.PerspectiveCamera(47, vw / vh, 0.15, 65.0);
 
     const computeCameraBase = (aspect: number): { fov: number; baseZ: number } => {
       if (aspect >= 1.4) {
@@ -289,8 +294,8 @@ export function OrchestratedFireflyHeroCanvas({
     );
 
     const composer = new EffectComposer(renderer, msaaTarget);
-    composer.setPixelRatio(dpr);
-    composer.setSize(vw, vh);
+    composer.setPixelRatio(1);
+    composer.setSize(Math.max(2, Math.floor(vw * dpr)), Math.max(2, Math.floor(vh * dpr)));
 
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
@@ -318,7 +323,7 @@ export function OrchestratedFireflyHeroCanvas({
     let smoothPointerActive = 0;
 
     const onPointerMove = (ev: PointerEvent) => {
-      if (!stageActiveRef.current) return;
+      if (!routeActiveRef.current || !inScrollRangeRef.current) return;
       const w = Math.max(1, window.innerWidth);
       const h = Math.max(1, window.innerHeight);
       pointerNdcX = clamp((ev.clientX / w) * 2.0 - 1.0, -1.0, 1.0);
@@ -344,9 +349,11 @@ export function OrchestratedFireflyHeroCanvas({
       renderer.setPixelRatio(dpr);
       renderer.setSize(vw, vh, false);
 
-      pixelH = Math.max(2, Math.floor(vh * dpr));
-      composer.setPixelRatio(dpr);
-      composer.setSize(vw, vh);
+      const rtW = Math.max(2, Math.floor(vw * dpr));
+      const rtH = Math.max(2, Math.floor(vh * dpr));
+      pixelH = rtH;
+      composer.setPixelRatio(1);
+      composer.setSize(rtW, rtH);
       bloomPass.resolution.set(Math.max(2, Math.floor(vw * 0.25)), Math.max(2, Math.floor(vh * 0.25)));
       finishPass.uniforms.uResolution.value.set(vw, vh);
       terrainAndParticles.resize(pixelH);
@@ -375,7 +382,7 @@ export function OrchestratedFireflyHeroCanvas({
     let running = false;
     let elapsed = 0;
     let introProgress = 0;
-    let lastClipVal = '';
+    let lastWrapTf = '';
     let lastCanvasTf = '';
     let lastHudOp = '';
     let lastEbOp = '';
@@ -407,27 +414,32 @@ export function OrchestratedFireflyHeroCanvas({
       const eyebrowEl = eyebrowRefLatest.current?.current;
       const framePhase = smoothstep(0.005, 0.78, scrollP);
 
-      let nextClip = 'none';
+      // Pure GPU-compositor `scale3d` 4-sided window shrink (replaces non-composited `clip-path: inset(...)` repaints!)
+      let nextWrapTf = 'none';
       let nextCanvasTf = 'none';
       if (!reducedMotionRef.current) {
         if (framePhase > 0.001) {
           const isWide = camera.aspect >= 1.05;
           const insetX = (isWide ? 33.6 : 9.5) * framePhase;
           const insetY = (isWide ? 33.0 : 34.0) * framePhase;
+          const sx = Math.max(0.1, 1.0 - (2.0 * insetX) / 100.0);
+          const sy = Math.max(0.1, 1.0 - (2.0 * insetY) / 100.0);
           const canvasScale = 1.0 - (isWide ? 0.56 : 0.36) * framePhase;
-          nextClip = `inset(${insetY.toFixed(2)}% ${insetX.toFixed(2)}% ${insetY.toFixed(2)}% ${insetX.toFixed(2)}%)`;
-          nextCanvasTf = `scale(${canvasScale.toFixed(4)})`;
+          const tyPct = ((1.0 - canvasScale) * 2.0) / sy;
+          nextWrapTf = `scale3d(${sx.toFixed(4)}, ${sy.toFixed(4)}, 1)`;
+          nextCanvasTf = `translate3d(0, ${tyPct.toFixed(3)}%, 0) scale3d(${(canvasScale / sx).toFixed(4)}, ${(canvasScale / sy).toFixed(4)}, 1)`;
         }
       } else if (scrollP > 0.25) {
         const isWide = camera.aspect >= 1.05;
-        const insetX = isWide ? 33.6 : 9.5;
-        const insetY = isWide ? 33.0 : 34.0;
-        nextClip = `inset(${insetY.toFixed(2)}% ${insetX.toFixed(2)}% ${insetY.toFixed(2)}% ${insetX.toFixed(2)}%)`;
+        const sx = isWide ? 0.328 : 0.81;
+        const sy = isWide ? 0.34 : 0.32;
+        nextWrapTf = `scale3d(${sx}, ${sy}, 1)`;
+        nextCanvasTf = `scale3d(${(1.0 / sx).toFixed(4)}, ${(1.0 / sy).toFixed(4)}, 1)`;
       }
 
-      if (nextClip !== lastClipVal) {
-        lastClipVal = nextClip;
-        if (wrapEl) wrapEl.style.clipPath = nextClip;
+      if (nextWrapTf !== lastWrapTf) {
+        lastWrapTf = nextWrapTf;
+        if (wrapEl) wrapEl.style.transform = nextWrapTf;
       }
       if (nextCanvasTf !== lastCanvasTf) {
         lastCanvasTf = nextCanvasTf;
@@ -607,10 +619,12 @@ export function OrchestratedFireflyHeroCanvas({
     };
 
     const syncRunState = () => {
-      const shouldRun = stageActiveRef.current && !document.hidden;
+      const activeNow = routeActiveRef.current && inScrollRangeRef.current;
+      wrapRef.current?.classList.toggle('orchestrated-hero-canvas-wrap--inactive', !activeNow);
+      const shouldRun = activeNow && !document.hidden;
       if (shouldRun && !running) {
         handleResize();
-        lastClipVal = '';
+        lastWrapTf = '';
         lastCanvasTf = '';
         lastHudOp = '';
         lastCenterpieceTf = '';
@@ -625,12 +639,21 @@ export function OrchestratedFireflyHeroCanvas({
     };
 
     wakeStageRef.current = syncRunState;
+    if (stageGateRef) {
+      stageGateRef.current = (inRange: boolean) => {
+        if (inScrollRangeRef.current !== inRange) {
+          inScrollRangeRef.current = inRange;
+          syncRunState();
+        }
+      };
+    }
 
     document.addEventListener('visibilitychange', syncRunState);
     syncRunState();
 
     return () => {
       wakeStageRef.current = null;
+      if (stageGateRef) stageGateRef.current = null;
       running = false;
       window.cancelAnimationFrame(rafId);
       timer.dispose();

@@ -117,6 +117,8 @@ function LandoFloatingScrollThumb({ activeRoute }: { activeRoute: AppRoutePath }
     let maxScroll = 0;
     let railTravel = 0;
     let hideTimer = 0;
+    let railVisible = false;
+    let lastTimerReset = 0;
 
     const measureDoc = () => {
       const vh = window.innerHeight;
@@ -125,7 +127,8 @@ function LandoFloatingScrollThumb({ activeRoute }: { activeRoute: AppRoutePath }
       const thumbH = Math.max(40, Math.min(108, Math.round((vh / Math.max(docH, 1)) * (vh - 20))));
       thumb.style.height = `${thumbH}px`;
       railTravel = Math.max(0, vh - 20 - thumbH);
-      if (maxScroll <= 8) {
+      if (maxScroll <= 8 && railVisible) {
+        railVisible = false;
         rail.classList.remove('lando-scroll-rail--visible');
       }
     };
@@ -134,11 +137,19 @@ function LandoFloatingScrollThumb({ activeRoute }: { activeRoute: AppRoutePath }
       if (maxScroll <= 8) return;
       const ratio = Math.min(1, Math.max(0, window.scrollY / maxScroll));
       thumb.style.transform = `translate3d(0, ${(ratio * railTravel).toFixed(1)}px, 0)`;
-      rail.classList.add('lando-scroll-rail--visible');
-      if (hideTimer) window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => {
-        rail.classList.remove('lando-scroll-rail--visible');
-      }, 720);
+      if (!railVisible) {
+        railVisible = true;
+        rail.classList.add('lando-scroll-rail--visible');
+      }
+      const now = performance.now();
+      if (now - lastTimerReset > 120) {
+        lastTimerReset = now;
+        if (hideTimer) window.clearTimeout(hideTimer);
+        hideTimer = window.setTimeout(() => {
+          railVisible = false;
+          rail.classList.remove('lando-scroll-rail--visible');
+        }, 720);
+      }
     };
 
     measureDoc();
@@ -224,30 +235,59 @@ function AppInner({
     return () => window.cancelAnimationFrame(raf);
   }, [isHomeActive]);
 
-  // Warm up sub-route JS chunks quietly during browser idle time after initial boot
+  // Warm up sub-route JS chunks ONE-BY-ONE during true idle periods (never colliding with active scrolling!)
   useEffect(() => {
     const win = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
+    const loaders = [
+      loadAlgorithmPageChunk,
+      loadExperimentsPageChunk,
+      loadDemoPageChunk,
+      loadExperimentDetailChunk,
+      loadAssignmentDetailChunk,
+    ];
+    let idx = 0;
+    let cancelled = false;
     let idleId = 0;
-    const timerId = window.setTimeout(() => {
-      const warm = () => {
-        void loadAlgorithmPageChunk();
-        void loadExperimentsPageChunk();
-        void loadExperimentDetailChunk();
-        void loadAssignmentDetailChunk();
-        void loadDemoPageChunk();
-      };
-      if (typeof win.requestIdleCallback === 'function') {
-        idleId = win.requestIdleCallback(warm, { timeout: 2500 });
-      } else {
-        warm();
+    let timerId = 0;
+    let lastScrollTs = 0;
+
+    const onScrollTouch = () => {
+      lastScrollTs = performance.now();
+    };
+    window.addEventListener('scroll', onScrollTouch, { passive: true });
+
+    const stepWarmup = () => {
+      if (cancelled || idx >= loaders.length) return;
+      if (performance.now() - lastScrollTs < 750) {
+        timerId = window.setTimeout(scheduleNext, 800);
+        return;
       }
-    }, 1800);
+      const loader = loaders[idx++];
+      void loader().finally(() => {
+        if (!cancelled && idx < loaders.length) {
+          timerId = window.setTimeout(scheduleNext, 320);
+        }
+      });
+    };
+
+    const scheduleNext = () => {
+      if (cancelled || idx >= loaders.length) return;
+      if (typeof win.requestIdleCallback === 'function') {
+        idleId = win.requestIdleCallback(stepWarmup, { timeout: 3500 });
+      } else {
+        stepWarmup();
+      }
+    };
+
+    timerId = window.setTimeout(scheduleNext, 3400);
 
     return () => {
-      window.clearTimeout(timerId);
+      cancelled = true;
+      window.removeEventListener('scroll', onScrollTouch);
+      if (timerId) window.clearTimeout(timerId);
       if (idleId && typeof win.cancelIdleCallback === 'function') {
         win.cancelIdleCallback(idleId);
       }
@@ -552,9 +592,9 @@ export function App() {
     }
 
     const lenis = new Lenis({
-      lerp: 0.085,
+      lerp: 0.112,
       smoothWheel: true,
-      wheelMultiplier: 0.92,
+      wheelMultiplier: 1.0,
       touchMultiplier: 1.45,
       syncTouch: false,
       autoRaf: false,
