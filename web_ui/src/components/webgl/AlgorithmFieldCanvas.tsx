@@ -447,12 +447,12 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
       ctx.font = '500 10.5px "JetBrains Mono", monospace';
       ctx.fillStyle = 'rgba(239, 239, 232, 0.62)';
       ctx.fillText(
-        `18 ĐOM ĐÓM · L = ${(1 / Math.sqrt(curGamma)).toFixed(2)}`,
+        `L = ${(1 / Math.sqrt(curGamma)).toFixed(2)}`,
         14,
         h - 12
       );
       ctx.fillStyle = '#C5E84D';
-      ctx.fillText('x* TOÀN CỤC', gx + 12, gy - 8);
+      ctx.fillText('x*', gx + 12, gy - 8);
     };
 
     renderFrame(performance.now());
@@ -545,20 +545,14 @@ export function AlgorithmFieldCanvas({ reducedMotion }: AlgorithmFieldCanvasProp
 
   return (
     <div className="algo-field-card">
-      <div className="algo-field-card__topbar">
-        <span className="algo-field-card__eyebrow">
-          Mô phỏng lực hút 2D (18 đom đóm)
-        </span>
+      <div className="algo-field-card__canvas-wrap">
         <button
           type="button"
-          className="algo-field-card__reset"
+          className="algo-field-card__reset algo-field-card__reset--floating"
           onClick={handleRescatter}
         >
           Phân bố lại ↻
         </button>
-      </div>
-
-      <div className="algo-field-card__canvas-wrap">
         <canvas
           ref={canvasRef}
           className="algo-field-card__canvas"

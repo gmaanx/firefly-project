@@ -208,9 +208,6 @@ export function WorkedTelemetrySection({
       <div className="section-container">
         <div className="worked-top-row">
           <div className="worked-top-row__copy">
-            <span className="algo-chapter-eyebrow">
-              VÍ DỤ TÍNH TOÁN CỤ THỂ · ĐỐI CHIẾU KHÔNG GIAN 3 CHIỀU
-            </span>
             <h2 id="worked-heading" tabIndex={-1} className="worked-giant-title">
               <span className="block-reveal-lines">
                 <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
@@ -223,11 +220,6 @@ export function WorkedTelemetrySection({
                 </BlockReveal>
               </span>
             </h2>
-            <p className="worked-top-row__lead">
-              Bên trái xoay trực tiếp mô hình 3D trên miền{' '}
-              <MathFormula tex="[-5, 5]^3" ariaLabel="[-5, 5]^3" />; bên phải đối
-              chiếu số liệu tính tay từng cặp và kết quả chạy hội tụ trên Python.
-            </p>
           </div>
 
           <div
@@ -309,13 +301,6 @@ export function WorkedTelemetrySection({
                   <>
                     {/* Consolidated Card A: 1-Cycle Hand Calculation (n = 5) */}
                     <div className="worked-elevated-card">
-                      <div className="worked-subblock-head">
-                        <span className="worked-subblock-head__badge">PHẦN A · n = 5</span>
-                        <strong>
-                          Ví dụ tính tay 1 vòng (khớp trực tiếp hình 3D bên trái)
-                        </strong>
-                      </div>
-
                       <div
                         className="worked-stepper-tabs"
                         role="group"
@@ -523,19 +508,11 @@ export function WorkedTelemetrySection({
                     {/* Consolidated Card B: 200-Generation Python Convergence (n = 20) */}
                     <div className="worked-elevated-card">
                       <div className="worked-scrubber-card__head">
-                        <div className="worked-subblock-head">
-                          <span className="worked-subblock-head__badge">PHẦN B · n = 20</span>
-                          <strong>
-                            Chạy thực tế trên Python (t = 1 → 200 thế hệ)
-                          </strong>
-                        </div>
+                        <strong>
+                          Quá trình hội tụ qua 200 thế hệ
+                        </strong>
                         <code>t = {activeGenT}</code>
                       </div>
-
-                      <p className="worked-scrubber-card__note">
-                        Khi tăng đàn từ 5 cá thể tính tay lên 20 cá thể trên Python,
-                        sai số giảm sâu qua từng mốc thế hệ:
-                      </p>
 
                       <div
                         className="worked-milestone-pills"

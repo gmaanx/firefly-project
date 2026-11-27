@@ -584,9 +584,6 @@ export function LiveSandboxSection({
         <div className="sandbox-grid">
           <div className="sandbox-left">
             <div>
-              <span className="algo-chapter-eyebrow">
-                MÔ PHỎNG TRỰC TIẾP · PHẦN 01 / 02
-              </span>
               <h1 id="sandbox-heading" tabIndex={-1} className="sandbox-title">
                 <span className="block-reveal-lines">
                   <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
@@ -604,9 +601,8 @@ export function LiveSandboxSection({
             <p className="sandbox-lead">
               Thay đổi cỡ đàn <MathFormula tex="n" ariaLabel="n" />, hệ số cản
               sáng <MathFormula tex="\gamma" ariaLabel="gamma" /> và tốc độ giảm
-              bước nhảy <MathFormula tex="\theta" ariaLabel="theta" /> để xem đàn
-              đom đóm hội tụ thế nào trên các hàm 2D và 10D (nhấn{' '}
-              <code>Space</code> để chạy/dừng).
+              bước nhảy <MathFormula tex="\theta" ariaLabel="theta" /> để quan sát
+              quá trình hội tụ trên các hàm 2D và 10D.
             </p>
 
             {/* Clean #EFEFE8 Ivory Active Fill with #101110 Dark Ink */}
@@ -800,21 +796,6 @@ export function LiveSandboxSection({
 
           <div className="sandbox-right">
             <div className="sandbox-stage-card">
-              <div className="sandbox-stage-card__bar">
-                <strong>{activeTabMeta.headerTitle}</strong>
-                <span
-                  className={`sandbox-status-dot ${
-                    isPlaying ? 'sandbox-status-dot--live' : ''
-                  }`}
-                >
-                  {snapshot.completed
-                    ? 'HOÀN TẤT'
-                    : isPlaying
-                      ? 'ĐANG CHẠY'
-                      : 'SẴN SÀNG'}
-                </span>
-              </div>
-
               <div className="sandbox-formula-strip">
                 <div className="sandbox-formula-strip__math">
                   <MathFormula

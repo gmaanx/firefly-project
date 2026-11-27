@@ -93,10 +93,6 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
           <div className="algo-olive-hero__grid">
             {/* Left Column: Monumental Title + 3 Open Architectural Rules (Zero cramped nested boxes!) */}
             <div ref={heroLeftRef} className="algo-olive-hero__left">
-              <span className="algo-chapter-eyebrow">
-                CƠ SỞ TỰ NHIÊN &amp; MÔ HÌNH TOÁN · XIN-SHE YANG (2008)
-              </span>
-
               <h1 id="algo-page-heading" tabIndex={-1} className="algo-olive-hero__title">
                 <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
                   <span className="editorial-serif editorial-serif--sage-gold">
@@ -171,9 +167,6 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
           {/* Full-Width Master Position-Update Equation + Clean 3-Column Term Breakdown */}
           <div ref={formulaStageRef} className="algo-master-equation">
             <div className="algo-master-equation__top">
-              <span className="algo-master-equation__label">
-                PHƯƠNG TRÌNH DỊCH CHUYỂN KHI ĐOM ĐÓM j SÁNG HƠN i
-              </span>
               <div className="algo-master-equation__math">
                 <MathFormula
                   tex="\mathbf{x}_i^{t+1} = \mathbf{x}_i^t + \beta_0 e^{-\gamma r_{ij}^2}(\mathbf{x}_j^t - \mathbf{x}_i^t) + \alpha_t \boldsymbol{\epsilon}_i^t"
@@ -184,7 +177,7 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
 
             <div className="algo-master-equation__terms">
               <div className="algo-term-col">
-                <span className="algo-term-col__tag">THÀNH PHẦN 01 · LỰC HÚT</span>
+                <span className="algo-term-col__tag">Lực hút</span>
                 <div className="algo-term-col__tex">
                   <MathFormula
                     tex="\beta_0 e^{-\gamma r_{ij}^2}(\mathbf{x}_j^t - \mathbf{x}_i^t)"
@@ -201,7 +194,7 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
               </div>
 
               <div className="algo-term-col">
-                <span className="algo-term-col__tag">THÀNH PHẦN 02 · KHÁM PHÁ</span>
+                <span className="algo-term-col__tag">Bước nhảy ngẫu nhiên</span>
                 <div className="algo-term-col__tex">
                   <MathFormula
                     tex="\alpha_t \boldsymbol{\epsilon}_i^t"
@@ -209,13 +202,13 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
                   />
                 </div>
                 <p>
-                  Bước nhảy ngẫu nhiên giúp thoát cực trị địa phương, giảm dần theo{' '}
+                  Giúp thoát cực trị địa phương, giảm dần theo{' '}
                   <MathFormula tex="\alpha_{t+1} = \theta\alpha_t" ariaLabel="alpha_{t+1} = theta alpha_t" />.
                 </p>
               </div>
 
               <div className="algo-term-col">
-                <span className="algo-term-col__tag">THÀNH PHẦN 03 · KHOẢNG CÁCH</span>
+                <span className="algo-term-col__tag">Khoảng cách Euclid</span>
                 <div className="algo-term-col__tex">
                   <MathFormula
                     tex="r_{ij} = \|\mathbf{x}_i^t - \mathbf{x}_j^t\|_2"

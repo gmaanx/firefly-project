@@ -346,23 +346,6 @@ export const ExplorationSplitSection = memo(function ExplorationSplitSection({
     };
   }, [crossSectionGeo.ridgePt.x, crossSectionGeo.ridgePt.y, thetaVal]);
 
-  const exploreStatusNode =
-    thetaVal < 0.935 ? (
-      <>
-        <MathFormula tex="\theta" ariaLabel="theta" /> quá nhỏ · kẹt ở hố phụ
-      </>
-    ) : thetaVal <= 0.988 ? (
-      <>
-        <MathFormula tex="\theta = 0.97" ariaLabel="theta = 0.97" /> · hội tụ đáy{' '}
-        <MathFormula tex="f^*" ariaLabel="f*" />
-      </>
-    ) : (
-      <>
-        <MathFormula tex="\theta = 1.00" ariaLabel="theta = 1.00" /> · dao động
-        quanh đích
-      </>
-    );
-
   const epochs = useMemo(
     () => [
       {
@@ -1293,16 +1276,6 @@ export const ExplorationSplitSection = memo(function ExplorationSplitSection({
                 className="explore-cutaway-stage"
                 aria-label={`Mặt cắt địa hình sườn đèo và cung nhảy làm nguội với theta = ${thetaVal.toFixed(3)}`}
               >
-                <div className="explore-cutaway-stage__topbar">
-                  <span className="explore-cutaway-stage__eyebrow">
-                    Mặt cắt hàm mục tiêu{' '}
-                    <MathFormula tex="f(x)" ariaLabel="f(x)" /> qua 200 vòng lặp
-                  </span>
-                  <span className="explore-cutaway-stage__status">
-                    {exploreStatusNode}
-                  </span>
-                </div>
-
                 <svg
                   viewBox="0 0 600 318"
                   className="explore-cutaway-stage__svg"

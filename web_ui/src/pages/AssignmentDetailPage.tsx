@@ -135,11 +135,11 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
         <div className="section-container detail-subpage__container">
           <header className="detail-subpage__header">
             <div className="detail-subpage__titles">
-              <span className="algo-chapter-eyebrow">
-                {selectedMember
-                  ? `THÀNH VIÊN ${String(selectedMember.memberNumber).padStart(2, '0')} / 11 · ${selectedStage?.code ?? ''}`
-                  : 'PHÂN CÔNG NHIỆM VỤ · 11 THÀNH VIÊN · 6 GIAI ĐOẠN'}
-              </span>
+              {selectedMember ? (
+                <span className="algo-chapter-eyebrow">
+                  {`${String(selectedMember.memberNumber).padStart(2, '0')} / 11 · ${selectedStage?.code ?? ''}`}
+                </span>
+              ) : null}
               <h1
                 id="assignment-detail-heading"
                 tabIndex={-1}
