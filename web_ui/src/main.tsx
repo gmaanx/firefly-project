@@ -12,6 +12,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/jetbrains-mono/600.css';
 import 'katex/dist/katex.min.css';
+import 'lenis/dist/lenis.css';
 
 import './styles/tokens.css';
 import './styles/global.css';
