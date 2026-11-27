@@ -12,6 +12,7 @@ export interface TeamMemberAssignment {
   memberName: string;
   memberNumber: number;
   stageId: StageId;
+  shortRole: string;
   roleTitle: string;
   files: string;
   bookRefsShort: string;
@@ -34,37 +35,37 @@ export const ASSIGNMENT_STAGES: readonly AssignmentStageMeta[] = [
   {
     id: 1,
     code: 'GĐ 01',
-    title: 'Giai đoạn 1 · Cơ sở toán học & bộ tham số',
-    modulesLabel: 'core/problems.py & core/parameters.py',
+    title: 'Giai đoạn 1 · Bài toán & bộ tham số',
+    modulesLabel: 'core/problems.py · core/parameters.py',
   },
   {
     id: 2,
     code: 'GĐ 02',
-    title: 'Giai đoạn 2 · Sơ đồ khối & quản lý quần thể',
+    title: 'Giai đoạn 2 · Sơ đồ khối & quần thể',
     modulesLabel: 'core/population.py',
   },
   {
     id: 3,
     code: 'GĐ 03',
-    title: 'Giai đoạn 3 · Công thức di chuyển & bộ giải chính',
+    title: 'Giai đoạn 3 · Công thức bay & bộ giải chính',
     modulesLabel: 'core/engine.py',
   },
   {
     id: 4,
     code: 'GĐ 04',
-    title: 'Giai đoạn 4 · Bài toán mẫu & tối ưu có ràng buộc',
-    modulesLabel: 'simulations/demos.py & core/problems.py',
+    title: 'Giai đoạn 4 · Bài toán mẫu & hàm phạt',
+    modulesLabel: 'simulations/demos.py · core/problems.py',
   },
   {
     id: 5,
     code: 'GĐ 05',
-    title: 'Giai đoạn 5 · Thực nghiệm đánh giá & xuất dữ liệu',
-    modulesLabel: 'simulations/experiments.py & main_export.py',
+    title: 'Giai đoạn 5 · Thực nghiệm & xuất số liệu',
+    modulesLabel: 'simulations/experiments.py · main_export.py',
   },
   {
     id: 6,
     code: 'GĐ 06',
-    title: 'Giai đoạn 6 · Web trực quan & mở rộng ứng dụng thực tế',
+    title: 'Giai đoạn 6 · Web trực quan & mở rộng thực tế',
     modulesLabel: 'web_ui/',
   },
 ] as const;
@@ -76,29 +77,29 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Huỳnh Triết',
     memberNumber: 1,
     stageId: 1,
-    roleTitle: 'Bối cảnh ra đời & phát biểu bài toán tối ưu',
+    shortRole: 'Bài toán tối ưu D chiều',
+    roleTitle: 'Ý tưởng tự nhiên & phát biểu bài toán tối ưu',
     files: 'core/problems.py',
     bookRefsShort: 'Mục 13.1 – 13.3',
     summaryTasks:
-      'Tổng hợp bối cảnh ra đời FA, phát biểu bài toán tối ưu D chiều và cài đặt lớp bài toán cơ sở.',
-    bookRefsDetail:
-      'Mục 13.1 (tr. 163), đầu Mục 13.2 (tr. 164) và đầu Mục 13.3 (tr. 166–167).',
+      'Giới thiệu ý tưởng đom đóm phát sáng của Yang (2008), bài toán cực tiểu D chiều và viết lớp bài toán gốc.',
+    bookRefsDetail: 'Mục 13.1 (tr. 163), đầu Mục 13.2 (tr. 164) và đầu Mục 13.3 (tr. 166–167).',
     theoryTasks: [
-      'Tổng hợp bối cảnh ra đời Thuật toán Đom đóm của Xin-She Yang (2008) từ hiện tượng phát quang sinh học trong tự nhiên.',
-      'Trình bày các dạng bài toán phi tuyến, đa cực trị mà FA giải quyết hiệu quả cùng những ứng dụng nêu ở Mục 13.1.',
-      'Phát biểu bài toán tối ưu không ràng buộc tổng quát D chiều theo (13.1)–(13.2) và hàm mặt cầu dịch tâm mẫu theo (13.8)–(13.9).',
+      'Giới thiệu nguồn cảm hứng từ tín hiệu nhấp nháy của đom đóm sang thuật toán tối ưu bầy đàn (Xin-She Yang, 2008).',
+      'Nêu các lớp bài toán phi tuyến, nhiều cực trị phù hợp với FA cùng một số ứng dụng ở Mục 13.1.',
+      'Viết dạng chuẩn bài toán cực tiểu không ràng buộc D chiều (13.1)–(13.2) và hàm mặt cầu dịch tâm (13.8)–(13.9).',
     ],
     formulas: [
       {
-        label: 'Bài toán mặt cầu dịch tâm (13.8)–(13.9)',
+        label: 'Hàm mặt cầu dịch tâm (13.8)–(13.9)',
         tex: 'f(\\mathbf{x}) = (x_1 - 1)^2 + (x_2 - 1)^2 + \\dots + (x_D - 1)^2, \\quad \\mathbf{x} \\in [-5, +5]^D',
         ariaLabel: 'f(x) = sum((x_k - 1)^2) tren [-5, +5]^D',
       },
     ],
     codeTargetFile: 'core/problems.py',
     codeTasks: [
-      'Xây dựng lớp UnconstrainedProblem và hàm mục tiêu cost(x) theo Listing 13.3.',
-      'Thiết lập cận dưới Lb, cận trên Ub trên miền [-5, 5]^D và tính độ rộng miền tìm kiếm scale = |Ub - Lb| theo Listing 13.1–13.2.',
+      'Viết lớp UnconstrainedProblem và hàm mục tiêu cost(x) theo Listing 13.3.',
+      'Khai báo biên Lb, Ub trên [-5, 5]^D và độ rộng miền scale = |Ub - Lb| theo Listing 13.1–13.2.',
     ],
   },
   {
@@ -107,33 +108,33 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Bảo Ngân',
     memberNumber: 2,
     stageId: 1,
-    roleTitle: 'Quy luật ánh sáng & bộ tham số thuật toán',
+    shortRole: 'Độ sáng & bộ tham số',
+    roleTitle: 'Quy luật giảm sáng & các tham số α, β₀, γ, θ',
     files: 'core/parameters.py',
     bookRefsShort: 'Mục 13.2.1, 13.2.3',
     summaryTasks:
-      'Trình bày quy luật suy giảm ánh sáng, ý nghĩa bộ tham số α, β₀, γ, θ và cài đặt các hàm tính tham số.',
-    bookRefsDetail:
-      'Mục 13.2.1 (tr. 164–165) và Mục 13.2.3 (tr. 165–166).',
+      'Giải thích công thức độ hấp dẫn theo khoảng cách, vai trò của α, β₀, γ, θ và code nhóm hàm tính tham số.',
+    bookRefsDetail: 'Mục 13.2.1 (tr. 164–165) và Mục 13.2.3 (tr. 165–166).',
     theoryTasks: [
-      'Giải thích cơ sở vật lý của độ hấp dẫn giữa hai đom đóm: kết hợp định luật nghịch đảo bình phương khoảng cách và sự hấp thụ ánh sáng của môi trường.',
-      'Phân tích ý nghĩa các đại lượng trong công thức khoảng cách Euclid (13.4), độ hấp dẫn (13.5), cách chọn γ theo thang đặc trưng L (13.6) và quy luật giảm hệ số nhiễu α (13.7).',
-      'Làm rõ hành vi của đàn ở hai trường hợp giới hạn γ → 0 và γ → ∞ đối với tầm nhìn cũng như sự cân bằng giữa tìm kiếm rộng và tinh chỉnh cục bộ.',
+      'Giải thích vì sao độ sáng giảm dần theo cả khoảng cách r lẫn mức hấp thụ ánh sáng γ của môi trường.',
+      'Đọc từng thành phần trong khoảng cách Euclid (13.4), độ hấp dẫn β(r) (13.5), cách lấy γ = 1/L² (13.6) và hạ dần nhiễu α (13.7).',
+      'So sánh hai thái cực γ → 0 (cả đàn hút về một cụm như PSO) và γ → ∞ (mỗi con tự bước ngẫu nhiên).',
     ],
     formulas: [
       {
-        label: 'Khoảng cách Euclid (13.4) & Độ hấp dẫn (13.5)',
+        label: 'Khoảng cách (13.4) & Độ hấp dẫn (13.5)',
         tex: 'r_{ij} = \\sqrt{\\sum_{k=1}^{D} (x_{i,k} - x_{j,k})^2}, \\qquad \\beta = \\beta_0 e^{-\\gamma r_{ij}^2}',
         ariaLabel: 'r_ij = sqrt(sum((x_ik - x_jk)^2)), beta = beta_0 * exp(-gamma * r_ij^2)',
       },
       {
-        label: 'Quy tắc chọn γ (13.6) & Giảm nhiễu (13.7)',
+        label: 'Chọn γ (13.6) & Hạ bước nhiễu (13.7)',
         tex: '\\gamma = \\frac{1}{L^2}, \\qquad \\alpha = \\alpha_0 \\theta^t \\; (0 < \\theta < 1)',
         ariaLabel: 'gamma = 1 / L^2, alpha = alpha_0 * theta^t',
       },
     ],
     codeTargetFile: 'core/parameters.py',
     codeTasks: [
-      'Cài đặt lớp FAParameters gồm các hàm tính khoảng cách calc_distance(xi, xj), độ hấp dẫn calc_attractiveness(r) và cập nhật hệ số ngẫu nhiên update_alpha(alpha, theta).',
+      'Viết lớp FAParameters gồm calc_distance(xi, xj), calc_attractiveness(r) và update_alpha(alpha, theta).',
     ],
   },
   {
@@ -142,22 +143,22 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Quỳnh Trâm',
     memberNumber: 3,
     stageId: 2,
-    roleTitle: 'Sơ đồ khối giải thuật & quản lý quần thể',
+    shortRole: 'Sơ đồ khối & quần thể',
+    roleTitle: 'Sơ đồ khối Algorithm 12 & quản lý đàn đom đóm',
     files: 'core/population.py',
     bookRefsShort: 'Mục 13.2.2, Listing 13.1, 13.3',
     summaryTasks:
-      'Tóm tắt luồng giải thuật, vẽ sơ đồ khối và cài đặt khởi tạo đàn, giới hạn miền biên, xếp hạng nghiệm.',
-    bookRefsDetail:
-      'Mục 13.2.2 (Algorithm 12, tr. 165), Listing 13.1 (tr. 167) và Listing 13.3 (tr. 168).',
+      'Vẽ sơ đồ 5 bước theo Algorithm 12 và viết các hàm khởi tạo đàn, kẹp biên, sắp xếp nghiệm.',
+    bookRefsDetail: 'Mục 13.2.2 (Algorithm 12, tr. 165), Listing 13.1 (tr. 167) và Listing 13.3 (tr. 168).',
     theoryTasks: [
-      'Tóm tắt luồng hoạt động tổng thể của FA và thiết kế sơ đồ khối bám sát mã giả Algorithm 12.',
-      'Trình bày quy trình khởi tạo ngẫu nhiên n đom đóm trong miền [Lb, Ub], cơ chế kẹp biên khi vượt miền hợp lệ và bước xếp hạng tìm nghiệm tốt nhất cuối mỗi thế hệ.',
+      'Tóm tắt luồng chạy của FA và vẽ sơ đồ khối khớp với mã giả Algorithm 12 trong sách.',
+      'Trình bày cách rải đều n cá thể ban đầu trên [Lb, Ub], giữ tọa độ không văng khỏi biên và xếp hạng cuối mỗi vòng.',
     ],
     codeTargetFile: 'core/population.py',
     codeTasks: [
-      'Hàm init_population(n, problem): sinh vị trí ban đầu phân bố đều trong [Lb, Ub] và tính độ sáng ban đầu (Listing 13.1).',
-      'Hàm find_limits(ns, Lb, Ub): đưa các tọa độ vượt ngoài cận dưới hoặc cận trên quay về biên hợp lệ (Listing 13.3).',
-      'Hàm rank_fireflies(ns, Lightn): sắp xếp quần thể theo giá trị hàm mục tiêu và trích xuất nghiệm tốt nhất nbest, fbest.',
+      'Viết init_population(n, problem) tạo quần thể ban đầu và tính giá trị hàm mục tiêu (Listing 13.1).',
+      'Viết find_limits(ns, Lb, Ub) kéo các chiều vượt biên về đúng ngưỡng Lb, Ub (Listing 13.3).',
+      'Viết rank_fireflies(ns, Lightn) sắp xếp đàn và lấy ra nbest, fbest.',
     ],
   },
   {
@@ -166,28 +167,29 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Nhật Mai',
     memberNumber: 4,
     stageId: 3,
-    roleTitle: 'Công thức cập nhật vị trí & bước nhảy ngẫu nhiên',
+    shortRole: 'Công thức dịch chuyển cặp',
+    roleTitle: 'Phương trình chuyển động (13.3) & bước nhiễu ngẫu nhiên',
     files: 'core/engine.py',
     bookRefsShort: 'Mục 13.2.1, Listing 13.2, 13.4',
     summaryTasks:
-      'Phân tích công thức cập nhật vị trí (13.3), thành phần bước nhảy ngẫu nhiên và cài đặt hàm di chuyển cặp đom đóm.',
+      'Mổ xẻ công thức cập nhật vị trí (13.3), số hạng nhiễu ngẫu nhiên và viết hàm dịch chuyển từng cặp (i, j).',
     bookRefsDetail:
       'Mục 13.2.1 (Phương trình 13.3, tr. 164–165), Listing 13.2 (tr. 167) và Listing 13.4 C++ (tr. 169).',
     theoryTasks: [
-      'Phân tích phương trình chuyển động (13.3), vai trò của lực hút về phía cá thể sáng hơn và điều kiện f(x_j) < f(x_i) trong bài toán cực tiểu hóa.',
-      'Đối chiếu cách viết vector ngẫu nhiên ε_i^t trong lý thuyết (phân phối chuẩn) với công thức thực tế trong mã Matlab/C++ ở Listing 13.2 & 13.4: steps = alpha * (rand - 0.5) * scale.',
+      'Giải thích từng vế của công thức cập nhật vị trí (13.3) và điều kiện chỉ bay khi f(x_j) < f(x_i) ở bài toán tìm cực tiểu.',
+      'Chỉ rõ sự khác nhau giữa ký hiệu nhiễu chuẩn ε_i^t trong lý thuyết với cách code thực tế trong sách: steps = alpha * (rand - 0.5) * scale.',
     ],
     formulas: [
       {
-        label: 'Phương trình chuyển động (13.3)',
+        label: 'Phương trình cập nhật vị trí (13.3)',
         tex: '\\mathbf{x}_i^{t+1} = \\mathbf{x}_i^t + \\beta_0 e^{-\\gamma r_{ij}^2}(\\mathbf{x}_j^t - \\mathbf{x}_i^t) + \\alpha \\boldsymbol{\\epsilon}_i^t',
         ariaLabel: 'x_i^(t+1) = x_i^t + beta_0 * exp(-gamma * r_ij^2) * (x_j^t - x_i^t) + alpha * eps_i^t',
       },
     ],
     codeTargetFile: 'core/engine.py',
     codeTasks: [
-      'Cài đặt hàm move_firefly_pair(...) kiểm tra độ sáng từng cặp (i, j), tính r_ij, hệ số hút β và cập nhật vị trí mới.',
-      'Hỗ trợ truyền vector nhiễu cố định custom_eps để tái lập chính xác phép tính tay ở Mục 13.5.',
+      'Viết hàm move_firefly_pair(...) tính r_ij, lực hút β và vị trí mới khi gặp cá thể sáng hơn.',
+      'Cho phép truyền sẵn vector nhiễu custom_eps để chạy khớp tuyệt đối bài tính tay ở Mục 13.5.',
     ],
   },
   {
@@ -196,21 +198,22 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Trâm Anh',
     memberNumber: 5,
     stageId: 3,
-    roleTitle: 'Vòng lặp tối ưu hai tầng & bộ giải FireflySolver',
+    shortRole: 'Vòng lặp chính FireflySolver',
+    roleTitle: 'Vòng lặp hai tầng O(n²) & đối chiếu mã Matlab/C++',
     files: 'core/engine.py',
     bookRefsShort: 'Mục 13.2.2, Listing 13.2, 13.4',
     summaryTasks:
-      'Giải thích vòng lặp hai tầng của thuật toán, đối chiếu mã Matlab/C++ trong sách và viết bộ giải chính.',
+      'Trình bày vòng lặp lồng nhau O(n²), so sánh code Matlab với C++ trong sách và ráp bộ giải FireflySolver.',
     bookRefsDetail:
       'Mục 13.2.2 (tr. 165), Listing 13.2 (Matlab, tr. 167–168) và Listing 13.4 (C++, tr. 168–170).',
     theoryTasks: [
-      'Trình bày thứ tự thực thi của vòng lặp theo thế hệ t = 1 → t_max và hai vòng lặp lồng nhau so sánh mọi cặp đom đóm (i, j) trong đàn.',
-      'So sánh cách tổ chức cấu trúc dữ liệu, sinh số ngẫu nhiên, kẹp biên và sắp xếp nghiệm giữa bản Matlab (Listing 13.1–13.3) và bản C++ (Listing 13.4) trong sách.',
+      'Theo dõi thứ tự chạy qua từng thế hệ t = 1 → t_max và hai vòng for lồng nhau quét mọi cặp (i, j).',
+      'So sánh bản Matlab (Listing 13.1–13.3, tính vector gọn) với bản C++ (Listing 13.4, mảng tĩnh và tự viết hàm chọn min).',
     ],
     codeTargetFile: 'core/engine.py',
     codeTasks: [
-      'Xây dựng lớp FireflySolver kết nối các bước khởi tạo, tính tham số, di chuyển cặp, kẹp biên và xếp hạng trong phương thức run(t_max).',
-      'Ghi lại lịch sử tọa độ đàn, fbest, nbest và α qua từng vòng lặp để phục vụ kiểm chứng và vẽ biểu đồ.',
+      'Viết lớp FireflySolver ghép trọn vẹn khởi tạo, hạ α, dịch chuyển cặp, kẹp biên và xếp hạng trong hàm run(t_max).',
+      'Lưu lại lịch sử vị trí đàn, fbest, nbest và α ở mỗi thế hệ để vẽ đồ thị.',
     ],
   },
   {
@@ -219,28 +222,28 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Tấn Thịnh',
     memberNumber: 6,
     stageId: 4,
-    roleTitle: 'Bài toán mẫu tính tay 3 chiều (Mục 13.5)',
+    shortRole: 'Bài toán tính tay 3D',
+    roleTitle: 'Giải tay từng bước ví dụ 5 đom đóm 3D (Mục 13.5)',
     files: 'simulations/demos.py',
     bookRefsShort: 'Mục 13.5 (tr. 170–172)',
     summaryTasks:
-      'Tính tay từng bước bài toán mẫu 5 đom đóm trong không gian 3 chiều và lập trình kịch bản kiểm chứng.',
-    bookRefsDetail:
-      'Mục 13.5 (tr. 170–172, từ Phương trình 13.10 đến 13.18).',
+      'Tính tay chi tiết ví dụ 5 đom đóm trong không gian 3D ở Mục 13.5 và code hàm kiểm chứng lại số liệu.',
+    bookRefsDetail: 'Mục 13.5 (tr. 170–172, từ Phương trình 13.10 đến 13.18).',
     theoryTasks: [
-      'Trình bày lời giải từng bước bài toán mặt cầu dịch tâm 3 chiều trên [-5, 5]^3 với n = 5 đom đóm ban đầu và α₀ = 1, β₀ = 1, θ = 0.97, γ = 0.1 theo (13.10)–(13.11).',
-      'Kiểm tra bước nhảy cặp x₂ → x₁ theo (13.12)–(13.16): r₂₁ = √17 (đối chiếu chỗ in nhầm chữ số trong sách), thu được x₂ mới = [3.97, 0.75, 4.73] giảm f từ 33.00 xuống 22.79 nên chấp nhận.',
-      'Kiểm tra bước nhảy cặp x₃ → x₁ theo (13.17)–(13.18): r₃₁ = √50, vị trí thử làm f tăng từ 26.00 lên 27.73 nên giữ nguyên vị trí cũ.',
+      'Giải tay bài toán mặt cầu dịch tâm 3D trên [-5, 5]^3 với 5 cá thể ban đầu, α₀ = 1, β₀ = 1, θ = 0.97, γ = 0.1 theo (13.10)–(13.11).',
+      'Tính bước nhảy x₂ → x₁ (13.12)–(13.16): r₂₁ = √17 (đính chính chỗ sách in nhầm chữ số), ra x₂ mới = [3.97, 0.75, 4.73], f giảm từ 33.00 xuống 22.79.',
+      'Tính bước nhảy x₃ → x₁ (13.17)–(13.18): r₃₁ = √50, điểm thử làm f tăng từ 26.00 lên 27.73 nên bác bỏ.',
     ],
     formulas: [
       {
-        label: 'Khoảng cách & cập nhật tại t = 1 (13.13)–(13.18)',
+        label: 'Hai cặp kiểm tra tại t = 1 (13.13)–(13.18)',
         tex: 'r_{21} = \\sqrt{17} \\implies f(\\mathbf{x}_2^{t+1}) = 22.79 < 33, \\qquad r_{31} = \\sqrt{50} \\implies f(\\mathbf{x}_3^{t+1}) = 27.73 > 26',
-        ariaLabel: 'r_21 = sqrt(17) => f = 22.79 < 33 (chap nhan); r_31 = sqrt(50) => f = 27.73 > 26 (tu choi)',
+        ariaLabel: 'r_21 = sqrt(17) => f = 22.79 < 33; r_31 = sqrt(50) => f = 27.73 > 26',
       },
     ],
     codeTargetFile: 'simulations/demos.py',
     codeTasks: [
-      'Cài đặt hàm run_worked_example_13_5() nạp đúng 5 tọa độ ban đầu và các vector nhiễu trong sách, đối chiếu khớp số liệu từng bước.',
+      'Viết run_worked_example_13_5() nạp đúng 5 điểm đầu và vector nhiễu trong sách để đối chiếu từng con số.',
     ],
   },
   {
@@ -249,16 +252,16 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'An Khang',
     memberNumber: 7,
     stageId: 4,
-    roleTitle: 'Xử lý ràng buộc bằng hàm phạt tĩnh (Mục 13.6)',
-    files: 'core/problems.py & demos.py',
+    shortRole: 'Hàm phạt ràng buộc',
+    roleTitle: 'Tối ưu có ràng buộc bằng hàm phạt tĩnh (Mục 13.6)',
+    files: 'core/problems.py · demos.py',
     bookRefsShort: 'Mục 13.6 (tr. 172–173)',
     summaryTasks:
-      'Trình bày cách xử lý ràng buộc bằng hàm phạt tĩnh Π(x) và cài đặt bài toán tối ưu có ràng buộc.',
-    bookRefsDetail:
-      'Mục 13.6 (tr. 172–173, từ Phương trình 13.20 đến 13.24).',
+      'Trình bày cách cộng đại lượng phạt Π(x) cho bài toán có ràng buộc và cài đặt kịch bản chạy thử.',
+    bookRefsDetail: 'Mục 13.6 (tr. 172–173, từ Phương trình 13.20 đến 13.24).',
     theoryTasks: [
-      'Trình bày bài toán tối ưu tổng quát có M ràng buộc đẳng thức φ_i(x) = 0 và N ràng buộc bất đẳng thức ψ_j(x) ≤ 0 theo (13.20)–(13.22).',
-      'Giải thích cách đưa bài toán có ràng buộc về dạng không ràng buộc bằng hàm phạt tĩnh Π(x) với hệ số phạt lớn λ > 0 theo (13.23)–(13.24).',
+      'Phát biểu bài toán tối ưu có M ràng buộc đẳng thức φ_i(x) = 0 và N bất đẳng thức ψ_j(x) ≤ 0 theo (13.20)–(13.22).',
+      'Cách chuyển về bài toán không ràng buộc nhờ hàm phạt tĩnh Π(x) với trọng số phạt lớn λ > 0 theo (13.23)–(13.24).',
     ],
     formulas: [
       {
@@ -269,8 +272,8 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     ],
     codeTargetFile: 'core/problems.py & simulations/demos.py',
     codeTasks: [
-      'Xây dựng lớp ConstrainedProblem kế thừa UnconstrainedProblem, cộng thêm đại lượng phạt vi phạm ràng buộc theo (13.24).',
-      'Lập trình kịch bản run_constrained_demo() giải bài toán mẫu có ràng buộc bằng FireflySolver.',
+      'Viết lớp ConstrainedProblem kế thừa UnconstrainedProblem, cộng thêm mức phạt khi vi phạm điều kiện ràng buộc.',
+      'Viết run_constrained_demo() giải bài toán mẫu có ràng buộc bằng FireflySolver.',
     ],
   },
   {
@@ -279,27 +282,27 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Thiên Đức',
     memberNumber: 8,
     stageId: 5,
-    roleTitle: 'Thực nghiệm tốc độ hội tụ & quy mô bài toán',
+    shortRole: 'Hội tụ & quy mô đàn',
+    roleTitle: 'Thực nghiệm tốc độ hội tụ & mở rộng số chiều',
     files: 'simulations/experiments.py',
     bookRefsShort: 'Cuối Mục 13.5 & Mục 13.3',
     summaryTasks:
-      'Thực nghiệm tốc độ hội tụ tại mốc t = 100, 200, 500 và đánh giá ảnh hưởng khi thay đổi cỡ đàn n, số chiều D.',
-    bookRefsDetail:
-      'Cuối Mục 13.5 (tr. 172, Phương trình 13.19) và Mục 13.3 (tr. 166–167).',
+      'Đo sai số hội tụ ở mốc t = 100, 200, 500 và khảo sát khi tăng cỡ đàn n cũng như số chiều D.',
+    bookRefsDetail: 'Cuối Mục 13.5 (tr. 172, Phương trình 13.19) và Mục 13.3 (tr. 166–167).',
     theoryTasks: [
-      'Phân tích các mốc hội tụ chuẩn ở (13.19) với n = 20 đom đóm: sai số giảm từ 4.1 × 10⁻⁴ (t = 100) xuống 2.9 × 10⁻⁷ (t = 200) và đạt 2.3 × 10⁻¹⁴ tại t = 500.',
-      'Đánh giá sự thay đổi về tốc độ hội tụ, độ chính xác nghiệm và thời gian chạy khi tăng số chiều (D = 3 lên D = 10) hoặc thay đổi cỡ đàn (n = 5, 10, 20, 50).',
+      'Đối chiếu các mốc hội tụ ở (13.19) với n = 20 đom đóm: sai số hạ từ 4.1 × 10⁻⁴ (t = 100) xuống 2.9 × 10⁻⁷ (t = 200) và 2.3 × 10⁻¹⁴ (t = 500).',
+      'Xem tốc độ hội tụ, sai số cuối và thời gian chạy thay đổi thế nào khi nâng từ 3D lên 10D hoặc đổi cỡ đàn n = 5, 10, 20, 50.',
     ],
     formulas: [
       {
-        label: 'Mốc hội tụ chuẩn (13.19)',
+        label: 'Mốc hội tụ trong sách (13.19)',
         tex: 't = 100: \\; 4.1 \\times 10^{-4} \\;\\longrightarrow\\; t = 200: \\; 2.9 \\times 10^{-7} \\;\\longrightarrow\\; t = 500: \\; 2.3 \\times 10^{-14}',
         ariaLabel: 't=100: 4.1e-4, t=200: 2.9e-7, t=500: 2.3e-14',
       },
     ],
     codeTargetFile: 'simulations/experiments.py',
     codeTasks: [
-      'Cài đặt hàm exp_convergence_benchmark() chạy lặp lại nhiều seed ở các mốc t = 100, 200, 500 và các tổ hợp (n, D), thống kê trung bình, độ lệch chuẩn và thời gian chạy.',
+      'Viết exp_convergence_benchmark() chạy lặp nhiều seed ở các mốc t = 100, 200, 500 và các cặp (n, D), tính trung bình, độ lệch chuẩn, thời gian chạy.',
     ],
   },
   {
@@ -308,20 +311,20 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Nguyễn Ân',
     memberNumber: 9,
     stageId: 5,
-    roleTitle: 'Thực nghiệm độ nhạy tham số γ và θ',
+    shortRole: 'Độ nhạy tham số γ, θ',
+    roleTitle: 'Thực nghiệm ảnh hưởng của hệ số hấp thụ γ và làm nguội θ',
     files: 'simulations/experiments.py',
     bookRefsShort: 'Mục 13.2.3 (tr. 165–166)',
     summaryTasks:
-      'Thực nghiệm độ nhạy của hệ số hấp thụ γ và hệ số giảm nhiễu θ lên khả năng hội tụ của đàn.',
-    bookRefsDetail:
-      'Mục 13.2.3 (tr. 165–166).',
+      'Chạy thực nghiệm quét các mức γ và θ để kiểm chứng ảnh hưởng lên khả năng tụ đàn và độ chính xác cuối.',
+    bookRefsDetail: 'Mục 13.2.3 (tr. 165–166).',
     theoryTasks: [
-      'Phân tích ảnh hưởng của hệ số hấp thụ γ ở ba miền đặc trưng: rất nhỏ (10⁻⁵), trung bình theo thang bài toán (0.01; 0.1) và rất lớn (50) để kiểm chứng Mục 13.2.3.',
-      'So sánh quỹ đạo hội tụ khi làm nguội dần bước nhảy ngẫu nhiên (θ = 0.97) với khi giữ biên độ nhiễu không đổi (θ = 1.0).',
+      'Thử ba vùng giá trị γ đặc trưng: rất nhỏ (10⁻⁵), vừa phải theo kích thước miền (0.01; 0.1) và rất lớn (50) đúng theo Mục 13.2.3.',
+      'So sánh đường hội tụ khi giảm dần biên độ nhiễu (θ = 0.97) với khi giữ nguyên bước nhảy (θ = 1.0, đàn dao động quanh đáy).',
     ],
     codeTargetFile: 'simulations/experiments.py',
     codeTasks: [
-      'Cài đặt hàm exp_parameter_sensitivity() quét lưới γ ∈ {10⁻⁵, 0.01, 0.1, 1.0, 50} và θ ∈ {0.9, 0.97, 1.0}, ghi nhận sai số và độ phân tán đàn qua từng vòng lặp.',
+      'Viết exp_parameter_sensitivity() quét γ ∈ {10⁻⁵, 0.01, 0.1, 1.0, 50} và θ ∈ {0.9, 0.97, 1.0}, ghi lại sai số và bán kính phân tán đàn.',
     ],
   },
   {
@@ -330,21 +333,21 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Tiến Tài',
     memberNumber: 10,
     stageId: 5,
-    roleTitle: 'Thực nghiệm hàm đa cực trị & tổng hợp dữ liệu',
-    files: 'experiments.py & main_export.py',
+    shortRole: 'Đa cực trị & xuất JSON',
+    roleTitle: 'Thực nghiệm tách đàn đa cực trị & xuất dữ liệu tổng hợp',
+    files: 'experiments.py · main_export.py',
     bookRefsShort: 'Mục 13.1, 13.7 & Tài liệu TK',
     summaryTasks:
-      'Thực nghiệm tách đàn trên hàm đa cực trị, tổng kết ưu nhược điểm FA và xuất bộ dữ liệu kết quả.',
-    bookRefsDetail:
-      'Mục 13.1 (tr. 163), Mục 13.7 (tr. 173) và Tài liệu tham khảo [2, 3, 4] (tr. 173–174).',
+      'Kiểm tra khả năng tự chia nhóm trên hàm Himmelblau/Rastrigin, đo chi phí O(n²) và xuất toàn bộ JSON kết quả.',
+    bookRefsDetail: 'Mục 13.1 (tr. 163), Mục 13.7 (tr. 173) và Tài liệu tham khảo [2, 3, 4] (tr. 173–174).',
     theoryTasks: [
-      'Giải thích cơ chế tự tách đàn cục bộ khi tầm nhìn L = 1/√γ nhỏ hơn khoảng cách giữa các đỉnh, giúp FA tìm đồng thời nhiều cực trị trên mặt hàm phức tạp.',
-      'Tổng kết ưu điểm, hạn chế về chi phí so sánh cặp O(n²) và các hướng cải tiến như giảm dần α hay kết hợp tìm kiếm cục bộ (Hybrid FA) ở Mục 13.7.',
+      'Chỉ ra cách đàn tự tách thành nhiều nhóm nhỏ khi bán kính nhìn thấy L = 1/√γ nhỏ hơn khoảng cách giữa các đỉnh cực trị.',
+      'Đánh giá ưu nhược điểm của FA: mạnh ở đa cực trị nhưng tốn O(n²) phép so sánh mỗi vòng, cùng hướng kết hợp tìm kiếm cục bộ (Hybrid FA, Mục 13.7).',
     ],
     codeTargetFile: 'simulations/experiments.py & main_export.py',
     codeTasks: [
-      'Cài đặt thực nghiệm trên hàm đa cực trị (Himmelblau, Rastrigin), đo chi phí thời gian O(n²) và đối chiếu biến thể Hybrid FA.',
-      'Viết script tổng hợp main_export.py chạy toàn bộ các bài thực nghiệm và xuất bộ file JSON kết quả.',
+      'Chạy thực nghiệm trên hàm Himmelblau (4 đáy toàn cục) và Rastrigin, đo thời gian theo n và so với bản Hybrid FA.',
+      'Viết main_export.py gom kết quả tất cả thực nghiệm ra bộ file JSON cho web.',
     ],
   },
   {
@@ -353,24 +356,25 @@ export const TEAM_ASSIGNMENTS: readonly TeamMemberAssignment[] = [
     memberName: 'Gia Mẫn',
     memberNumber: 11,
     stageId: 6,
-    roleTitle: 'Web trực quan hóa thuật toán & mở rộng ứng dụng thực tế',
+    shortRole: 'Web trực quan & nén ảnh',
+    roleTitle: 'Làm web trực quan hóa & mở rộng nén ảnh thực tế',
     files: 'web_ui/',
     bookRefsShort: 'Chương 13 & Mở rộng thực tế',
     summaryTasks:
-      'Xây dựng web trực quan hóa thuật toán, mô phỏng tương tác và làm phần mở rộng ứng dụng nén ảnh thực tế.',
+      'Làm web minh họa trực quan thuật toán, khu vực chạy thử trực tiếp và phần mở rộng ứng dụng nén ảnh màu RGB.',
     bookRefsDetail:
-      'Tổng hợp nội dung Chương 13 (Xin-She Yang, 2008) và mở rộng bài toán lượng tử hóa màu nén ảnh RGB trong thực tế.',
+      'Toàn bộ nội dung Chương 13 (Xin-She Yang, 2008) và bài toán mở rộng lượng tử hóa bảng màu nén ảnh thực tế.',
     theoryTasks: [
-      'Trực quan hóa nguyên lý suy giảm ánh sáng, lực hút theo khoảng cách và vai trò của bộ tham số α, β₀, γ, θ bằng đồ họa tương tác.',
-      'Thiết kế sơ đồ khối 5 bước đồng bộ theo cuộn trang, đối chiếu từng bước với mã giả và minh họa bài toán tính tay 3 chiều ở Mục 13.5.',
-      'Trình bày hệ thống biểu đồ thực nghiệm hội tụ, độ nhạy tham số, chi phí O(n²) và quá trình tách đàn trên mặt hàm đa cực trị.',
-      'Nghiên cứu và phát triển phần mở rộng thực tế: ứng dụng Thuật toán Đom đóm (FA & Hybrid FA) để gom cụm bảng màu 3D RGB và nén kích thước ảnh 24-bit.',
+      'Minh họa trực quan quy luật giảm sáng, lực hút theo khoảng cách và tác động của từng tham số α, β₀, γ, θ.',
+      'Dựng sơ đồ 5 bước khớp mã giả và không gian 3D cho bài toán tính tay ở Mục 13.5.',
+      'Biểu diễn trực quan số liệu 6 bài thực nghiệm: hội tụ 500 vòng, độ nhạy γ/θ, chi phí O(n²) và tách đàn 4 đỉnh Himmelblau.',
+      'Làm phần mở rộng thực tế: dùng FA và Hybrid FA tìm K tâm màu đại diện trong không gian RGB để nén ảnh 24-bit.',
     ],
     codeTargetFile: 'web_ui/',
     codeTasks: [
-      'Xây dựng web trực quan nhiều trang bằng React, TypeScript, Three.js và GSAP, kết nối bộ dữ liệu thực nghiệm JSON xuất từ Python.',
-      'Lập trình khu vực chạy thử FA thời gian thực trên 7 mặt hàm chuẩn (Rastrigin, Ackley, Himmelblau, Rosenbrock...).',
-      'Cài đặt Web Worker nén ảnh bằng FA/K-Means, trực quan hóa đám mây điểm màu trong khối RGB 3D, thanh kéo đối chiếu ảnh trước/sau nén và các chỉ số PSNR, MSE.',
+      'Code toàn bộ giao diện web (React, TypeScript, Three.js, GSAP) và đọc bộ dữ liệu JSON từ nhánh Python.',
+      'Viết khu vực chạy thử FA trực tiếp trên 7 mặt hàm chuẩn nhiều cực trị.',
+      'Viết Web Worker nén ảnh màu bằng FA/K-Means, dựng khối điểm màu RGB 3D, thanh kéo so sánh ảnh trước/sau nén và tính PSNR, MSE.',
     ],
   },
 ] as const;

@@ -33,6 +33,7 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
   const navigate = useNavigate();
   const { returnFromSubpage } = useRouteCurtain();
   const pageRef = useRef<HTMLElement>(null);
+  const navStripRef = useRef<HTMLElement>(null);
 
   const selectedMember = findMemberByParam(memberId);
   const selectedIdx = selectedMember
@@ -56,12 +57,24 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
 
   useEffect(() => {
     document.title = selectedMember
-      ? `${selectedMember.memberName} · ${selectedMember.roleTitle} — Phân công Nhóm`
-      : 'Chi tiết Phân công 6 Giai đoạn — Thuật toán Đom đóm';
+      ? `${selectedMember.memberName} · ${selectedMember.shortRole} — Phân công Nhóm`
+      : 'Phân công nhiệm vụ 6 giai đoạn — Thuật toán Đom đóm';
     return () => {
       document.title = 'Thuật toán Đom đóm';
     };
   }, [selectedMember]);
+
+  // Keep active member link visible inside single-row horizontal scroller without scrolling page
+  useEffect(() => {
+    const strip = navStripRef.current;
+    if (!strip) return;
+    const activeLink = strip.querySelector<HTMLElement>('[aria-current="page"]');
+    activeLink?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      container: 'nearest',
+    } as ScrollIntoViewOptions);
+  }, [selectedMember?.slug]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -91,12 +104,12 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
       if (blocks.length > 0) {
         gsap.fromTo(
           blocks,
-          { y: 20, autoAlpha: 0 },
+          { y: 14, autoAlpha: 0 },
           {
             y: 0,
             autoAlpha: 1,
-            duration: 0.58,
-            stagger: 0.06,
+            duration: 0.46,
+            stagger: 0.045,
             ease: 'power3.out',
           }
         );
@@ -105,74 +118,9 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
     { scope: pageRef, dependencies: [selectedMember?.slug ?? 'all', reducedMotion] }
   );
 
-  const renderMemberDetailCard = (member: TeamMemberAssignment) => {
-    const stageMeta = ASSIGNMENT_STAGES.find((s) => s.id === member.stageId);
-    return (
-      <article key={member.slug} className="qa-card assign-member-card js-assign-enter">
-        <div className="assign-member-card__top">
-          <div className="assign-member-card__badges">
-            <span className="assign-tv-pill assign-tv-pill--active">
-              {member.memberName}
-            </span>
-            {stageMeta ? (
-              <span className="assign-stage-tag">
-                {stageMeta.code} · {stageMeta.modulesLabel}
-              </span>
-            ) : null}
-          </div>
-          <code className="assign-file-chip">{member.files}</code>
-        </div>
-
-        <h3 className="assign-member-card__title">
-          {member.memberName} — {member.roleTitle}
-        </h3>
-
-        {member.bookRefsDetail ? (
-          <div className="assign-meta-strip">
-            <span className="assign-meta-strip__label">PHẦN SÁCH BÁM SÁT</span>
-            <span>{member.bookRefsDetail}</span>
-          </div>
-        ) : null}
-
-        <div className="assign-detail-columns">
-          <div className="assign-detail-block">
-            <h4 className="assign-detail-block__heading">
-              {member.slug === 'gia-man'
-                ? 'Nội dung trực quan hóa & mở rộng thực tế'
-                : 'Phần lý thuyết phụ trách'}
-            </h4>
-            <ul className="qa-list">
-              {member.theoryTasks.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="assign-detail-block">
-            <h4 className="assign-detail-block__heading">
-              Phần lập trình ({member.codeTargetFile ?? member.files})
-            </h4>
-            <ul className="qa-list">
-              {member.codeTasks.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {member.formulas && member.formulas.length > 0 ? (
-          <div className="assign-formula-stack">
-            {member.formulas.map((fm, idx) => (
-              <div key={idx} className="worked-formula-box worked-formula-box--single">
-                <span className="assign-formula-label">{fm.label}</span>
-                <MathFormula tex={fm.tex} ariaLabel={fm.ariaLabel} />
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </article>
-    );
-  };
+  const selectedStage = selectedMember
+    ? ASSIGNMENT_STAGES.find((s) => s.id === selectedMember.stageId)
+    : null;
 
   return (
     <>
@@ -188,7 +136,9 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
           <header className="detail-subpage__header">
             <div className="detail-subpage__titles">
               <span className="algo-chapter-eyebrow">
-                PHÂN CÔNG NHIỆM VỤ · NHÓM SEMINAR THUẬT TOÁN ĐOM ĐÓM
+                {selectedMember
+                  ? `THÀNH VIÊN ${String(selectedMember.memberNumber).padStart(2, '0')} / 11 · ${selectedStage?.code ?? ''}`
+                  : 'PHÂN CÔNG NHIỆM VỤ · 11 THÀNH VIÊN · 6 GIAI ĐOẠN'}
               </span>
               <h1
                 id="assignment-detail-heading"
@@ -203,17 +153,17 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
                   >
                     {selectedMember
                       ? selectedMember.memberName
-                      : 'Bảng phân công chi tiết'}
+                      : 'Phân công nhiệm vụ'}
                   </BlockReveal>
                   <BlockReveal
                     color="olive-lime"
-                    delay={0.18}
+                    delay={0.16}
                     reducedMotion={reducedMotion}
                   >
                     <span className="editorial-serif editorial-serif--sage-gold">
                       {selectedMember
                         ? selectedMember.roleTitle
-                        : 'theo từng giai đoạn thực hiện'}
+                        : 'theo 6 giai đoạn thực hiện'}
                     </span>
                   </BlockReveal>
                 </span>
@@ -257,67 +207,140 @@ export function AssignmentDetailPage({ reducedMotion }: AssignmentDetailPageProp
             ) : null}
           </header>
 
-          <div className="detail-subpage__card">
-            <div
-              className="assign-subpage-Controls"
-              role="navigation"
-              aria-label="Chọn xem toàn bộ 6 giai đoạn hoặc từng thành viên"
+          {/* Single-Row Scrollable Editorial Index Bar (No Multi-Row Pill Soup!) */}
+          <nav
+            ref={navStripRef}
+            className="assign-index-bar"
+            aria-label="Chọn xem tổng quan hoặc từng thành viên"
+          >
+            <Link
+              to="/phan-cong"
+              replace
+              aria-current={!selectedMember ? 'page' : undefined}
+              className="assign-index-link"
             >
-              <Link
-                to="/phan-cong"
-                replace
-                className={`chip-btn ${!selectedMember ? 'chip-btn--active' : ''}`}
-                style={{ textDecoration: 'none' }}
-              >
-                Tất cả 6 Giai đoạn
-              </Link>
-              {TEAM_ASSIGNMENTS.map((m) => {
-                const isAct = selectedMember?.slug === m.slug;
+              <span>Tổng quan (11)</span>
+            </Link>
+            {TEAM_ASSIGNMENTS.map((m) => {
+              const isAct = selectedMember?.slug === m.slug;
+              return (
+                <Link
+                  key={m.slug}
+                  to={`/phan-cong/${m.slug}`}
+                  replace
+                  aria-current={isAct ? 'page' : undefined}
+                  className="assign-index-link"
+                >
+                  <span className="assign-index-link__num">
+                    {String(m.memberNumber).padStart(2, '0')}
+                  </span>
+                  <span>{m.memberName}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {selectedMember ? (
+            <article className="assign-monograph js-assign-enter">
+              <div className="assign-monograph__meta">
+                <div>
+                  <span className="assign-monograph__meta-key">FILE CODE</span>
+                  <code>{selectedMember.codeTargetFile ?? selectedMember.files}</code>
+                </div>
+                <div>
+                  <span className="assign-monograph__meta-key">PHẦN SÁCH ĐỐI CHIẾU</span>
+                  <span>{selectedMember.bookRefsDetail ?? selectedMember.bookRefsShort}</span>
+                </div>
+              </div>
+
+              <div className="assign-monograph__cols">
+                <div className="assign-monograph__col">
+                  <h2 className="assign-monograph__heading">
+                    {selectedMember.slug === 'gia-man'
+                      ? 'Nội dung trực quan hóa & mở rộng thực tế'
+                      : 'Nội dung lý thuyết phụ trách'}
+                  </h2>
+                  <ul className="assign-monograph__list">
+                    {selectedMember.theoryTasks.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="assign-monograph__col">
+                  <h2 className="assign-monograph__heading">
+                    Phần lập trình ({selectedMember.codeTargetFile ?? selectedMember.files})
+                  </h2>
+                  <ul className="assign-monograph__list">
+                    {selectedMember.codeTasks.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {selectedMember.formulas && selectedMember.formulas.length > 0 ? (
+                <div className="assign-monograph__formulas">
+                  {selectedMember.formulas.map((fm, idx) => (
+                    <div key={idx} className="assign-monograph__formula-row">
+                      <span className="assign-monograph__formula-label">{fm.label}</span>
+                      <MathFormula tex={fm.tex} ariaLabel={fm.ariaLabel} />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          ) : (
+            <div className="assign-overview-ledger" aria-label="Tổng hợp 6 giai đoạn thực hiện">
+              {ASSIGNMENT_STAGES.map((stage) => {
+                const stageMembers = TEAM_ASSIGNMENTS.filter(
+                  (m) => m.stageId === stage.id
+                );
                 return (
-                  <Link
-                    key={m.slug}
-                    to={`/phan-cong/${m.slug}`}
-                    replace
-                    className={`chip-btn ${isAct ? 'chip-btn--active' : ''}`}
-                    style={{ textDecoration: 'none' }}
-                  >
-                    {m.memberName}
-                  </Link>
+                  <section key={stage.id} className="assign-stage-row js-assign-enter">
+                    <div className="assign-stage-row__head">
+                      <span className="assign-stage-row__code">{stage.code}</span>
+                      <h2 className="assign-stage-row__title">
+                        {stage.title.replace(/^Giai đoạn \d+\s*·\s*/, '')}
+                      </h2>
+                      <code className="assign-stage-row__mod">{stage.modulesLabel}</code>
+                    </div>
+
+                    <div className="assign-stage-row__members">
+                      {stageMembers.map((m) => (
+                        <Link
+                          key={m.slug}
+                          to={`/phan-cong/${m.slug}`}
+                          replace
+                          className="assign-ledger-entry"
+                        >
+                          <div className="assign-ledger-entry__who">
+                            <span className="assign-ledger-entry__num">
+                              {String(m.memberNumber).padStart(2, '0')}
+                            </span>
+                            <strong className="assign-ledger-entry__name">
+                              {m.memberName}
+                            </strong>
+                          </div>
+
+                          <div className="assign-ledger-entry__body">
+                            <p className="assign-ledger-entry__summary">{m.summaryTasks}</p>
+                            <span className="assign-ledger-entry__meta">
+                              <code>{m.files}</code> · {m.bookRefsShort}
+                            </span>
+                          </div>
+
+                          <span className="assign-ledger-entry__open" aria-hidden="true">
+                            Chi tiết ↗
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
                 );
               })}
             </div>
-
-            {selectedMember ? (
-              renderMemberDetailCard(selectedMember)
-            ) : (
-              <div className="assign-stages-accordion" aria-label="6 giai đoạn phân công nhiệm vụ">
-                {ASSIGNMENT_STAGES.map((stage) => {
-                  const stageMembers = TEAM_ASSIGNMENTS.filter(
-                    (m) => m.stageId === stage.id
-                  );
-                  return (
-                    <details
-                      key={stage.id}
-                      open
-                      className="assign-stage-details js-assign-enter"
-                    >
-                      <summary className="assign-stage-summary">
-                        <span className="assign-stage-summary__title">
-                          {stage.title}
-                        </span>
-                        <code className="assign-stage-summary__mod">
-                          {stage.modulesLabel}
-                        </code>
-                      </summary>
-                      <div className="assign-stage-body">
-                        {stageMembers.map((m) => renderMemberDetailCard(m))}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </section>
 

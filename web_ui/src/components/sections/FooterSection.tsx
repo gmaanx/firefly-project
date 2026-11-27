@@ -1,9 +1,9 @@
-import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { useState, useRef, type MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
-import { TEAM_ASSIGNMENTS } from '../../data/teamAssignmentData';
+import { ASSIGNMENT_STAGES, TEAM_ASSIGNMENTS } from '../../data/teamAssignmentData';
 import { APP_ROUTES } from '../../lib/navigation';
 import { useSectionReveal } from '../../lib/useEditorialMotion';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
@@ -16,11 +16,21 @@ export interface FooterSectionProps {
   reducedMotion: boolean;
 }
 
+const DEFAULT_PREVIEW_SLUG = 'gia-man';
+
 export function FooterSection({ reducedMotion }: FooterSectionProps) {
   const footerRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { navigateWithCurtain, navigateWithDarkZoom } = useRouteCurtain();
+
+  const isOnAssignmentRoute = location.pathname.startsWith('/phan-cong');
+
+  const [activeSlug, setActiveSlug] = useState<string>(DEFAULT_PREVIEW_SLUG);
+  const activeMember =
+    TEAM_ASSIGNMENTS.find((m) => m.slug === activeSlug) ??
+    TEAM_ASSIGNMENTS[TEAM_ASSIGNMENTS.length - 1];
+  const activeStage = ASSIGNMENT_STAGES.find((s) => s.id === activeMember.stageId);
 
   useSectionReveal(footerRef, reducedMotion);
 
@@ -56,7 +66,15 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
     toPath: string,
     origin?: HTMLElement | MouseEvent<HTMLElement> | null
   ) => {
-    if (location.pathname.startsWith('/phan-cong')) {
+    if (
+      origin &&
+      'metaKey' in origin &&
+      (origin.metaKey || origin.ctrlKey || origin.shiftKey || origin.button !== 0)
+    ) {
+      return;
+    }
+
+    if (isOnAssignmentRoute) {
       if (origin && 'preventDefault' in origin) {
         origin.preventDefault();
       }
@@ -73,18 +91,11 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
     });
   };
 
-  const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, toPath: string) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleOpenAssignment(toPath, e.currentTarget);
-    }
-  };
-
   return (
     <footer
       id="tong-ket"
       ref={footerRef}
-      className="lando-footer-frame"
+      className={`lando-footer-frame ${isOnAssignmentRoute ? 'lando-footer-frame--compact' : ''}`.trim()}
       data-surface="dark"
       aria-labelledby="footer-heading"
     >
@@ -118,7 +129,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
           <span>ALGORITHM</span>
         </div>
 
-        {/* 1. Top-Center Lando Signature + Single-Phrase Mixed Sans/Serif Headline */}
+        {/* 1. Top-Center UP Signature + Single-Line Headline */}
         <div className="lando-footer-hero">
           <svg
             viewBox="0 0 800 570"
@@ -145,89 +156,25 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
           <h2 id="footer-heading" tabIndex={-1} className="lando-footer-headline">
             <span className="reveal-mask">
               <span className="reveal-line">
-                <span className="lando-footer-headline__sans">PHÂN CÔNG</span>{' '}
-                <span className="lando-footer-headline__serif">NHIỆM VỤ</span>
+                {isOnAssignmentRoute ? (
+                  <>
+                    <span className="lando-footer-headline__sans">THUẬT TOÁN</span>{' '}
+                    <span className="lando-footer-headline__serif">ĐOM ĐÓM</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="lando-footer-headline__sans">PHÂN CÔNG</span>{' '}
+                    <span className="lando-footer-headline__serif">NHIỆM VỤ</span>
+                  </>
+                )}
               </span>
             </span>
           </h2>
         </div>
 
-        {/* 2. Centerpiece Assignment Matrix (`Bảng Tổng hợp Phân công` — 11 Members, Clean 4 Data Columns) */}
-        <div className="lando-assign-stage reveal-fade">
-          <div
-            className="lando-assign-table-wrap"
-            tabIndex={0}
-            role="region"
-            aria-labelledby="footer-heading"
-          >
-            <table className="lando-assign-table">
-              <thead>
-                <tr>
-                  <th>Thành viên</th>
-                  <th>File phụ trách</th>
-                  <th>Mục trong sách</th>
-                  <th>Nội dung phụ trách</th>
-                  <th className="lando-assign-table__th-action">Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TEAM_ASSIGNMENTS.map((m) => (
-                  <tr
-                    key={m.slug}
-                    tabIndex={0}
-                    className="lando-assign-table__row"
-                    aria-label={`Xem chi tiết ${m.memberName}: ${m.roleTitle}`}
-                    onClick={(ev) =>
-                      handleOpenAssignment(`/phan-cong/${m.slug}`, ev.currentTarget)
-                    }
-                    onKeyDown={(ev) => handleRowKeyDown(ev, `/phan-cong/${m.slug}`)}
-                  >
-                    <td className="lando-assign-table__tv">
-                      <span className="assign-tv-pill">{m.memberName}</span>
-                    </td>
-                    <td className="lando-assign-table__file">
-                      <code>{m.files}</code>
-                    </td>
-                    <td className="lando-assign-table__book">{m.bookRefsShort}</td>
-                    <td className="lando-assign-table__tasks">{m.summaryTasks}</td>
-                    <td className="lando-assign-table__action">
-                      <Link
-                        to={`/phan-cong/${m.slug}`}
-                        className="lando-assign-row-btn"
-                        tabIndex={-1}
-                        onClick={(ev) => {
-                          if (
-                            ev.metaKey ||
-                            ev.ctrlKey ||
-                            ev.shiftKey ||
-                            ev.button !== 0
-                          ) {
-                            return;
-                          }
-                          ev.stopPropagation();
-                          handleOpenAssignment(`/phan-cong/${m.slug}`, ev);
-                        }}
-                      >
-                        <span className="lando-assign-row-btn__label">Chi tiết</span>
-                        <span className="lando-assign-row-btn__arrow-box" aria-hidden="true">
-                          <span className="lando-assign-row-btn__arrow lando-assign-row-btn__arrow--primary">
-                            ↗
-                          </span>
-                          <span className="lando-assign-row-btn__arrow lando-assign-row-btn__arrow--clone">
-                            ↗
-                          </span>
-                        </span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 3. Flanking Lando Columns (`CÁC TRANG` / `TÀI LIỆU & MÃ NGUỒN`) + Bottom-Center Solid Lime CTA */}
-        <div className="lando-footer-lower-grid">
+        {/* 2. Single-Viewport 3-Column Lando Chamber:
+               Left Wing (`CÁC TRANG`) | Center Swiss Hairline Roster + Live Dossier | Right Wing (`ĐIỂM NHẤN`) */}
+        <div className="lando-footer-lower-grid reveal-fade">
           <nav className="lando-footer-side-col" aria-label="Điều hướng các trang">
             <span className="lando-footer-side-col__label">CÁC TRANG</span>
             <ul className="lando-footer-side-col__list">
@@ -242,49 +189,124 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  to="/phan-cong"
-                  className="lando-footer-big-link lando-footer-big-link--lime"
-                  onClick={(e) => handleOpenAssignment('/phan-cong', e)}
-                >
-                  PHÂN CÔNG NHÓM
-                </Link>
-              </li>
+              {!isOnAssignmentRoute ? (
+                <li>
+                  <Link
+                    to="/phan-cong"
+                    className="lando-footer-big-link lando-footer-big-link--lime"
+                    onClick={(e) => handleOpenAssignment('/phan-cong', e)}
+                  >
+                    PHÂN CÔNG NHÓM
+                  </Link>
+                </li>
+              ) : null}
             </ul>
           </nav>
 
           <div className="lando-footer-center-dock">
-            <Link
-              to="/phan-cong"
-              aria-label="XEM CHI TIẾT PHÂN CÔNG"
-              className="lando-footer-cta-btn"
-              onClick={(e) => handleOpenAssignment('/phan-cong', e)}
-            >
-              <SplitHoverText text="XEM CHI TIẾT PHÂN CÔNG" />
-              <span className="lando-footer-cta-btn__icon" aria-hidden="true">
-                <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--primary">
-                  ↗
+            {!isOnAssignmentRoute ? (
+              <div className="lando-roster-ledger">
+                {/* 6x2 Symmetric Swiss Hairline Index (11 Members + Full 6-Stage Index Link) */}
+                <div className="lando-roster-grid" role="list" aria-label="Danh sách 11 thành viên">
+                  {TEAM_ASSIGNMENTS.map((m) => {
+                    const isFocused = m.slug === activeMember.slug;
+                    return (
+                      <Link
+                        key={m.slug}
+                        to={`/phan-cong/${m.slug}`}
+                        role="listitem"
+                        className={`lando-roster-item ${isFocused ? 'lando-roster-item--active' : ''}`}
+                        onMouseEnter={() => setActiveSlug(m.slug)}
+                        onFocus={() => setActiveSlug(m.slug)}
+                        onClick={(ev) => handleOpenAssignment(`/phan-cong/${m.slug}`, ev)}
+                      >
+                        <span className="lando-roster-item__num">
+                          {String(m.memberNumber).padStart(2, '0')}
+                        </span>
+                        <span className="lando-roster-item__name">{m.memberName}</span>
+                        <span className="lando-roster-item__role">{m.shortRole}</span>
+                        <span className="lando-roster-item__arrow" aria-hidden="true">
+                          ↗
+                        </span>
+                      </Link>
+                    );
+                  })}
+
+                  <Link
+                    to="/phan-cong"
+                    role="listitem"
+                    className="lando-roster-item lando-roster-item--all"
+                    onClick={(ev) => handleOpenAssignment('/phan-cong', ev)}
+                  >
+                    <span className="lando-roster-item__num" aria-hidden="true">∑</span>
+                    <span className="lando-roster-item__name">Đủ 6 giai đoạn</span>
+                    <span className="lando-roster-item__role">Xem toàn bộ lộ trình</span>
+                    <span className="lando-roster-item__arrow" aria-hidden="true">
+                      ↗
+                    </span>
+                  </Link>
+                </div>
+
+                {/* Quiet 2-Line Live Editorial Readout (Updates on hover/focus without layout jump) */}
+                <div className="lando-roster-spotlight" aria-live="polite">
+                  <div className="lando-roster-spotlight__meta">
+                    <span className="lando-roster-spotlight__who">
+                      {String(activeMember.memberNumber).padStart(2, '0')} · {activeMember.memberName}
+                    </span>
+                    <span className="lando-roster-spotlight__sep" aria-hidden="true">/</span>
+                    <span>{activeStage?.code}</span>
+                    <span className="lando-roster-spotlight__sep" aria-hidden="true">/</span>
+                    <code>{activeMember.files}</code>
+                    <span className="lando-roster-spotlight__sep" aria-hidden="true">/</span>
+                    <span>{activeMember.bookRefsShort}</span>
+                  </div>
+                  <p className="lando-roster-spotlight__summary">
+                    {activeMember.summaryTasks}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {isOnAssignmentRoute ? (
+              <Link
+                to="/"
+                aria-label="QUAY VỀ TRANG CHỦ"
+                className="lando-footer-cta-btn"
+                onClick={(e) => navigateWithCurtain('/', e)}
+              >
+                <SplitHoverText text="QUAY VỀ TRANG CHỦ" />
+                <span className="lando-footer-cta-btn__icon" aria-hidden="true">
+                  <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--primary">
+                    ↗
+                  </span>
+                  <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--clone">
+                    ↗
+                  </span>
                 </span>
-                <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--clone">
-                  ↗
+              </Link>
+            ) : (
+              <Link
+                to="/phan-cong"
+                aria-label="XEM CHI TIẾT PHÂN CÔNG"
+                className="lando-footer-cta-btn"
+                onClick={(e) => handleOpenAssignment('/phan-cong', e)}
+              >
+                <SplitHoverText text="XEM CHI TIẾT PHÂN CÔNG" />
+                <span className="lando-footer-cta-btn__icon" aria-hidden="true">
+                  <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--primary">
+                    ↗
+                  </span>
+                  <span className="lando-footer-cta-btn__arrow lando-footer-cta-btn__arrow--clone">
+                    ↗
+                  </span>
                 </span>
-              </span>
-            </Link>
+              </Link>
+            )}
           </div>
 
           <div className="lando-footer-side-col">
             <span className="lando-footer-side-col__label">TÀI LIỆU &amp; MÃ NGUỒN</span>
             <ul className="lando-footer-side-col__list">
-              <li>
-                <Link
-                  to="/phan-cong"
-                  className="lando-footer-big-link"
-                  onClick={(e) => handleOpenAssignment('/phan-cong', e)}
-                >
-                  6 GIAI ĐOẠN
-                </Link>
-              </li>
               <li>
                 <Link
                   to="/thuc-nghiem/hoi-tu"
@@ -304,6 +326,15 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/demo"
+                  className="lando-footer-big-link"
+                  onClick={(e) => navigateWithCurtain('/demo', e)}
+                >
+                  NÉN ẢNH RGB
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://github.com/gmaanx/firefly-project"
                   target="_blank"
@@ -317,7 +348,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
           </div>
         </div>
 
-        {/* 4. Iconic Lando Bottom-Left & Bottom-Right Raised Neon-Lime Trapezoid Ears */}
+        {/* 3. Iconic Lando Bottom-Left & Bottom-Right Raised Neon-Lime Trapezoid Ears */}
         <div className="lando-footer-ears">
           <div className="lando-footer-ear lando-footer-ear--left">
             <span className="lando-footer-ear__copy">
