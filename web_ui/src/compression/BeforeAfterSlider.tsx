@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react';
@@ -157,7 +158,11 @@ export function BeforeAfterSlider({
       <div
         ref={stageRef}
         className="ba-stage-frame"
-        style={{ aspectRatio: `${width} / ${height}` }}
+        style={
+          {
+            '--ba-aspect': String(width > 0 && height > 0 ? width / height : 1.5),
+          } as CSSProperties
+        }
         role="slider"
         tabIndex={0}
         data-local-keys="true"
