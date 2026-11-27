@@ -353,7 +353,7 @@ export function buildNocturnalWreckScene(
   clearingSpot.position.set(0.1, 8.6, 3.85);
   clearingSpot.target.position.set(0.0, -1.35, 1.45);
   clearingSpot.castShadow = true;
-  clearingSpot.shadow.mapSize.set(isMobile ? 1024 : 2048, isMobile ? 1024 : 2048);
+  clearingSpot.shadow.mapSize.set(1024, 1024);
   clearingSpot.shadow.camera.near = 2.5;
   clearingSpot.shadow.camera.far = 18.0;
   clearingSpot.shadow.bias = -0.00045;
@@ -371,30 +371,24 @@ export function buildNocturnalWreckScene(
   );
   frontMeadowSpot.position.set(-0.3, 5.2, 6.6);
   frontMeadowSpot.target.position.set(-0.15, -1.5, 2.8);
-  group.add(frontMeadowSpot);
-  group.add(frontMeadowSpot.target);
 
   // Left Boxy Lada Practicals: Contained Electric Sapphire Engine + Contained Ember-Red Arch & Cabin
-  const engineBlueLight = new THREE.PointLight(0x0c68ff, 9.5, 0.84, 2.4);
+  const engineBlueLight = new THREE.PointLight(0x0c68ff, 9.5, 0.92, 2.2);
   const wheelRedLight = new THREE.PointLight(0xff1406, 5.8, 0.96, 2.2);
-  const cabinRedLight = new THREE.PointLight(0xff1c12, 6.8, 1.78, 1.85);
+  const cabinRedLight = new THREE.PointLight(0xff1c12, 8.4, 2.05, 1.85);
 
   // Right Boxy Lada Practicals: Moody Emerald-Green Rear Cabin + Vivid Sapphire Rear Underglow
   const rightCabinGreenLight = new THREE.PointLight(0x10cf48, 0.62, 1.45, 2.0);
   const rightUnderglowBlueLight = new THREE.PointLight(0x126aff, 16.5, 2.35, 1.85);
 
-  // Center Tilted Pipe Cyan-Verdigris Glow + Interactive Cursor Lamp
+  // Center Tilted Pipe Cyan-Verdigris Glow + Interactive Cursor Lamp (analytic spill only -> saves 5 PBR lights/pixel!)
   const pipeCyanLight = new THREE.PointLight(0x1ceaa0, 3.0, 3.0, 1.8);
   const cursorLight = new THREE.PointLight(0xffb464, 0.0, 4.8, 1.7);
 
   group.add(
     engineBlueLight,
-    wheelRedLight,
     cabinRedLight,
-    rightCabinGreenLight,
-    rightUnderglowBlueLight,
-    pipeCyanLight,
-    cursorLight
+    rightUnderglowBlueLight
   );
 
   const baseLightIntensities = {

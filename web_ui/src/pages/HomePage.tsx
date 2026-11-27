@@ -208,7 +208,7 @@ export function HomePage({
               trigger: sec,
               start: 'top bottom',
               end: 'bottom top',
-              scrub: 0.9,
+              scrub: true,
             },
           }
         );

@@ -66,7 +66,7 @@ export function LandoSignatureFlourish({
             trigger: triggerEl,
             start: () => `top+=${Math.round(window.innerHeight * 0.36)} top`,
             end: () => `top+=${Math.round(window.innerHeight * 0.88)} top`,
-            scrub: 0.28,
+            scrub: true,
             invalidateOnRefresh: true,
           },
         });

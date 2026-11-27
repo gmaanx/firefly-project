@@ -310,12 +310,16 @@ function AppInner({
   }, [activeRoute, routeMeta.defaultSurface]);
 
   useEffect(() => {
+    document.documentElement.dataset.menuOpen = menuOpen ? 'true' : 'false';
+  }, [menuOpen]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isInteractiveElement(e.target)) return;
 
       const openDialog = document.querySelector('dialog[open]');
-      if (openDialog) {
+      if (openDialog || menuOpen) {
         if ((e.key === 'm' || e.key === 'M') && menuOpen) {
           e.preventDefault();
           setMenuOpen(false);
@@ -364,7 +368,12 @@ function AppInner({
         onPreloadRoute={preloadRouteChunk}
       />
 
-      <main id="main-presentation" ref={mainRef}>
+      <main
+        id="main-presentation"
+        ref={mainRef}
+        inert={menuOpen || undefined}
+        aria-hidden={menuOpen || undefined}
+      >
         {hasVisitedHome ? (
           <div
             ref={homeKeepAliveRef}
@@ -470,7 +479,7 @@ export function App() {
     }
 
     const lenis = new Lenis({
-      lerp: 0.135,
+      lerp: 0.17,
       smoothWheel: true,
       wheelMultiplier: 1.0,
       syncTouch: false,

@@ -12,7 +12,7 @@ const INTERACTIVE_SELECTOR =
   'a[href], button:not(:disabled), [role="button"], [role="slider"], [role="tab"], [data-cursor-ring], [data-hover-panel], label, summary, input, select, textarea';
 
 const DARK_ISLAND_SELECTOR =
-  '.explore-cutaway-stage, .exp-notch-card, .phase-card--active, .flowchart-formula-spotlight, .flowchart-loop-pill, .top-nav, .split-menu-dialog, dialog';
+  '.explore-cutaway-stage, .exp-notch-card, .phase-card--active, .flowchart-formula-spotlight, .flowchart-loop-pill, .top-nav--on-dark, .top-nav--menu-open, .split-menu-dialog, dialog';
 
 function computeHeroCenterAngleDeg(x: number, y: number): number {
   return (

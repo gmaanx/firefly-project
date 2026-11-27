@@ -423,7 +423,7 @@ export function ExplorationSplitSection({
               trigger: chapter,
               start: 'top bottom',
               end: 'bottom top',
-              scrub: 0.65,
+              scrub: true,
             },
           }
         );
@@ -442,7 +442,7 @@ export function ExplorationSplitSection({
               trigger: exploitSecRef.current,
               start: 'top bottom',
               end: 'bottom top',
-              scrub: 0.85,
+              scrub: true,
             },
           }
         );
@@ -507,7 +507,7 @@ export function ExplorationSplitSection({
             trigger: spine,
             start: 'top 92%',
             end: 'bottom 64%',
-            scrub: 0.45,
+            scrub: true,
           },
         });
         if (lines[0]) {
@@ -548,7 +548,7 @@ export function ExplorationSplitSection({
               trigger: exploreSecRef.current,
               start: 'top bottom',
               end: 'bottom top',
-              scrub: 0.85,
+              scrub: true,
             },
           }
         );
