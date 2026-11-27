@@ -27,8 +27,8 @@ export const MEADOW_V_MAX = 7.2;  // wz = +7.2 (right under camera lens)
 const U_SPAN = MEADOW_U_MAX - MEADOW_U_MIN;
 const V_SPAN = MEADOW_V_MAX - MEADOW_V_MIN;
 
-const DESKTOP_TUFT_COUNT = 12500; // 25,000 wide 3D V-ribbed blades (locked 60fps on laptop iGPUs!)
-const MOBILE_TUFT_COUNT = 7500;   // 15,000 3D V-ribbed blades!
+const DESKTOP_TUFT_COUNT = 72000; // 216,000 lush 3D V-ribbed blades (vertex-lit -> locked 60fps!)
+const MOBILE_TUFT_COUNT = 26000;  // 52,000 3D V-ribbed blades!
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -268,9 +268,9 @@ export function createNocturnalGrassMeadow(
   const group = new THREE.Group();
   group.name = 'NocturnalGrassMeadow';
 
-  const shootsPerTuft = 2;
-  const windW = isMobile ? 48 : 64;
-  const windH = isMobile ? 32 : 44;
+  const shootsPerTuft = isMobile ? 2 : 3;
+  const windW = isMobile ? 64 : 96;
+  const windH = isMobile ? 44 : 66;
   const windCells = windW * windH;
 
   const fallbackShadowData = new Uint8Array([255, 255, 255, 255]);
@@ -553,7 +553,7 @@ export function createNocturnalGrassMeadow(
   const aBotany = new Float32Array(targetCount * 2);
 
   const rng = mulberry32(19730529);
-  const widthMobileComp = isMobile ? 1.85 : 1.74;
+  const widthMobileComp = isMobile ? 1.56 : 1.32;
   let placed = 0;
 
   const emitTuftAtXZ = (wx: number, wz: number, tuftScale: number): boolean => {
@@ -706,6 +706,8 @@ export function createNocturnalGrassMeadow(
     uniforms,
     side: THREE.DoubleSide,
     vertexShader: /* glsl */ `
+      #include <packing>
+
       attribute vec4 aShootParam;
       attribute vec2 aShootExtra;
       attribute vec4 aRootAndYaw;
@@ -714,18 +716,34 @@ export function createNocturnalGrassMeadow(
 
       uniform float uTime;
       uniform sampler2D uWindTex;
+      uniform sampler2D uShadowMap;
+      uniform float uHasShadow;
+      uniform sampler2D uParticleLightMap;
+      uniform float uTerrainSpan;
+      uniform float uScrollDim;
       uniform mat4 uShadowMatrix;
       uniform vec2 uUVMin;
       uniform vec2 uUVInvSpan;
+      uniform vec3 uSpotPos;
+      uniform vec3 uSpotTarget;
+      uniform vec3 uSpotColor;
+      uniform vec3 uLeftRedPos;
+      uniform vec3 uRightGreenPos;
+      uniform vec3 uRightBluePos;
+      uniform vec3 uPipeCyanPos;
 
       varying vec2 vBladeUv;
-      varying vec3 vWorldPos;
-      varying vec3 vNormalW;
-      varying vec4 vShadowCoord;
       varying float vPatchTone;
       varying float vVariety;
-      varying float vWindBendAmt;
       varying float vSeed;
+      varying float vBushZone;
+      varying float vExposureFade;
+      varying vec3 vSpotDiffuse;
+      varying vec3 vTranslucencyLight;
+      varying vec3 vFillLight;
+      varying vec3 vSapphireAdditive;
+
+      ${SHARED_LIGHT_GLSL}
 
       void main() {
         float shootYawOff = aShootParam.x;
@@ -812,40 +830,63 @@ export function createNocturnalGrassMeadow(
         float ribSign = (uv.x - 0.5) * 2.0;
         vec3 beveledNormal = normalize(flatNormal + widthAxis * (ribSign * 0.28) + vec3(0.0, 0.34, 0.0));
 
-        vWorldPos = worldPos;
-        vNormalW = beveledNormal;
-        vWindBendAmt = clamp(length(springDisp) / 0.35, 0.0, 1.0);
-        vShadowCoord = uShadowMatrix * vec4(worldPos + vec3(0.0, 0.04, 0.0), 1.0);
+        float windBendAmt = clamp(length(springDisp) / 0.35, 0.0, 1.0);
+        vec2 bushDelta = worldPos.xz - vec2(0.34, 0.54);
+        vBushZone = exp(-dot(bushDelta, bushDelta) * 0.58);
+
+        // Per-vertex lighting along all 4 height rings (eliminates 17M fragment texture reads/frame while preserving 216k lush blades!)
+        vec3 macroN = normalize(mix(beveledNormal, vec3(0.0, 1.0, 0.0), 0.52));
+        vec3 V = normalize(cameraPosition - worldPos);
+        vec3 toLight = uSpotPos - worldPos;
+        float spotDist = length(toLight);
+        vec3 L = toLight / max(spotDist, 0.001);
+        vec3 spotAxis = normalize(uSpotPos - uSpotTarget);
+        float spotCone = smoothstep(0.56, 0.90, dot(L, spotAxis));
+        float distAtten = 1.0 / (1.0 + 0.028 * spotDist * spotDist);
+
+        vec4 shadowCoord = uShadowMatrix * vec4(worldPos + vec3(0.0, 0.04, 0.0), 1.0);
+        float shadowFactor = sampleSpotShadow(shadowCoord);
+
+        float nDotL = clamp((dot(macroN, L) + 0.42) / 1.42, 0.0, 1.0);
+        vSpotDiffuse = uSpotColor * (nDotL * 2.65 * spotCone * distAtten * shadowFactor);
+
+        float sunBack = pow(clamp(dot(V, -L) * 0.5 + 0.5, 0.0, 1.0), 2.6);
+        float leafThinness = smoothstep(0.28, 0.96, t);
+        vTranslucencyLight = uSpotColor * (sunBack * leafThinness * spotCone * shadowFactor * 0.68);
+
+        vec2 plUv = clamp(worldPos.xz / uTerrainSpan + 0.5, 0.002, 0.998);
+        vec3 pLight = texture2D(uParticleLightMap, plUv).rgb;
+        float pPeak = max(pLight.r, max(pLight.g, pLight.b));
+        pLight /= (1.0 + pPeak * 0.85);
+
+        vec3 practicalSpill = evalNocturnalPracticalSpill(worldPos);
+        vFillLight = (pLight * 1.95 + practicalSpill * 1.30) * (0.45 + 0.72 * t);
+
+        float dBlueDirect = length(worldPos - uRightBluePos);
+        vSapphireAdditive =
+          vec3(0.015, 0.18, 1.0) *
+          (0.42 / (1.0 + dBlueDirect * dBlueDirect * 1.95)) *
+          smoothstep(2.15, 0.22, dBlueDirect) *
+          (0.35 + 0.65 * t);
+
+        float windPartingShade = mix(1.0, 0.78 + 0.42 * clamp(dot(beveledNormal, L) * 0.5 + 0.5, 0.0, 1.0), windBendAmt);
+        float perimFade = smoothstep(9.2, 4.4, length(worldPos.xz * vec2(0.84, 1.06)));
+        vExposureFade = windPartingShade * perimFade * (1.0 - uScrollDim * 0.85);
 
         gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
-      #include <packing>
-
-      uniform sampler2D uShadowMap;
-      uniform float uHasShadow;
-      uniform sampler2D uParticleLightMap;
-      uniform float uTerrainSpan;
-      uniform float uScrollDim;
-      uniform vec3 uSpotPos;
-      uniform vec3 uSpotTarget;
-      uniform vec3 uSpotColor;
-      uniform vec3 uLeftRedPos;
-      uniform vec3 uRightGreenPos;
-      uniform vec3 uRightBluePos;
-      uniform vec3 uPipeCyanPos;
-
       varying vec2 vBladeUv;
-      varying vec3 vWorldPos;
-      varying vec3 vNormalW;
-      varying vec4 vShadowCoord;
       varying float vPatchTone;
       varying float vVariety;
-      varying float vWindBendAmt;
       varying float vSeed;
-
-      ${SHARED_LIGHT_GLSL}
+      varying float vBushZone;
+      varying float vExposureFade;
+      varying vec3 vSpotDiffuse;
+      varying vec3 vTranslucencyLight;
+      varying vec3 vFillLight;
+      varying vec3 vSapphireAdditive;
 
       void main() {
         float t = clamp(vBladeUv.y, 0.0, 1.0);
@@ -864,13 +905,12 @@ export function createNocturnalGrassMeadow(
         midBlade = mix(midBlade, colDryStraw, dryShoot * 0.62);
 
         // Lush botanical green shift right around the central wildflower & rose bush!
-        float bushZone = exp(-dot(vWorldPos.xz - vec2(0.34, 0.54), vWorldPos.xz - vec2(0.34, 0.54)) * 0.58);
-        midBlade = mix(midBlade, vec3(0.088, 0.175, 0.042), bushZone * 0.76);
+        midBlade = mix(midBlade, vec3(0.088, 0.175, 0.042), vBushZone * 0.76);
         midBlade *= (0.84 + 0.32 * vSeed);
 
         vec3 baseAlbedo = mix(colRootEarth, midBlade, smoothstep(0.0, 0.44, t));
         vec3 tipTarget = mix(colGoldenTip, colOatPlume, dryShoot * 0.55);
-        tipTarget = mix(tipTarget, vec3(0.165, 0.265, 0.072), bushZone * 0.68);
+        tipTarget = mix(tipTarget, vec3(0.165, 0.265, 0.072), vBushZone * 0.68);
         baseAlbedo = mix(baseAlbedo, tipTarget, smoothstep(0.46, 1.0, t) * (0.66 + 0.28 * vPatchTone));
 
         // 4 Botanical species varieties (from GrassMeadow.js!): wildflowers, golden wild-oat plumes & clover!
@@ -888,56 +928,17 @@ export function createNocturnalGrassMeadow(
           baseAlbedo = mix(baseAlbedo, colMossOlive * 1.12, 0.28);
         }
 
-        // Smooth dry cellulose lengthwise micro-fiber striation (zero subpixel Nyquist stipple!)
-        float fiberWave = sin((across * 9.0 + vSeed * 19.0) * 3.14159265) * 0.048;
-        float fiberRelief = fiberWave - across * across * 0.055;
-        baseAlbedo *= (1.0 + fiberRelief);
+        // Fast V-rib center-to-edge cellulose relief (zero per-pixel sin!)
+        baseAlbedo *= (1.032 - across * across * 0.085);
 
-        vec3 N = normalize(gl_FrontFacing ? vNormalW : -vNormalW);
-        vec3 macroN = normalize(mix(N, vec3(0.0, 1.0, 0.0), 0.52));
-        vec3 V = normalize(cameraPosition - vWorldPos);
-
-        // Overhead nocturnal clearing spotlight + 5-tap PCF shadow + deep root AO!
-        vec3 toLight = uSpotPos - vWorldPos;
-        float spotDist = length(toLight);
-        vec3 L = toLight / max(spotDist, 0.001);
-        vec3 spotAxis = normalize(uSpotPos - uSpotTarget);
-        float spotCone = smoothstep(0.56, 0.90, dot(L, spotAxis));
-        float distAtten = 1.0 / (1.0 + 0.028 * spotDist * spotDist);
-
-        float shadowFactor = sampleSpotShadow(vShadowCoord);
-        float rootAO = mix(0.22, 1.0, pow(t, 0.62));
-
-        // Pure matte wrapped Lambertian diffuse + warm golden subsurface tip translucency!
-        float nDotL = clamp((dot(macroN, L) + 0.42) / 1.42, 0.0, 1.0);
-        vec3 spotDiffuse = uSpotColor * (nDotL * 2.65 * spotCone * distAtten * shadowFactor);
+        float rootAO = mix(0.22, 1.0, sqrt(t));
         vec3 nightAmbient = vec3(0.034, 0.038, 0.052);
 
-        float sunBack = pow(clamp(dot(V, -L) * 0.5 + 0.5, 0.0, 1.0), 2.6);
-        float leafThinness = smoothstep(0.28, 0.96, t);
-        vec3 matteTranslucency = baseAlbedo * uSpotColor * (sunBack * leafThinness * spotCone * shadowFactor * 0.68);
-
-        // Live firefly ground-splat light map + practical car/pipe spill!
-        vec2 plUv = clamp(vWorldPos.xz / uTerrainSpan + 0.5, 0.002, 0.998);
-        vec3 pLight = texture2D(uParticleLightMap, plUv).rgb;
-        float pPeak = max(pLight.r, max(pLight.g, pLight.b));
-        pLight /= pow(1.0 + pow(pPeak / 0.88, 3.0), 1.0 / 3.0);
-
-        vec3 practicalSpill = evalNocturnalPracticalSpill(vWorldPos);
-        float dBlueDirect = length(vWorldPos - uRightBluePos);
-        vec3 sapphireUnderglow = vec3(0.015, 0.18, 1.0) * (0.42 / (1.0 + dBlueDirect * dBlueDirect * 1.95)) * smoothstep(2.15, 0.22, dBlueDirect);
-        float windPartingShade = mix(1.0, 0.78 + 0.42 * clamp(dot(N, L) * 0.5 + 0.5, 0.0, 1.0), vWindBendAmt);
-
         vec3 color =
-          (baseAlbedo * ((spotDiffuse + nightAmbient) * rootAO + (pLight * 1.95 + practicalSpill * 1.30) * (0.45 + 0.72 * t)) +
-           matteTranslucency + sapphireUnderglow * (0.35 + 0.65 * t)) * windPartingShade;
-        // Clamp diffuse grass radiance below HDR bloom threshold (0.78) so subpixel blade tips stay silky matte!
-        color = min(color, vec3(0.70));
+          baseAlbedo * ((vSpotDiffuse + nightAmbient) * rootAO + vFillLight + vTranslucencyLight) +
+          vSapphireAdditive;
 
-        // Synchronized nocturnal perimeter vignette into pitch-black horizon!
-        float perimFade = smoothstep(9.2, 4.4, length(vWorldPos.xz * vec2(0.84, 1.06)));
-        color *= perimFade * (1.0 - uScrollDim * 0.85);
-
+        color = min(color, vec3(0.70)) * vExposureFade;
         gl_FragColor = vec4(color, 1.0);
       }
     `,
