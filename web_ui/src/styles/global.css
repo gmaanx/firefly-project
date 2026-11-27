@@ -322,8 +322,8 @@ h3[id] {
   pointer-events: none;
   z-index: 0;
   background-repeat: no-repeat;
-  background-position: center center;
-  background-size: cover;
+  background-position: center top;
+  background-size: max(100%, 160vh) auto;
   background-attachment: scroll;
 }
 
@@ -1876,6 +1876,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   height: 100%;
   z-index: 2;
   pointer-events: none;
+  overflow: hidden;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
   contain: layout style paint;
   opacity: 1;
   visibility: visible;
@@ -1895,7 +1898,8 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   width: 100%;
   height: 100%;
   display: block;
-  transform-origin: 50% 52%;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 .orchestrated-hero-fallback {
@@ -2429,10 +2433,17 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 
 /* Open Frameless Ink-on-Paper Cartography (Zero Dark Box!) */
 .exploit-paper-map {
+  position: relative;
+  z-index: 1;
   margin: 0;
   padding-inline-start: clamp(1.25rem, 2.8vw, 2.4rem);
   border-inline-start: 1px solid var(--line-on-light-strong);
   min-inline-size: 0;
+  background: radial-gradient(
+    ellipse 68% 64% at 54% 48%,
+    var(--bg-alabaster) 64%,
+    rgba(243, 242, 236, 0) 100%
+  );
 }
 
 .exploit-paper-map__caption-top {

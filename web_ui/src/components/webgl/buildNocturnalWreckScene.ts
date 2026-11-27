@@ -1815,6 +1815,7 @@ export function buildNocturnalWreckScene(
             sm.scale.set(sp.sx, sp.sy, sp.sx);
             sm.castShadow = true;
             sm.receiveShadow = true;
+            sm.userData.keepLocalCoords = true;
             group.add(sm);
           }
         }
@@ -2046,6 +2047,7 @@ export function buildNocturnalWreckScene(
         noseBush.position.set(-0.62, 0.78, 1.66).applyMatrix4(leftCarRoot.matrixWorld);
         noseBush.scale.set(0.38, 0.16, 0.38);
         noseBush.rotation.y = 0.8;
+        noseBush.userData.keepLocalCoords = true;
         group.add(noseBush);
       }
 
@@ -2126,6 +2128,29 @@ export function buildNocturnalWreckScene(
       }
 
       if (!disposed) {
+        // Strip accidental GLTF `KHR_materials_transmission` (`transmission > 0`) on opaque/foliage materials
+        // so Three.js NEVER runs a hidden 2nd full-scene `renderTransmissionPass` + 1024x1024 MSAA mipmap gen every frame!
+        group.traverse((obj) => {
+          const m = obj as THREE.Mesh;
+          if (!m.isMesh || !m.material) return;
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          for (const mat of mats) {
+            const phys = mat as THREE.MeshPhysicalMaterial;
+            if (typeof phys.transmission === 'number' && phys.transmission > 0) {
+              phys.transmission = 0;
+              phys.needsUpdate = true;
+            }
+          }
+        });
+
+        // Assign Early-Z renderOrder = -2 on opaque sanctuary props (ahead of grass -1 & terrain 0) without altering any mesh hierarchy!
+        group.traverse((obj) => {
+          const m = obj as THREE.Mesh;
+          if (m.isMesh && !Array.isArray(m.material) && m.material && !m.material.transparent) {
+            m.renderOrder = -2;
+          }
+        });
+
         // Freeze static world matrices across the entire sanctuary hierarchy -> zero CPU matrix traversal at 120fps!
         group.updateMatrixWorld(true);
         group.traverse((obj) => {

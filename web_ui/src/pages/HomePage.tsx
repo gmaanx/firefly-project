@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -44,7 +44,7 @@ function ChamferTopRightBorder() {
   );
 }
 
-export function HomePage({
+export const HomePage = memo(function HomePage({
   isActive = true,
   reducedMotion,
   onScrollToSection,
@@ -57,7 +57,7 @@ export function HomePage({
   const heroEyebrowRef = useRef<HTMLDivElement>(null);
   const heroMarqueeRef = useRef<HTMLDivElement>(null);
   const heroScrollProgressRef = useRef<number>(0);
-  const [heroStageActive, setHeroStageActive] = useState<boolean>(isActive);
+  const heroStageGateRef = useRef<((inRange: boolean) => void) | null>(null);
 
   const showcaseRef = useRef<HTMLElement>(null);
   const { navigateWithCurtain } = useRouteCurtain();
@@ -68,10 +68,10 @@ export function HomePage({
     convState.data?.by_iterations[convState.data.by_iterations.length - 1] ??
     null;
 
-  // Zero-layout-thrash Lando Sticky-Track Hero -> Manifesto scroll driver + IO RAF gate
+  // Zero-layout-thrash Lando Sticky-Track Hero -> Manifesto scroll driver + imperative RAF gate (ZERO mid-scroll React re-render!)
   useEffect(() => {
     if (!isActive) {
-      setHeroStageActive(false);
+      heroStageGateRef.current?.(false);
       heroMarqueeRef.current?.classList.add('lando-bridge-marquee--paused');
       return;
     }
@@ -85,9 +85,6 @@ export function HomePage({
 
     const applyHeroScroll = () => {
       const sy = window.scrollY;
-      // 1.02vh shrink/signature runway inside 2.08dvh sticky track:
-      // 0 -> 1.08dvh stays pinned while Hero shrinks 4-sided into centered 472x306 frame & signature draws;
-      // 1.08dvh -> 2.08dvh unpins & scrolls UP together (marquee + Hero frame + signature) into Section 2!
       const heroRunway = vh * 1.02;
       const p = Math.max(0, Math.min(1, sy / heroRunway));
       heroScrollProgressRef.current = p;
@@ -95,7 +92,7 @@ export function HomePage({
       const shouldBeActive = sy < vh * 2.25;
       if (shouldBeActive !== lastActive) {
         lastActive = shouldBeActive;
-        setHeroStageActive(shouldBeActive);
+        heroStageGateRef.current?.(shouldBeActive);
       }
 
       // Pause marquee CSS animation when Hero canvas is 100% full-bleed (p < 0.015) or offscreen
@@ -121,7 +118,7 @@ export function HomePage({
       const skipped = Boolean((ev as Event & { skipped?: boolean }).skipped);
       if (skipped) {
         lastActive = false;
-        setHeroStageActive(false);
+        heroStageGateRef.current?.(false);
       } else {
         applyHeroScroll();
       }
@@ -134,7 +131,7 @@ export function HomePage({
         if (!entry) return;
         if (!entry.isIntersecting) {
           lastActive = false;
-          setHeroStageActive(false);
+          heroStageGateRef.current?.(false);
         } else {
           applyHeroScroll();
         }
@@ -345,7 +342,8 @@ export function HomePage({
             crtOverlayRef={heroCrtOverlayRef}
             centerpieceRef={heroCenterpieceRef}
             eyebrowRef={heroEyebrowRef}
-            stageActive={isActive && heroStageActive}
+            stageActive={isActive}
+            stageGateRef={heroStageGateRef}
             onActivatePortal={() => navigateWithCurtain('/demo')}
           />
 
@@ -528,4 +526,4 @@ export function HomePage({
       <FooterSection reducedMotion={reducedMotion} />
     </>
   );
-}
+});

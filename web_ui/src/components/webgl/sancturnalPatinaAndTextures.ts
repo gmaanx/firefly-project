@@ -1836,18 +1836,17 @@ export function buildJunkyardCoolantAndScrapProps(
   tankTex.colorSpace = THREE.SRGBColorSpace;
 
   const tankGroup = new THREE.Group();
+  // Opaque weathered Standard PBR (avoids MeshPhysicalMaterial `transmission > 0`, which forced Three.js to render all 216k grass blades & cars a 2nd time every frame!)
   const plasticMat = track(
-    new THREE.MeshPhysicalMaterial({
+    new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: tankTex,
       normalMap: rustNor,
       normalScale: new THREE.Vector2(0.55, 0.55),
       emissive: new THREE.Color(0x1a0a05),
-      emissiveIntensity: 0.10,
-      roughness: 0.86,
-      metalness: 0.0,
-      transmission: 0.06,
-      thickness: 0.08,
+      emissiveIntensity: 0.12,
+      roughness: 0.84,
+      metalness: 0.02,
     })
   );
   const seamMat = track(

@@ -466,7 +466,7 @@ export function createNocturnalGrassMeadow(
   const terrainMat = new THREE.ShaderMaterial({
     defines: isMobile ? { MOBILE_GRASS: 1 } : {},
     uniforms,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
     vertexShader: /* glsl */ `
       uniform mat4 uShadowMatrix;
       varying vec3 vWorldPos;
@@ -545,6 +545,7 @@ export function createNocturnalGrassMeadow(
 
   const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
   terrainMesh.frustumCulled = false;
+  terrainMesh.renderOrder = 0;
   group.add(terrainMesh);
 
   /* ------------------------------------------------------------------------
@@ -973,6 +974,8 @@ export function createNocturnalGrassMeadow(
 
   const grassMesh = new THREE.Mesh(instGeo, grassMat);
   grassMesh.frustumCulled = false;
+  // Render grass BEFORE terrainMesh (`renderOrder = -1` vs `0`) so hardware Early-Z skips ~95% of ground fragment pixels!
+  grassMesh.renderOrder = -1;
   grassMesh.matrixAutoUpdate = false;
   terrainMesh.matrixAutoUpdate = false;
   grassMesh.onBeforeRender = syncSpotLightUniforms;

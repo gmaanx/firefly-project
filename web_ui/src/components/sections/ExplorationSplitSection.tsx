@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -73,7 +73,7 @@ function sliderCustomProps(
   } as CSSProperties;
 }
 
-export function ExplorationSplitSection({
+export const ExplorationSplitSection = memo(function ExplorationSplitSection({
   reducedMotion,
 }: ExplorationSplitSectionProps) {
   const continuumRef = useRef<HTMLDivElement>(null);
@@ -85,6 +85,8 @@ export function ExplorationSplitSection({
   const ridgeStrokeRef = useRef<SVGPathElement>(null);
   const sparkStrokeRef = useRef<SVGPathElement>(null);
   const hopOrbGroupRef = useRef<SVGGElement>(null);
+  const exploreEnteredRef = useRef<boolean>(false);
+  const playHopTweenRef = useRef<(() => void) | null>(null);
 
   const idPrefix = useId();
 
@@ -92,7 +94,6 @@ export function ExplorationSplitSection({
   const [distR, setDistR] = useState<number>(1.65);
   const [gammaVal, setGammaVal] = useState<number>(0.28);
   const [thetaVal, setThetaVal] = useState<number>(0.97);
-  const [exploreEntered, setExploreEntered] = useState<boolean>(false);
 
   const animDistR = distR;
   const animGamma = gammaVal;
@@ -567,7 +568,10 @@ export function ExplorationSplitSection({
                 trigger: stageEl,
                 start: 'top 80%',
                 once: true,
-                onEnter: () => setExploreEntered(true),
+                onEnter: () => {
+                  exploreEnteredRef.current = true;
+                  playHopTweenRef.current?.();
+                },
               },
             }
           );
@@ -619,7 +623,7 @@ export function ExplorationSplitSection({
     { scope: continuumRef, dependencies: [reducedMotion] }
   );
 
-  // 5. Live Animated Firefly Beacon Hopping Across the Parabolic Mountain Arcs on Entry & Theta Change!
+  // 5. Live Animated Firefly Beacon Hopping Across the Parabolic Mountain Arcs on Entry & Theta Change (zero scroll React re-render!)
   useGSAP(
     () => {
       const stageEl = cutawayStageRef.current;
@@ -630,60 +634,74 @@ export function ExplorationSplitSection({
       const arcs = mountainHopSim.arcs;
       if (arcs.length === 0) return;
 
-      if (reducedMotion || !exploreEntered) {
+      let activeTween: gsap.core.Tween | null = null;
+
+      const runHopAnimation = () => {
+        activeTween?.kill();
+        if (reducedMotion) {
+          const end = mountainHopSim.endNode;
+          orbG.setAttribute('transform', `translate(${end.x.toFixed(1)}, ${end.y.toFixed(1)})`);
+          return;
+        }
+        gsap.fromTo(
+          arcPaths,
+          { opacity: 0 },
+          {
+            opacity: (i) => arcs[i]?.opacity ?? 0.5,
+            duration: 0.28,
+            stagger: 0.032,
+            ease: 'power2.out',
+            overwrite: true,
+          }
+        );
+
+        const playhead = { progress: 0 };
+        const totalSegs = arcs.length;
+        activeTween = gsap.to(playhead, {
+          progress: totalSegs,
+          duration: 1.25,
+          ease: 'power2.out',
+          onUpdate: () => {
+            const clamped = Math.min(totalSegs - 1e-4, Math.max(0, playhead.progress));
+            const idx = Math.floor(clamped);
+            const u = clamped - idx;
+            const seg = arcs[idx];
+            if (!seg) return;
+            const oneMinus = 1 - u;
+            const bx =
+              oneMinus * oneMinus * seg.p0x +
+              2 * oneMinus * u * seg.cx +
+              u * u * seg.p1x;
+            const by =
+              oneMinus * oneMinus * seg.p0y +
+              2 * oneMinus * u * seg.cy +
+              u * u * seg.p1y;
+            orbG.setAttribute('transform', `translate(${bx.toFixed(1)}, ${by.toFixed(1)})`);
+          },
+        });
+      };
+
+      playHopTweenRef.current = runHopAnimation;
+
+      if (reducedMotion || !exploreEnteredRef.current) {
         const end = mountainHopSim.endNode;
         orbG.setAttribute('transform', `translate(${end.x.toFixed(1)}, ${end.y.toFixed(1)})`);
-        return;
+      } else {
+        runHopAnimation();
       }
 
-      gsap.fromTo(
-        arcPaths,
-        { opacity: 0 },
-        {
-          opacity: (i) => arcs[i]?.opacity ?? 0.5,
-          duration: 0.28,
-          stagger: 0.032,
-          ease: 'power2.out',
-          overwrite: true,
-        }
-      );
-
-      const playhead = { progress: 0 };
-      const totalSegs = arcs.length;
-      const tween = gsap.to(playhead, {
-        progress: totalSegs,
-        duration: 1.25,
-        ease: 'power2.out',
-        onUpdate: () => {
-          const clamped = Math.min(totalSegs - 1e-4, Math.max(0, playhead.progress));
-          const idx = Math.floor(clamped);
-          const u = clamped - idx;
-          const seg = arcs[idx];
-          if (!seg) return;
-          const oneMinus = 1 - u;
-          const bx =
-            oneMinus * oneMinus * seg.p0x +
-            2 * oneMinus * u * seg.cx +
-            u * u * seg.p1x;
-          const by =
-            oneMinus * oneMinus * seg.p0y +
-            2 * oneMinus * u * seg.cy +
-            u * u * seg.p1y;
-          orbG.setAttribute('transform', `translate(${bx.toFixed(1)}, ${by.toFixed(1)})`);
-        },
-      });
-
       return () => {
-        tween.kill();
+        if (playHopTweenRef.current === runHopAnimation) {
+          playHopTweenRef.current = null;
+        }
+        activeTween?.kill();
       };
     },
-    { scope: cutawayStageRef, dependencies: [exploreEntered, mountainHopSim, reducedMotion] }
+    { scope: cutawayStageRef, dependencies: [mountainHopSim, reducedMotion] }
   );
 
   return (
     <div ref={continuumRef} className="dynamics-continuum surface-light">
-      <ContourBackdrop variant="light" />
-
       {/* ====================================================================
           CHAPTER 01: ASYMMETRIC MONOGRAPH (LEFT THESIS | RIGHT OPEN PAPER MAP)
           ==================================================================== */}
@@ -694,6 +712,7 @@ export function ExplorationSplitSection({
         data-surface="light"
         aria-labelledby={`${idPrefix}-exploit-heading`}
       >
+        <ContourBackdrop variant="light" />
         <div className="section-container">
           <div className="exploit-layout">
             {/* LEFT 5-COL: MONUMENTAL HEADING + INLINE EQUATION + SLIDERS */}
@@ -876,6 +895,9 @@ export function ExplorationSplitSection({
                 aria-hidden="true"
               >
                 <defs>
+                  <clipPath id={`${idPrefix}-paper-field-clip`}>
+                    <rect x="16" y="8" width="568" height="330" />
+                  </clipPath>
                   <filter id={`${idPrefix}-paper-halo`} x="-12%" y="-25%" width="124%" height="150%">
                     <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="dilated" />
                     <feFlood floodColor="#F3F2EC" result="haloColor" />
@@ -909,55 +931,57 @@ export function ExplorationSplitSection({
                   />
                 ))}
 
-                {secondaryPaperContours.map((c, idx) => (
-                  <path
-                    key={`psec-${c.r}`}
-                    d={c.d}
-                    fill={idx === 0 ? 'rgba(36, 40, 30, 0.045)' : 'none'}
-                    stroke="rgba(20, 21, 19, 0.2)"
-                    strokeWidth={idx === 0 ? '1.15' : '0.85'}
-                  />
-                ))}
-                <circle cx={secPeakK.x} cy={secPeakK.y} r="3.5" fill="#5F6358" />
+                <g clipPath={`url(#${idPrefix}-paper-field-clip)`}>
+                  {secondaryPaperContours.map((c, idx) => (
+                    <path
+                      key={`psec-${c.r}`}
+                      d={c.d}
+                      fill={idx === 0 ? 'rgba(36, 40, 30, 0.045)' : 'none'}
+                      stroke="rgba(20, 21, 19, 0.2)"
+                      strokeWidth={idx === 0 ? '1.15' : '0.85'}
+                    />
+                  ))}
+                  <circle cx={secPeakK.x} cy={secPeakK.y} r="3.5" fill="#5F6358" />
 
-                <circle
-                  cx={peakJ.x}
-                  cy={peakJ.y}
-                  r={horizonRadiusPx}
-                  fill="rgba(36, 40, 30, 0.055)"
-                  stroke="#24281E"
-                  strokeWidth="1.3"
-                  strokeDasharray="6 4"
-                />
-
-                {primaryPaperContours.map((c, idx) => (
-                  <path
-                    key={`ppri-${c.r}`}
-                    className="js-paper-contour"
-                    d={c.d}
-                    fill={idx === 0 ? 'rgba(36, 40, 30, 0.08)' : 'none'}
-                    stroke={
-                      idx < 2
-                        ? 'rgba(36, 40, 30, 0.62)'
-                        : idx < 4
-                          ? 'rgba(36, 40, 30, 0.34)'
-                          : 'rgba(20, 21, 19, 0.16)'
-                    }
-                    strokeWidth={idx === 0 ? '1.35' : '0.95'}
-                  />
-                ))}
-
-                {paperStreamlines.map((st, idx) => (
-                  <path
-                    key={`pst-${idx}`}
-                    d={st.d}
-                    fill="none"
+                  <circle
+                    cx={peakJ.x}
+                    cy={peakJ.y}
+                    r={horizonRadiusPx}
+                    fill="rgba(36, 40, 30, 0.055)"
                     stroke="#24281E"
-                    strokeWidth="1"
-                    strokeDasharray="3 3"
-                    opacity={st.opacity}
+                    strokeWidth="1.3"
+                    strokeDasharray="6 4"
                   />
-                ))}
+
+                  {primaryPaperContours.map((c, idx) => (
+                    <path
+                      key={`ppri-${c.r}`}
+                      className="js-paper-contour"
+                      d={c.d}
+                      fill={idx === 0 ? 'rgba(36, 40, 30, 0.08)' : 'none'}
+                      stroke={
+                        idx < 2
+                          ? 'rgba(36, 40, 30, 0.62)'
+                          : idx < 4
+                            ? 'rgba(36, 40, 30, 0.34)'
+                            : 'rgba(20, 21, 19, 0.16)'
+                      }
+                      strokeWidth={idx === 0 ? '1.35' : '0.95'}
+                    />
+                  ))}
+
+                  {paperStreamlines.map((st, idx) => (
+                    <path
+                      key={`pst-${idx}`}
+                      d={st.d}
+                      fill="none"
+                      stroke="#24281E"
+                      strokeWidth="1"
+                      strokeDasharray="3 3"
+                      opacity={st.opacity}
+                    />
+                  ))}
+                </g>
 
                 <line
                   x1={fireflyPos.x}
@@ -1176,6 +1200,7 @@ export function ExplorationSplitSection({
         data-surface="light"
         aria-labelledby={`${idPrefix}-explore-heading`}
       >
+        <ContourBackdrop variant="light" />
         <div className="section-container">
           <div className="explore-counter-layout">
             {/* EDITORIAL + 3-EPOCH TIMELINE */}
@@ -1504,7 +1529,7 @@ export function ExplorationSplitSection({
                           }`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setExploreEntered(true);
+                            exploreEnteredRef.current = true;
                             setThetaVal(item.th);
                           }}
                         >
@@ -1525,4 +1550,4 @@ export function ExplorationSplitSection({
       </section>
     </div>
   );
-}
+});
