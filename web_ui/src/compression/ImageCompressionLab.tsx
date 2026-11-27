@@ -254,26 +254,25 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
 
       <div className="section-container">
         <div className="compression-lab-header">
-          <h2 id="compression-lab-heading" className="compression-lab-title">
-            <span className="block-reveal-lines">
+          <div className="compression-lab-header__titles">
+            <span className="algo-chapter-eyebrow">
+              MỞ RỘNG THỰC TẾ · PHẦN 02 / 02
+            </span>
+            <h2 id="compression-lab-heading" className="compression-lab-title">
               <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
-                Nén ảnh 24-bit bằng
-              </BlockReveal>
-              <BlockReveal color="olive-lime" delay={0.18} reducedMotion={reducedMotion}>
+                Nén ảnh 24-bit bằng{' '}
                 <span className="editorial-serif editorial-serif--sage-gold">
                   Thuật toán Đom đóm
                 </span>
               </BlockReveal>
-            </span>
-          </h2>
+            </h2>
+          </div>
           <p className="compression-lab-lead">
             Mỗi đom đóm biểu diễn một bộ <MathFormula tex="K" ariaLabel="K" />{' '}
             màu đại diện trong không gian RGB{' '}
-            <MathFormula tex="[0, 255]^{3K}" ariaLabel="[0, 255]^{3K}" />. Bộ giải
-            dùng <strong>Hybrid FA</strong> (kết hợp lực hút đom đóm toàn cục với
-            bước kéo tâm cụm cục bộ theo mật độ điểm ảnh và giữ cá thể tốt nhất)
-            để giảm sai số bình phương trung bình (MSE) trong 32 thế hệ thời gian
-            thực.
+            <MathFormula tex="[0, 255]^{3K}" ariaLabel="[0, 255]^{3K}" />. Bộ giải{' '}
+            <strong>Hybrid FA</strong> kết hợp lực hút đom đóm với bước kéo tâm cụm
+            theo mật độ điểm ảnh để giảm MSE trong 32 thế hệ thời gian thực.
           </p>
         </div>
 
@@ -337,9 +336,7 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
                       {cached ? (
                         <img src={cached.previewDataUrl} alt="" aria-hidden="true" />
                       ) : null}
-                      <span>
-                        {preset.code} · {preset.titleVi}
-                      </span>
+                      <span>{preset.titleVi}</span>
                     </button>
                   );
                 })}
@@ -351,7 +348,7 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
                   }`}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  ↑ Tải ảnh riêng
+                  ↑ Ảnh riêng
                 </button>
                 <input
                   ref={fileInputRef}
@@ -364,8 +361,7 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
               </div>
 
               <span className="ba-toolbar__title">
-                {activeAsset.width}×{activeAsset.height}px ·{' '}
-                {activeAsset.uniqueColorsCount.toLocaleString('vi-VN')} màu gốc
+                {activeAsset.uniqueColorsCount.toLocaleString('vi-VN')} màu
               </span>
             </div>
 
@@ -487,17 +483,7 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
               </div>
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                gap: '0.85rem 1rem',
-                padding: '0.85rem 0.95rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(239, 239, 232, 0.03)',
-                border: '1px solid var(--line-on-dark)',
-              }}
-            >
+            <div className="compression-sliders-grid">
               <div className="slider-row">
                 <div className="slider-row__head">
                   <span>Cỡ đàn n</span>

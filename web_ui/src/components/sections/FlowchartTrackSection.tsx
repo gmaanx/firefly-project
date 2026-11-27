@@ -969,7 +969,7 @@ export function FlowchartTrackSection({
                       </span>
                       <code
                         className="flowchart-pseudocode-line__code"
-                        style={{ paddingLeft: `${ln.indent * 1.15}rem` }}
+                        style={{ paddingLeft: `${ln.indent * 0.82}rem` }}
                       >
                         {ln.code}
                       </code>

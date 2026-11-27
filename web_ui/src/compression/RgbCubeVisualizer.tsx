@@ -371,7 +371,7 @@ export function RgbCubeVisualizer({
   }, [telemetry, shouldMount]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
       <div className="ba-toolbar">
         <span className="ba-toolbar__title">KHÔNG GIAN RGB 3D · K TÂM CỤM</span>
         <div className="chip-group">

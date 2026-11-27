@@ -7,7 +7,6 @@ import { FooterSection } from '../components/sections/FooterSection';
 import { WorkedTelemetrySection } from '../components/sections/WorkedTelemetrySection';
 import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
-import { LandoSignatureFlourish } from '../components/shared/LandoSignatureFlourish';
 import { MathFormula } from '../components/shared/MathFormula';
 import { NextPageBanner } from '../components/shared/NextPageBanner';
 import { AlgorithmFieldCanvas } from '../components/webgl/AlgorithmFieldCanvas';
@@ -109,12 +108,6 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
                   </span>
                 </BlockReveal>
               </h1>
-
-              <LandoSignatureFlourish
-                variant="showcase-underline"
-                triggerRef={heroSectionRef}
-                reducedMotion={reducedMotion}
-              />
 
               <div className="algo-open-rules">
                 <div className="algo-open-rule">

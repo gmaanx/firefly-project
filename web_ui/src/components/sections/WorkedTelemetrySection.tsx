@@ -32,7 +32,9 @@ export function WorkedTelemetrySection({
   const bentoColRef = useRef<HTMLDivElement>(null);
   const stepDetailRef = useRef<HTMLDivElement>(null);
   const tabPrefix = useId();
-  const [mode, setMode] = useState<'unconstrained' | 'constrained'>('unconstrained');
+  const [panelTab, setPanelTab] = useState<'partA' | 'partB' | 'constrained'>('partA');
+  const mode: 'unconstrained' | 'constrained' =
+    panelTab === 'constrained' ? 'constrained' : 'unconstrained';
   const [activeStep, setActiveStep] = useState<0 | 1 | 2>(1);
   const [milestoneIdx, setMilestoneIdx] = useState<number>(1);
 
@@ -109,16 +111,16 @@ export function WorkedTelemetrySection({
     { scope: sectionRef, dependencies: [reducedMotion] }
   );
 
-  // Smooth GSAP micro-transition when switching Step (0/1/2) or Problem Mode
+  // Smooth GSAP micro-transition when switching Step (0/1/2) or Panel Tab
   useEffect(() => {
     if (reducedMotion || !stepDetailRef.current) return;
     gsap.killTweensOf(stepDetailRef.current);
     gsap.fromTo(
       stepDetailRef.current,
-      { y: 10, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, duration: 0.34, ease: 'power3.out' }
+      { y: 8, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, duration: 0.3, ease: 'power3.out' }
     );
-  }, [activeStep, mode, reducedMotion]);
+  }, [activeStep, panelTab, reducedMotion]);
 
   useEffect(() => {
     const fEl = fReadoutRef.current;
@@ -156,7 +158,7 @@ export function WorkedTelemetrySection({
     return () => {
       tween.kill();
     };
-  }, [reducedMotion, targetAlphaAtT, targetFAtT]);
+  }, [panelTab, reducedMotion, targetAlphaAtT, targetFAtT]);
 
   const constrainedChart = useMemo(() => {
     const hist = cData?.history;
@@ -231,27 +233,37 @@ export function WorkedTelemetrySection({
           <div
             className="pill-tabs"
             role="tablist"
-            aria-label="Chọn bài toán không gian 3D"
+            aria-label="Chọn phần minh họa không gian 3D"
           >
             <button
               type="button"
               role="tab"
-              id={`${tabPrefix}-unconstrained`}
-              aria-selected={mode === 'unconstrained'}
+              id={`${tabPrefix}-partA`}
+              aria-selected={panelTab === 'partA'}
               className="pill-tab"
-              onClick={() => setMode('unconstrained')}
+              onClick={() => setPanelTab('partA')}
             >
-              MẶT CẦU DỊCH TÂM (3D)
+              TÍNH TAY 1 VÒNG (n = 5)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id={`${tabPrefix}-partB`}
+              aria-selected={panelTab === 'partB'}
+              className="pill-tab"
+              onClick={() => setPanelTab('partB')}
+            >
+              PYTHON 200 VÒNG (n = 20)
             </button>
             <button
               type="button"
               role="tab"
               id={`${tabPrefix}-constrained`}
-              aria-selected={mode === 'constrained'}
+              aria-selected={panelTab === 'constrained'}
               className="pill-tab"
-              onClick={() => setMode('constrained')}
+              onClick={() => setPanelTab('constrained')}
             >
-              TỐI ƯU CÓ RÀNG BUỘC
+              CÓ RÀNG BUỘC
             </button>
           </div>
         </div>
@@ -271,11 +283,7 @@ export function WorkedTelemetrySection({
             ref={bentoColRef}
             className="worked-bento-col"
             role="tabpanel"
-            aria-labelledby={
-              mode === 'unconstrained'
-                ? `${tabPrefix}-unconstrained`
-                : `${tabPrefix}-constrained`
-            }
+            aria-labelledby={`${tabPrefix}-${panelTab}`}
           >
             {mode === 'unconstrained' ? (
               <>
@@ -297,7 +305,7 @@ export function WorkedTelemetrySection({
                     error={workedState.error}
                     onRetry={workedState.retry}
                   />
-                ) : (
+                ) : panelTab === 'partA' ? (
                   <>
                     {/* Consolidated Card A: 1-Cycle Hand Calculation (n = 5) */}
                     <div className="worked-elevated-card">
@@ -509,7 +517,9 @@ export function WorkedTelemetrySection({
                         ) : null}
                       </div>
                     </div>
-
+                  </>
+                ) : (
+                  <div ref={stepDetailRef} className="worked-step-detail">
                     {/* Consolidated Card B: 200-Generation Python Convergence (n = 20) */}
                     <div className="worked-elevated-card">
                       <div className="worked-scrubber-card__head">
@@ -595,7 +605,7 @@ export function WorkedTelemetrySection({
                         </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             ) : (

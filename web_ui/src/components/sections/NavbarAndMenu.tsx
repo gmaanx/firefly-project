@@ -94,6 +94,7 @@ export function NavbarAndMenu({
     location.pathname !== '/thuc-nghiem/';
   const [hoveredRoute, setHoveredRoute] = useState<AppRoutePath>(activeRoute);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [btnVisualOpen, setBtnVisualOpen] = useState<boolean>(menuOpen);
 
   useEffect(() => {
     setHoveredRoute(activeRoute);
@@ -141,11 +142,13 @@ export function NavbarAndMenu({
       skipNextCloseAnimRef.current = false;
       cancelActiveAnims();
       if (!dialog.open) {
+        setBtnVisualOpen(false);
         dialog.showModal();
         closeBtnRef.current?.focus({ preventScroll: true });
       }
 
       if (reducedMotion) {
+        setBtnVisualOpen(true);
         shell.style.clipPath = 'none';
         if (scrim) scrim.style.opacity = '1';
         tiles.forEach((t) => {
@@ -161,6 +164,14 @@ export function NavbarAndMenu({
         }
         return;
       }
+
+      const raf1 = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (animTokenRef.current === token) {
+            setBtnVisualOpen(true);
+          }
+        });
+      });
 
       if (scrim) {
         scrim.animate([{ opacity: 0 }, { opacity: 1 }], {
@@ -238,10 +249,11 @@ export function NavbarAndMenu({
           shellOpenAnim.cancel();
         })
         .catch(() => {});
-      return;
+      return () => window.cancelAnimationFrame(raf1);
     }
 
-    // Closing menu
+    // Closing menu: unwind Zeit ±135deg × bars immediately while arch closes
+    setBtnVisualOpen(false);
     if (!dialog.open) return;
 
     if (reducedMotion || skipNextCloseAnimRef.current) {
@@ -419,19 +431,16 @@ export function NavbarAndMenu({
           <button
             type="button"
             className="hamburger-btn"
+            data-menu-open={btnVisualOpen ? 'true' : 'false'}
             aria-label={menuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
             aria-expanded={menuOpen}
             aria-controls={dialogId}
             onClick={() => onMenuToggle(!menuOpen)}
           >
-            <span
-              className="hamburger-btn__bar hamburger-btn__bar--top"
-              aria-hidden="true"
-            />
-            <span
-              className="hamburger-btn__bar hamburger-btn__bar--bottom"
-              aria-hidden="true"
-            />
+            <span className="hamburger-btn__line-wrap" aria-hidden="true">
+              <span className="hamburger-btn__bar hamburger-btn__bar--top" />
+              <span className="hamburger-btn__bar hamburger-btn__bar--bottom" />
+            </span>
           </button>
         </div>
       </header>
@@ -479,18 +488,15 @@ export function NavbarAndMenu({
                 ref={closeBtnRef}
                 type="button"
                 className="hamburger-btn"
+                data-menu-open={btnVisualOpen ? 'true' : 'false'}
                 aria-label="Đóng menu (Esc)"
-                aria-expanded="true"
+                aria-expanded={menuOpen}
                 onClick={() => onMenuToggle(false)}
               >
-                <span
-                  className="hamburger-btn__bar hamburger-btn__bar--top"
-                  aria-hidden="true"
-                />
-                <span
-                  className="hamburger-btn__bar hamburger-btn__bar--bottom"
-                  aria-hidden="true"
-                />
+                <span className="hamburger-btn__line-wrap" aria-hidden="true">
+                  <span className="hamburger-btn__bar hamburger-btn__bar--top" />
+                  <span className="hamburger-btn__bar hamburger-btn__bar--bottom" />
+                </span>
               </button>
             </div>
           </div>
@@ -711,8 +717,21 @@ export function NavbarAndMenu({
                   >
                     <span className="split-menu__link-mask">
                       <span className="split-menu__link-inner">
-                        <span className="split-menu__link-num">{route.numLabel}</span>
-                        <span>{route.title}</span>
+                        <span className="split-menu__zeit-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M3.5 12H19.5M13.5 6L19.5 12L13.5 18"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                        <span className="split-menu__link-content">
+                          <span className="split-menu__link-num">{route.numLabel}</span>
+                          <span>{route.title}</span>
+                        </span>
                       </span>
                     </span>
                     <svg
