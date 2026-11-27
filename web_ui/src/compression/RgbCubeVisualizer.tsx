@@ -373,7 +373,7 @@ export function RgbCubeVisualizer({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
       <div className="ba-toolbar">
-        <span className="ba-toolbar__title">KHÔNG GIAN RGB 3D · K TÂM CỤM</span>
+        <span className="ba-toolbar__title">Không gian RGB 3D</span>
         <div className="chip-group">
           <button
             type="button"

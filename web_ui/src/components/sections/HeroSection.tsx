@@ -5,7 +5,7 @@ export interface HeroSectionProps {
   hudFrameRef?: RefObject<HTMLDivElement | null>;
   crtOverlayRef?: RefObject<HTMLDivElement | null>;
   centerpieceRef?: RefObject<HTMLDivElement | null>;
-  onScrollToManifesto: () => void;
+  onScrollToManifesto?: () => void;
 }
 
 /**
@@ -23,7 +23,6 @@ export function HeroSection({
   hudFrameRef,
   crtOverlayRef,
   centerpieceRef,
-  onScrollToManifesto,
 }: HeroSectionProps) {
   return (
     <div
@@ -83,20 +82,6 @@ export function HeroSection({
 
             <span className="hero-centerpiece__subtitle">FIREFLY ALGORITHM</span>
           </h1>
-        </div>
-
-        <div className="orchestrated-hero-scroll-wrap">
-          <button
-            type="button"
-            className="orchestrated-scroll-cue"
-            onClick={onScrollToManifesto}
-            aria-label="Scroll xuống phần Nguyên lý tự nhiên"
-          >
-            <span className="orchestrated-scroll-cue__label">Scroll</span>
-            <span className="orchestrated-scroll-cue__track" aria-hidden="true">
-              <span className="orchestrated-scroll-cue__line" />
-            </span>
-          </button>
         </div>
       </div>
     </div>

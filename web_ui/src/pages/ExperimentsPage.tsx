@@ -89,10 +89,6 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
         <div className="section-container exp-olive-hero__inner">
           <div className="exp-olive-hero__top">
             <div className="exp-olive-hero__title-stack">
-              <span className="exp-micro-eyebrow cal-enter-line">
-                KIỂM CHỨNG TRÊN PYTHON · 06 PHÉP ĐO THỰC TẾ
-              </span>
-
               <h1 id="exp-page-heading" tabIndex={-1} className="exp-olive-hero__title">
                 <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
                   Kết quả{' '}

@@ -117,10 +117,7 @@ export function BeforeAfterSlider({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-      <div className="ba-toolbar">
-        <span className="ba-toolbar__title">
-          SO SÁNH TRƯỚC / SAU · KÉO THANH GẠT ({Math.round(splitPct)}%)
-        </span>
+      <div className="ba-toolbar ba-toolbar--end">
         <div className="chip-group">
           <button
             type="button"
@@ -182,17 +179,17 @@ export function BeforeAfterSlider({
           style={{ clipPath: `inset(0 ${100 - splitPct}% 0 0)` }}
         />
 
-        <span className="ba-badge ba-badge--left">24-BIT GỐC</span>
+        <span className="ba-badge ba-badge--left">24-bit gốc</span>
         <span
           className={`ba-badge ba-badge--right ${
             iteration === 0 && !isRunning ? 'ba-badge--right-idle' : ''
           }`}
         >
           {isRunning
-            ? `ĐANG CHẠY FA · t = ${iteration}/${maxIterations}`
+            ? `K = ${kColors} · t = ${iteration}/${maxIterations}`
             : iteration === 0
-              ? `t = 0 · CHƯA NÉN (K = ${kColors})`
-              : `SAU NÉN FA · K = ${kColors} MÀU (t = ${iteration})`}
+              ? `K = ${kColors} màu`
+              : `K = ${kColors} màu · t = ${iteration}`}
         </span>
 
         <div className="ba-divider" style={{ left: `${splitPct}%` }} aria-hidden="true">

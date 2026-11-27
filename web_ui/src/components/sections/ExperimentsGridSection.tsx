@@ -752,9 +752,6 @@ export function ExperimentsGridSection({
       <div className="section-container">
         <div className="exp-section-intro">
           <div>
-            <span className="flowchart-eyebrow">
-              PHÂN TÍCH ĐỊNH LƯỢNG · NHẤP VÀO TỪNG THẺ ĐỂ MỞ ĐỒ THỊ TƯƠNG TÁC
-            </span>
             <h2 id="exp-grid-heading" tabIndex={-1} className="flowchart-title">
               <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
                 Sáu bài đo{' '}
@@ -764,12 +761,6 @@ export function ExperimentsGridSection({
               </BlockReveal>
             </h2>
           </div>
-
-          <span className="exp-filter-hint">
-            {viewMode === 'table'
-              ? 'Nhấp vào nút cuối dòng để mở biểu đồ chi tiết'
-              : 'Nhấp vào bất kỳ thẻ nào để xem đồ thị lớn & bảng số liệu'}
-          </span>
         </div>
 
         <div className="exp-filter-bar">
@@ -954,7 +945,6 @@ export function ExperimentsGridSection({
         >
           <div className="exp-takeaways-box__head">
             <div>
-              <span className="flowchart-eyebrow">ĐÚC KẾT CHO BÀI THUYẾT TRÌNH</span>
               <h2 id="exp-takeaways-heading" className="exp-takeaways-box__title">
                 <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
                   Tổng kết{' '}
@@ -969,7 +959,6 @@ export function ExperimentsGridSection({
                 reducedMotion={reducedMotion}
               />
             </div>
-            <span>Đối chiếu trực tiếp từ 6 tập dữ liệu JSON trên Python</span>
           </div>
 
           <div className="exp-takeaways-grid">

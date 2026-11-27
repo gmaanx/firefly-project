@@ -698,9 +698,6 @@ export function FlowchartTrackSection({
             <div className="section-container flowchart-stack">
               <div className="flowchart-header">
                 <div className="flowchart-header__titles">
-                  <span className="flowchart-eyebrow">
-                    CẤU TRÚC VÒNG LẶP · CUỘN ĐỂ ĐI QUA TỪNG BƯỚC
-                  </span>
                   <h2 id="flowchart-heading" tabIndex={-1} className="flowchart-title">
                     <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
                       Quy trình{' '}
@@ -885,19 +882,8 @@ export function FlowchartTrackSection({
                           <div className="spotlight-step-card__top">
                             <div className="spotlight-step-card__step-lockup">
                               <span className="spotlight-step-card__num">{p.code}</span>
-                              <div>
-                                <span className="spotlight-step-card__eyebrow">
-                                  BƯỚC {p.code} / 05
-                                </span>
-                                <code className="spotlight-step-card__fn">{p.fnName}()</code>
-                              </div>
+                              <code className="spotlight-step-card__fn">{p.fnName}()</code>
                             </div>
-
-                            <span className="spotlight-step-card__hint" aria-hidden="true">
-                              {idx < PHASES.length - 1
-                                ? `Cuộn tiếp → Bước 0${idx + 2}`
-                                : 'Cuộn tiếp → Mã giả ↓'}
-                            </span>
                           </div>
 
                           <div className="spotlight-step-card__body">
@@ -943,9 +929,6 @@ export function FlowchartTrackSection({
         <div className="section-container flowchart-stack">
           <div className="flowchart-header">
             <div className="flowchart-header__titles">
-              <span className="flowchart-eyebrow">
-                CẤU TRÚC MÃ NGUỒN · ĐỐI CHIẾU TRỰC TIẾP VỚI PYTHON
-              </span>
               <h2 id="pseudocode-heading" tabIndex={-1} className="flowchart-title">
                 <BlockReveal color="olive-lime" reducedMotion={reducedMotion}>
                   Mã giả{' '}
@@ -968,10 +951,6 @@ export function FlowchartTrackSection({
               role="region"
               aria-label="Mã giả chuẩn của Thuật toán Đom đóm"
             >
-              <div className="flowchart-pseudocode-box__head">
-                <span>FIREFLY ALGORITHM (XIN-SHE YANG, 2008)</span>
-                <span>12 dòng lệnh chuẩn · gắn nhãn bước B01–B05</span>
-              </div>
               <ol className="flowchart-pseudocode-list">
                 {PSEUDOCODE_LINES.map((ln) => {
                   const isSelected = selectedPseudoLine === ln.lineNo;
@@ -1010,7 +989,7 @@ export function FlowchartTrackSection({
               aria-label="Thông số đầu vào, đầu ra và độ phức tạp"
             >
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">01 · ĐẦU VÀO</span>
+                <span className="flowchart-spec-card__label">ĐẦU VÀO</span>
                 <p>
                   Hàm mục tiêu <MathFormula tex="f(\mathbf{x})" ariaLabel="f(x)" />, miền{' '}
                   <MathFormula
@@ -1027,7 +1006,7 @@ export function FlowchartTrackSection({
               </div>
 
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">02 · ĐẦU RA</span>
+                <span className="flowchart-spec-card__label">ĐẦU RA</span>
                 <p>
                   Vị trí tốt nhất <MathFormula tex="\mathbf{x}^*" ariaLabel="x*" /> và giá
                   trị tối ưu <MathFormula tex="f(\mathbf{x}^*)" ariaLabel="f(x*)" /> sau{' '}
@@ -1036,7 +1015,7 @@ export function FlowchartTrackSection({
               </div>
 
               <div className="flowchart-spec-card__item">
-                <span className="flowchart-spec-card__label">03 · ĐỘ PHỨC TẠP THỜI GIAN</span>
+                <span className="flowchart-spec-card__label">ĐỘ PHỨC TẠP THỜI GIAN</span>
                 <div className="flowchart-spec-card__complexity">
                   <MathFormula
                     tex="\mathcal{O}(t_{\max} \cdot n^2 \cdot d)"

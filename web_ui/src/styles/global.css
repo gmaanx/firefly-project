@@ -3260,12 +3260,12 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 .algo-master-equation__top {
-  padding: 0.42rem 1rem;
+  padding: 0.52rem 1rem;
   border-bottom: 1px solid var(--line-on-dark);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 0.45rem 1.15rem;
 }
 
@@ -3372,9 +3372,19 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 .algo-field-card__canvas-wrap {
+  position: relative;
   width: 100%;
-  height: clamp(148px, 21.5dvh, 210px);
+  height: clamp(162px, 23dvh, 224px);
   cursor: crosshair;
+}
+
+.algo-field-card__reset--floating {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 2;
+  min-inline-size: 1.65rem;
+  background: rgba(16, 17, 16, 0.78);
 }
 
 .algo-field-card__canvas {
@@ -4085,7 +4095,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 .flowchart-pseudocode-list {
   list-style: none;
   margin: 0;
-  padding: 0.42rem 0;
+  padding: 0.68rem 0;
 }
 
 .flowchart-pseudocode-line {
@@ -5860,6 +5870,10 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
   justify-content: space-between;
   gap: 0.3rem;
+}
+
+.ba-toolbar--end {
+  justify-content: flex-end;
 }
 
 .ba-toolbar__title {

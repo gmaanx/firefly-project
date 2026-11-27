@@ -396,7 +396,6 @@ export function ExperimentDetailPage({ reducedMotion }: ExperimentDetailPageProp
           {/* Subpage Header + Prev/Next Experiment Switcher */}
           <header className="detail-subpage__header">
             <div className="detail-subpage__titles">
-              <span className="algo-chapter-eyebrow">{meta.eyebrow}</span>
               <h1
                 id="exp-detail-heading"
                 tabIndex={-1}

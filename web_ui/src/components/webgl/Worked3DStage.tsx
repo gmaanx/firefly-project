@@ -655,7 +655,7 @@ export function Worked3DStage({
 
       <div className="worked-3d-caption">
         <span>
-          [-5, 5]<sup>3</sup> · Xoay 3D
+          [-5, 5]<sup>3</sup>
         </span>
         <span>
           {mode === 'unconstrained' ? 'x* = (1, 1, 1)' : 'x1 + x2 + x3 = 1.5, x1 ≤ 0.4'}

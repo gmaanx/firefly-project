@@ -255,9 +255,6 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
       <div className="section-container">
         <div className="compression-lab-header">
           <div className="compression-lab-header__titles">
-            <span className="algo-chapter-eyebrow">
-              MỞ RỘNG THỰC TẾ · PHẦN 02 / 02
-            </span>
             <h2 id="compression-lab-heading" className="compression-lab-title">
               <BlockReveal color="olive-lime" delay={0} reducedMotion={reducedMotion}>
                 Nén ảnh 24-bit bằng{' '}
@@ -411,14 +408,13 @@ export function ImageCompressionLab({ reducedMotion }: ImageCompressionLabProps)
             <div>
               <div className="palette-strip-head">
                 <span>
-                  BẢNG MÀU TỐI ƯU HIỆN TẠI (
-                  {telemetry?.palette.length ?? params.kColors} TÂM CỤM RGB)
+                  Bảng màu ({telemetry?.palette.length ?? params.kColors} màu)
                 </span>
-                <span style={{ color: 'var(--accent-sage-gold)' }}>
-                  {copiedNotice
-                    ? `Đã chép: ${copiedNotice}`
-                    : 'Nhấp vào ô màu để sao chép mã HEX'}
-                </span>
+                {copiedNotice ? (
+                  <span style={{ color: 'var(--accent-sage-gold)' }}>
+                    Đã chép: {copiedNotice}
+                  </span>
+                ) : null}
               </div>
               <div
                 className="palette-strip"
