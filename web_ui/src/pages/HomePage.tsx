@@ -53,6 +53,7 @@ export function HomePage({
   const heroHudRef = useRef<HTMLDivElement>(null);
   const heroHudFrameRef = useRef<HTMLDivElement>(null);
   const heroCrtOverlayRef = useRef<HTMLDivElement>(null);
+  const heroCenterpieceRef = useRef<HTMLDivElement>(null);
   const heroEyebrowRef = useRef<HTMLDivElement>(null);
   const heroMarqueeRef = useRef<HTMLDivElement>(null);
   const heroScrollProgressRef = useRef<number>(0);
@@ -342,6 +343,7 @@ export function HomePage({
             hudContentRef={heroHudRef}
             hudFrameRef={heroHudFrameRef}
             crtOverlayRef={heroCrtOverlayRef}
+            centerpieceRef={heroCenterpieceRef}
             eyebrowRef={heroEyebrowRef}
             stageActive={isActive && heroStageActive}
             onActivatePortal={() => navigateWithCurtain('/demo')}
@@ -352,6 +354,7 @@ export function HomePage({
             hudRef={heroHudRef}
             hudFrameRef={heroHudFrameRef}
             crtOverlayRef={heroCrtOverlayRef}
+            centerpieceRef={heroCenterpieceRef}
             onScrollToManifesto={() => onScrollToSection('boi-canh')}
           />
 

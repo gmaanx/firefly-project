@@ -4,6 +4,7 @@ export interface HeroSectionProps {
   hudRef: RefObject<HTMLDivElement | null>;
   hudFrameRef?: RefObject<HTMLDivElement | null>;
   crtOverlayRef?: RefObject<HTMLDivElement | null>;
+  centerpieceRef?: RefObject<HTMLDivElement | null>;
   onScrollToManifesto: () => void;
 }
 
@@ -21,6 +22,7 @@ export function HeroSection({
   hudRef,
   hudFrameRef,
   crtOverlayRef,
+  centerpieceRef,
   onScrollToManifesto,
 }: HeroSectionProps) {
   return (
@@ -36,7 +38,7 @@ export function HeroSection({
       />
 
       <div ref={hudRef} className="orchestrated-hero-hud__content">
-        <div className="hero-centerpiece">
+        <div ref={centerpieceRef} className="hero-centerpiece">
           <h1 id="hero-heading" tabIndex={-1} className="hero-centerpiece__title">
             <svg
               className="hero-centerpiece__monogram"

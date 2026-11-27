@@ -59,6 +59,7 @@ export function OrchestratedCursor({
     let arrX = targetX - 31;
     let arrY = targetY - 31;
     let rafId = 0;
+    let lastTickTs = 0;
 
     let isRing = false;
     let isLight = false;
@@ -92,18 +93,23 @@ export function OrchestratedCursor({
       }
     };
 
-    const tick = () => {
+    const tick = (now: number) => {
+      const dt60 = lastTickTs > 0 ? Math.min(2.5, Math.max(0.25, ((now - lastTickTs) / 1000) * 60)) : 1;
+      lastTickTs = now;
+
+      const dotAlpha = 1 - Math.pow(1 - 0.28, dt60);
       const dx = targetX - curX;
       const dy = targetY - curY;
-      curX += dx * 0.28;
-      curY += dy * 0.28;
+      curX += dx * dotAlpha;
+      curY += dy * dotAlpha;
 
       const scale = isRing ? 1 : 0.5;
       dotEl.style.transform = `translate3d(${(curX - 14).toFixed(1)}px, ${(curY - 14).toFixed(1)}px, 0) scale(${scale})`;
 
       if (showArrow) {
-        arrX += (targetX - 31 - arrX) * 0.45;
-        arrY += (targetY - 31 - arrY) * 0.45;
+        const arrAlpha = 1 - Math.pow(1 - 0.45, dt60);
+        arrX += (targetX - 31 - arrX) * arrAlpha;
+        arrY += (targetY - 31 - arrY) * arrAlpha;
         const deg = computeHeroCenterAngleDeg(targetX, targetY);
         arrowEl.style.transform = `translate3d(${arrX.toFixed(1)}px, ${arrY.toFixed(1)}px, 0) rotate(${deg.toFixed(1)}deg)`;
       }
@@ -115,6 +121,7 @@ export function OrchestratedCursor({
         curY = targetY;
         dotEl.style.transform = `translate3d(${(curX - 14).toFixed(1)}px, ${(curY - 14).toFixed(1)}px, 0) scale(${scale})`;
         rafId = 0;
+        lastTickTs = 0;
       }
     };
 

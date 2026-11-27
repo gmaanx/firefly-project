@@ -52,6 +52,70 @@ function fbm2D(x: number, y: number, octaves = 4): number {
   return sum;
 }
 
+/**
+ * Deterministic static BufferGeometry batcher (preserves exact world positions, normals & UVs
+ * while collapsing dozens of identical-material static meshes into a single GPU draw call for 120fps+).
+ */
+export function mergeStaticBufferGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  let totalVerts = 0;
+  let totalIndices = 0;
+  for (const g of geos) {
+    const p = g.getAttribute('position');
+    totalVerts += p.count;
+    totalIndices += g.index ? g.index.count : p.count;
+  }
+
+  const posOut = new Float32Array(totalVerts * 3);
+  const normOut = new Float32Array(totalVerts * 3);
+  const uvOut = new Float32Array(totalVerts * 2);
+  const idxOut = totalVerts > 65535 ? new Uint32Array(totalIndices) : new Uint16Array(totalIndices);
+
+  let vOffset = 0;
+  let iOffset = 0;
+  for (const g of geos) {
+    const p = g.getAttribute('position');
+    const n = g.getAttribute('normal');
+    const uv = g.getAttribute('uv');
+    const cnt = p.count;
+
+    for (let i = 0; i < cnt; i += 1) {
+      const vi = vOffset + i;
+      posOut[vi * 3] = p.getX(i);
+      posOut[vi * 3 + 1] = p.getY(i);
+      posOut[vi * 3 + 2] = p.getZ(i);
+
+      normOut[vi * 3] = n ? n.getX(i) : 0;
+      normOut[vi * 3 + 1] = n ? n.getY(i) : 1;
+      normOut[vi * 3 + 2] = n ? n.getZ(i) : 0;
+
+      uvOut[vi * 2] = uv ? uv.getX(i) : 0;
+      uvOut[vi * 2 + 1] = uv ? uv.getY(i) : 0;
+    }
+
+    if (g.index) {
+      const idx = g.index;
+      for (let k = 0; k < idx.count; k += 1) {
+        idxOut[iOffset + k] = idx.getX(k) + vOffset;
+      }
+      iOffset += idx.count;
+    } else {
+      for (let k = 0; k < cnt; k += 1) {
+        idxOut[iOffset + k] = vOffset + k;
+      }
+      iOffset += cnt;
+    }
+    vOffset += cnt;
+  }
+
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.BufferAttribute(posOut, 3));
+  merged.setAttribute('normal', new THREE.BufferAttribute(normOut, 3));
+  merged.setAttribute('uv', new THREE.BufferAttribute(uvOut, 2));
+  merged.setIndex(new THREE.BufferAttribute(idxOut, 1));
+  merged.computeBoundingSphere();
+  return merged;
+}
+
 /* ==========================================================================
    1. UNIVERSAL NON-PLASTIC PATINA & GRAZING FRESNEL RIM (`artifactFactory.js` Rule 1)
    ========================================================================== */
@@ -1038,52 +1102,68 @@ export function buildOrganicRoofSodAndWeeds(
     })
   );
 
-  const makeLumpySodClod = (rx: number, ry: number, rz: number, seedOff: number): THREE.BufferGeometry => {
-    const g = track(new THREE.SphereGeometry(1.0, 16, 10));
+  // Left & Right Car Roof Earthen Sod Beds (batched into 1 single GPU draw call!)
+  const sodClodGeos: THREE.BufferGeometry[] = [];
+  const sodMatrix = new THREE.Matrix4();
+  const sodQuat = new THREE.Quaternion();
+  const sodPos = new THREE.Vector3();
+  const sodScale = new THREE.Vector3(1, 1, 1);
+  const sodUpY = new THREE.Vector3(0, 1, 0);
+
+  const pushSodClod = (
+    carMatrix: THREE.Matrix4,
+    lx: number,
+    ly: number,
+    lz: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    sd: number
+  ) => {
+    const g = new THREE.SphereGeometry(1.0, 16, 10);
     const pos = g.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i += 1) {
       let x = pos.getX(i);
       let y = pos.getY(i);
       let z = pos.getZ(i);
-      if (y < 0) y *= 0.22; // Flat bottom hugging metal roof!
-      const n = fbm2D(x * 2.4 + seedOff, z * 2.4 - seedOff, 3);
+      if (y < 0) y *= 0.22;
+      const n = fbm2D(x * 2.4 + sd, z * 2.4 - sd, 3);
       const bump = 0.68 + n * 0.62;
       pos.setXYZ(i, x * rx * bump, y * ry * (0.75 + n * 0.5), z * rz * bump);
     }
     g.computeVertexNormals();
-    return g;
+    sodPos.set(lx, ly, lz).applyMatrix4(carMatrix);
+    sodQuat.setFromAxisAngle(sodUpY, sd);
+    sodMatrix.compose(sodPos, sodQuat, sodScale);
+    g.applyMatrix4(sodMatrix);
+    sodClodGeos.push(g);
   };
 
-  // Left Car Roof Asymmetric Earthen Sod Bed (concentrated on right/rear half of roof, leaving driver front bare!)
   for (const [lx, ly, lz, rx, ry, rz, sd] of [
     [0.24, 1.325, -0.14, 0.36, 0.065, 0.28, 1.7],
     [0.44, 1.312, -0.06, 0.26, 0.055, 0.24, 4.3],
     [-0.02, 1.328, -0.24, 0.28, 0.050, 0.22, 8.1],
-    [-0.64, 0.805, 1.72, 0.14, 0.042, 0.15, 12.5], // Tucked on outer far-left fender corner (never blocking blue engine bay!)
+    [-0.64, 0.805, 1.72, 0.14, 0.042, 0.15, 12.5],
   ]) {
-    const clod = new THREE.Mesh(makeLumpySodClod(rx, ry, rz, sd), sodMat);
-    clod.position.set(lx, ly, lz).applyMatrix4(leftCarMatrix);
-    clod.rotation.y = sd;
-    clod.castShadow = true;
-    clod.receiveShadow = true;
-    outGroup.add(clod);
+    pushSodClod(leftCarMatrix, lx, ly, lz, rx, ry, rz, sd);
   }
 
-  // Right Car Roof Low Wind-Flattened Sod Mat + Open Trunk Sod Bed (`mv_3m28_right_car.png` & `mv_1m50s_right_car_zoom.png`!)
   for (const [lx, ly, lz, rx, ry, rz, sd] of [
     [0.12, 1.322, -0.16, 0.42, 0.038, 0.34, 3.2],
     [-0.18, 1.322, -0.32, 0.32, 0.032, 0.26, 6.8],
-    [0.0, 0.44, -1.54, 0.46, 0.08, 0.26, 9.4], // Inside open rear trunk cavity!
+    [0.0, 0.44, -1.54, 0.46, 0.08, 0.26, 9.4],
   ]) {
-    const clod = new THREE.Mesh(makeLumpySodClod(rx, ry, rz, sd), sodMat);
-    clod.position.set(lx, ly, lz).applyMatrix4(rightCarMatrix);
-    clod.rotation.y = sd;
-    clod.castShadow = true;
-    clod.receiveShadow = true;
-    outGroup.add(clod);
+    pushSodClod(rightCarMatrix, lx, ly, lz, rx, ry, rz, sd);
   }
 
-  // 2. Gnarled Trailing Vines, Bent Dead Stalks & Knotted Rope/Roots (`TubeGeometry` curves with +Y sky normal!)
+  const mergedSodGeo = track(mergeStaticBufferGeometries(sodClodGeos));
+  sodClodGeos.forEach((g) => g.dispose());
+  const sodMesh = new THREE.Mesh(mergedSodGeo, sodMat);
+  sodMesh.castShadow = true;
+  sodMesh.receiveShadow = true;
+  outGroup.add(sodMesh);
+
+  // 2. Gnarled Trailing Vines, Bent Dead Stalks & Knotted Rope/Roots (`TubeGeometry` curves batched into 1 draw call!)
   const stalkMat = track(
     new THREE.MeshStandardMaterial({
       color: 0x866c32,
@@ -1111,7 +1191,7 @@ export function buildOrganicRoofSodAndWeeds(
       );
   };
 
-  // Left car roof trailing tangled dry vines spilling asymmetrically down over the open doorway (`mv_3m28_left_car_door.png`!)
+  const stalkGeos: THREE.BufferGeometry[] = [];
   for (let s = 0; s < 34; s += 1) {
     const p0 = new THREE.Vector3(
       0.26 + rng() * 0.34,
@@ -1133,13 +1213,12 @@ export function buildOrganicRoofSodAndWeeds(
       )
     );
     for (const pt of [p0, p1, p2]) pt.applyMatrix4(leftCarMatrix);
-    const tGeo = track(
+    stalkGeos.push(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3([p0, p1, p2]), 8, 0.0032 + rng() * 0.0028, 4, false)
     );
-    outGroup.add(new THREE.Mesh(tGeo, stalkMat));
   }
 
-  // Right car front-left roof knotted golden-tan rope loop sticking out (`mv_3m28_right_car.png` signature detail!) + cabin vines!
+  // Right car front-left roof knotted golden-tan rope loop sticking out + cabin vines!
   {
     const ropeMat = track(
       new THREE.MeshStandardMaterial({
@@ -1162,19 +1241,19 @@ export function buildOrganicRoofSodAndWeeds(
         ropeMat
       )
     );
-    // Subtle dark scraggly roots/twigs along the cut floor sill of the right car (`mv_3m28_right_car.png`!)
     for (let v = 0; v < 18; v += 1) {
       const vp0 = new THREE.Vector3(0.46 + rng() * 0.28, 0.28 + rng() * 0.18, -0.58 + rng() * 0.68).applyMatrix4(rightCarMatrix);
       const vp1 = vp0.clone().add(new THREE.Vector3((rng() - 0.5) * 0.24, 0.04 + rng() * 0.10, (rng() - 0.5) * 0.24));
       const vp2 = vp1.clone().add(new THREE.Vector3((rng() - 0.5) * 0.24, -0.08 - rng() * 0.10, (rng() - 0.5) * 0.24));
-      outGroup.add(
-        new THREE.Mesh(
-          track(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([vp0, vp1, vp2]), 7, 0.0028 + rng() * 0.0020, 4, false)),
-          stalkMat
-        )
+      stalkGeos.push(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3([vp0, vp1, vp2]), 7, 0.0028 + rng() * 0.0020, 4, false)
       );
     }
   }
+
+  const mergedStalksGeo = track(mergeStaticBufferGeometries(stalkGeos));
+  stalkGeos.forEach((g) => g.dispose());
+  outGroup.add(new THREE.Mesh(mergedStalksGeo, stalkMat));
 
   // 3. Asymmetric Wind-Swept Dry Meadow Grass & Cascading Doorway Straw (`mv_3m28_left_car_door.png` & `mv_3m28_right_car.png`!)
   // Because each tuft now sweeps cleanly in ONE direction (+Z local) with `y >= 0`, `tiltX ~ 0` keeps 100% of blades hugging
@@ -1945,6 +2024,8 @@ export function buildCurtainCreeperVines(opts: {
   };
 
   const out = new THREE.Group();
+  const curtainGeos: THREE.BufferGeometry[] = [];
+  const strandGeos: THREE.BufferGeometry[] = [];
 
   // Helper: creates a curved vertical 3D curtain strip between local anchor `pA` and `pB` on a car matrix,
   // hanging straight down in WORLD `-Y` (`gravity`) by `dropHeight` meters!
@@ -1959,7 +2040,7 @@ export function buildCurtainCreeperVines(opts: {
     const wB = new THREE.Vector3(...localB).applyMatrix4(parentMat);
     const segU = 10;
     const segV = 6;
-    const geo = track(new THREE.PlaneGeometry(1, 1, segU, segV));
+    const geo = new THREE.PlaneGeometry(1, 1, segU, segV);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     const uv = geo.attributes.uv as THREE.BufferAttribute;
 
@@ -1978,33 +2059,32 @@ export function buildCurtainCreeperVines(opts: {
       pos.setXYZ(i, wx, wy, wz);
     }
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, curtainMat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    out.add(mesh);
+    curtainGeos.push(geo);
   };
 
   // A. LEFT CAR CURTAIN CREEPER VINES (`dây leo cúc tần rủ trên mái & tai dè xe trái` — ZERO vines on swung-open door!)
-  // 1. Roof-edge curtain wisps along rear roof cantrail & windshield header (kept crisp above beltline so open white door stays 100% clean)
   addGravityCurtainStrip(leftCarMatrix, [0.59, 1.315, 0.16], [0.59, 1.310, -0.48], 0.44, 0.026);
   addGravityCurtainStrip(leftCarMatrix, [0.54, 1.320, 0.12], [0.55, 1.315, -0.44], 0.34, -0.020);
-  // 2. Rear roof edge & upper windshield header curtain wisps
   addGravityCurtainStrip(leftCarMatrix, [-0.36, 1.315, -0.48], [0.58, 1.315, -0.48], 0.52, -0.028);
   addGravityCurtainStrip(leftCarMatrix, [-0.18, 1.305, 0.21], [0.58, 1.305, 0.21], 0.32, 0.022);
-  // 3. Front olive fender hood-rail & smashed front grille rim tendrils
   addGravityCurtainStrip(leftCarMatrix, [0.725, 0.805, 1.78], [0.725, 0.805, 0.92], 0.30, 0.020);
   addGravityCurtainStrip(leftCarMatrix, [-0.725, 0.805, 1.84], [-0.15, 0.795, 1.89], 0.34, 0.022);
 
   // B. RIGHT CAR CURTAIN CREEPER VINES (`rèm dây leo cúc tần rủ từ mái cắt ngang & thân sau xe phải`)
-  // 1. Primary balcony-style curtain hanging straight down from the cut front roof edge & near cantrail (`0.58m - 0.84m` drop!)
   addGravityCurtainStrip(rightCarMatrix, [0.59, 1.310, 0.18], [-0.46, 1.310, 0.18], 0.78, 0.035);
   addGravityCurtainStrip(rightCarMatrix, [0.60, 1.310, 0.18], [0.60, 1.305, -0.62], 0.82, 0.032);
   addGravityCurtainStrip(rightCarMatrix, [0.53, 1.315, 0.12], [0.53, 1.310, -0.54], 0.58, -0.024);
-  // 2. Trailing curtain strands along the rear trunk quarter rail & tail lip
   addGravityCurtainStrip(rightCarMatrix, [0.73, 0.805, -1.06], [0.73, 0.805, -1.86], 0.34, 0.020);
   addGravityCurtainStrip(rightCarMatrix, [-0.58, 0.795, -1.89], [0.64, 0.795, -1.89], 0.32, -0.020);
 
-  // C. 3D Individual Wispy Hanging Filaments (`TubeGeometry` threads so close-up parallax has real 3D strands!)
+  const mergedCurtainsGeo = track(mergeStaticBufferGeometries(curtainGeos));
+  curtainGeos.forEach((g) => g.dispose());
+  const curtainMesh = new THREE.Mesh(mergedCurtainsGeo, curtainMat);
+  curtainMesh.castShadow = true;
+  curtainMesh.receiveShadow = true;
+  out.add(curtainMesh);
+
+  // C. 3D Individual Wispy Hanging Filaments (70 `TubeGeometry` threads batched into 1 GPU draw call!)
   const strandMat = track(
     new THREE.MeshStandardMaterial({
       color: 0x9c9464,
@@ -2038,16 +2118,19 @@ export function buildCurtainCreeperVines(opts: {
         p0.y - drop,
         p1.z + (rng() - 0.5) * 0.055
       );
-      const tGeo = track(
+      strandGeos.push(
         new THREE.TubeGeometry(new THREE.CatmullRomCurve3([p0, p1, p2]), 7, 0.0018 + rng() * 0.0016, 4, false)
       );
-      out.add(new THREE.Mesh(tGeo, strandMat));
     }
   };
 
   add3DHangingThreads(leftCarMatrix, [0.59, 1.31, 0.16], [0.59, 1.31, -0.46], 20, 0.20, 0.48);
   add3DHangingThreads(rightCarMatrix, [0.59, 1.31, 0.18], [-0.42, 1.31, 0.18], 24, 0.28, 0.82);
   add3DHangingThreads(rightCarMatrix, [0.60, 1.31, 0.16], [0.60, 1.31, -0.58], 26, 0.28, 0.86);
+
+  const mergedStrandsGeo = track(mergeStaticBufferGeometries(strandGeos));
+  strandGeos.forEach((g) => g.dispose());
+  out.add(new THREE.Mesh(mergedStrandsGeo, strandMat));
 
   return out;
 }
@@ -2129,67 +2212,28 @@ export function buildDreamyGroundMist(opts: {
     { x: 1.7, z: 4.2, lift: 0.10, sx: 3.6, sz: 2.1, col: [0.58, 0.58, 0.56], alpha: 0.070 },
   ];
 
+  // Batch all 12 terrain-conformed mist veils into 1 single BufferGeometry + 1 ShaderMaterial draw call!
+  const vertsPerPlane = (planeGeo.getAttribute('position') as THREE.BufferAttribute).count;
+  const idxPerPlane = planeGeo.index!.count;
+  const totalVerts = puffDefs.length * vertsPerPlane;
+  const totalIndices = puffDefs.length * idxPerPlane;
+
+  const mergedPos = new Float32Array(totalVerts * 3);
+  const mergedNorm = new Float32Array(totalVerts * 3);
+  const mergedUv = new Float32Array(totalVerts * 2);
+  const mergedColAlpha = new Float32Array(totalVerts * 4);
+  const mergedSeed = new Float32Array(totalVerts);
+  const mergedIndices = new Uint16Array(totalIndices);
+
+  const srcUv = planeGeo.getAttribute('uv') as THREE.BufferAttribute;
+  const srcIdx = planeGeo.index!;
+
   for (let i = 0; i < puffDefs.length; i += 1) {
     const p = puffDefs[i];
-    const mat = track(
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uNoise: { value: mistNoiseTex },
-          uTime,
-          uScrollDim,
-          uTint: { value: new THREE.Vector3(p.col[0], p.col[1], p.col[2]) },
-          uOpacity: { value: p.alpha },
-          uSeed: { value: i * 1.73 },
-        },
-        vertexShader: /* glsl */ `
-          varying vec2 vUv;
-          varying float vEdgeView;
-          void main() {
-            vUv = uv;
-            vec4 wp = modelMatrix * vec4(position, 1.0);
-            vec3 viewDir = normalize(cameraPosition - wp.xyz);
-            vec3 wNorm = normalize(mat3(modelMatrix) * normal);
-            vEdgeView = smoothstep(0.04, 0.30, abs(dot(viewDir, wNorm)));
-            gl_Position = projectionMatrix * viewMatrix * wp;
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          precision highp float;
-          uniform sampler2D uNoise;
-          uniform float uTime;
-          uniform float uScrollDim;
-          uniform vec3 uTint;
-          uniform float uOpacity;
-          uniform float uSeed;
-          varying vec2 vUv;
-          varying float vEdgeView;
-          void main() {
-            vec2 q = vUv * 2.0 - 1.0;
-            float r2 = dot(q, q);
-            if (r2 >= 1.0) discard;
-            float radial = pow(1.0 - r2, 2.1);
-
-            vec2 uvA = vUv * 1.25 + vec2(uTime * 0.014 + uSeed, uTime * 0.008 - uSeed * 0.5);
-            vec2 uvB = vUv * 1.85 - vec2(uTime * 0.010 - uSeed * 0.7, uTime * 0.012 + uSeed);
-            float nA = texture2D(uNoise, uvA).r;
-            float nB = texture2D(uNoise, uvB).r;
-            float wisp = smoothstep(0.28, 0.82, nA * 0.62 + nB * 0.38);
-
-            float alpha = radial * wisp * uOpacity * vEdgeView * (1.0 - uScrollDim);
-            gl_FragColor = vec4(uTint, alpha);
-          }
-        `,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.NormalBlending,
-        side: THREE.DoubleSide,
-      })
-    );
-
-    // Conform mist veil gently to local terrain height so it never slices sharply into slopes!
-    const instGeo = track(planeGeo.clone());
+    const seedVal = i * 1.73;
+    const instGeo = planeGeo.clone();
     const pos = instGeo.attributes.position as THREE.BufferAttribute;
-    for (let v = 0; v < pos.count; v += 1) {
+    for (let v = 0; v < vertsPerPlane; v += 1) {
       const lx = pos.getX(v) * p.sx;
       const lz = pos.getZ(v) * p.sz;
       const wx = p.x + lx;
@@ -2197,10 +2241,107 @@ export function buildDreamyGroundMist(opts: {
       pos.setXYZ(v, wx, sampleHeight(wx, wz) + p.lift, wz);
     }
     instGeo.computeVertexNormals();
-    const m = new THREE.Mesh(instGeo, mat);
-    m.renderOrder = 3;
-    group.add(m);
+    const norm = instGeo.attributes.normal as THREE.BufferAttribute;
+
+    const vBase = i * vertsPerPlane;
+    for (let v = 0; v < vertsPerPlane; v += 1) {
+      const dstV = vBase + v;
+      mergedPos[dstV * 3] = pos.getX(v);
+      mergedPos[dstV * 3 + 1] = pos.getY(v);
+      mergedPos[dstV * 3 + 2] = pos.getZ(v);
+
+      mergedNorm[dstV * 3] = norm.getX(v);
+      mergedNorm[dstV * 3 + 1] = norm.getY(v);
+      mergedNorm[dstV * 3 + 2] = norm.getZ(v);
+
+      mergedUv[dstV * 2] = srcUv.getX(v);
+      mergedUv[dstV * 2 + 1] = srcUv.getY(v);
+
+      mergedColAlpha[dstV * 4] = p.col[0];
+      mergedColAlpha[dstV * 4 + 1] = p.col[1];
+      mergedColAlpha[dstV * 4 + 2] = p.col[2];
+      mergedColAlpha[dstV * 4 + 3] = p.alpha;
+
+      mergedSeed[dstV] = seedVal;
+    }
+
+    const iBase = i * idxPerPlane;
+    for (let k = 0; k < idxPerPlane; k += 1) {
+      mergedIndices[iBase + k] = srcIdx.getX(k) + vBase;
+    }
+    instGeo.dispose();
   }
+
+  const batchedMistGeo = track(new THREE.BufferGeometry());
+  batchedMistGeo.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
+  batchedMistGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
+  batchedMistGeo.setAttribute('uv', new THREE.BufferAttribute(mergedUv, 2));
+  batchedMistGeo.setAttribute('aMistColAlpha', new THREE.BufferAttribute(mergedColAlpha, 4));
+  batchedMistGeo.setAttribute('aMistSeed', new THREE.BufferAttribute(mergedSeed, 1));
+  batchedMistGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+  batchedMistGeo.computeBoundingSphere();
+
+  const batchedMistMat = track(
+    new THREE.ShaderMaterial({
+      uniforms: {
+        uNoise: { value: mistNoiseTex },
+        uTime,
+        uScrollDim,
+      },
+      vertexShader: /* glsl */ `
+        attribute vec4 aMistColAlpha;
+        attribute float aMistSeed;
+        varying vec2 vUv;
+        varying float vEdgeView;
+        varying vec4 vColAlpha;
+        varying float vSeed;
+        void main() {
+          vUv = uv;
+          vColAlpha = aMistColAlpha;
+          vSeed = aMistSeed;
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vec3 viewDir = normalize(cameraPosition - wp.xyz);
+          vec3 wNorm = normalize(mat3(modelMatrix) * normal);
+          vEdgeView = smoothstep(0.04, 0.30, abs(dot(viewDir, wNorm)));
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform sampler2D uNoise;
+        uniform float uTime;
+        uniform float uScrollDim;
+        varying vec2 vUv;
+        varying float vEdgeView;
+        varying vec4 vColAlpha;
+        varying float vSeed;
+        void main() {
+          vec2 q = vUv * 2.0 - 1.0;
+          float r2 = dot(q, q);
+          if (r2 >= 1.0) discard;
+          float radial = pow(1.0 - r2, 2.1);
+
+          vec2 uvA = vUv * 1.25 + vec2(uTime * 0.014 + vSeed, uTime * 0.008 - vSeed * 0.5);
+          vec2 uvB = vUv * 1.85 - vec2(uTime * 0.010 - vSeed * 0.7, uTime * 0.012 + vSeed);
+          float nA = texture2D(uNoise, uvA).r;
+          float nB = texture2D(uNoise, uvB).r;
+          float wisp = smoothstep(0.28, 0.82, nA * 0.62 + nB * 0.38);
+
+          float alpha = radial * wisp * vColAlpha.a * vEdgeView * (1.0 - uScrollDim);
+          gl_FragColor = vec4(vColAlpha.rgb, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
+      side: THREE.DoubleSide,
+    })
+  );
+
+  const mistMesh = new THREE.Mesh(batchedMistGeo, batchedMistMat);
+  mistMesh.renderOrder = 3;
+  mistMesh.frustumCulled = false;
+  group.add(mistMesh);
 
   return group;
 }
