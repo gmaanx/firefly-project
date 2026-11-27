@@ -1,10 +1,15 @@
 import { useRef, type MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
 import { TEAM_ASSIGNMENTS } from '../../data/teamAssignmentData';
 import { useSectionReveal } from '../../lib/useEditorialMotion';
 import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { SplitHoverText } from '../shared/KineticButton';
 import { useRouteCurtain } from '../shared/RouteCurtain';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export interface FooterSectionProps {
   reducedMotion: boolean;
@@ -28,6 +33,7 @@ function ZeitHoverArrow() {
 
 export function FooterSection({ reducedMotion }: FooterSectionProps) {
   const footerRef = useRef<HTMLElement>(null);
+  const topVisorSvgRef = useRef<SVGSVGElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { navigateWithCurtain, navigateWithDarkZoom } = useRouteCurtain();
@@ -39,6 +45,35 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
       location.pathname !== '/thuc-nghiem/');
 
   useSectionReveal(footerRef, reducedMotion);
+
+  useGSAP(
+    () => {
+      const footer = footerRef.current;
+      const visorSvg = topVisorSvgRef.current;
+      if (!footer || !visorSvg) return;
+
+      if (reducedMotion) {
+        visorSvg.style.transform = 'scaleY(0.82)';
+        return;
+      }
+
+      gsap.fromTo(
+        visorSvg,
+        { scaleY: 1.12 },
+        {
+          scaleY: 0.72,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: footer,
+            start: 'top 98%',
+            end: 'top 38%',
+            scrub: true,
+          },
+        }
+      );
+    },
+    { scope: footerRef, dependencies: [reducedMotion, location.pathname] }
+  );
 
   const handleOpenSubpage = (
     toPath: string,
@@ -90,6 +125,21 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
       data-surface="dark"
       aria-labelledby="footer-heading"
     >
+      {/* Crisp Lando Sculpted Top Visor Arch (Zero Muddy Blur!) */}
+      <div className="lando-footer-top-visor" aria-hidden="true">
+        <svg
+          ref={topVisorSvgRef}
+          viewBox="0 0 1440 100"
+          preserveAspectRatio="none"
+          className="lando-footer-top-visor__svg"
+        >
+          <path
+            d="M0,-4 H1440 V78 C1080,10 360,10 0,78 Z"
+            fill="currentColor"
+          />
+        </svg>
+      </div>
+
       <div className="lando-footer-chamber">
         {/* Authentic Lando Raised Center Tab protruding upward into the bright neon-lime blend sky */}
         <div className="lando-footer-raised-tab" aria-hidden="true">
