@@ -241,16 +241,20 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
       />
 
       {/* 3. Worked Step-by-Step 3D Telemetry & Constrained Optimization (#101110 Obsidian) */}
-      <WorkedTelemetrySection reducedMotion={reducedMotion} />
+      <div className="obsidian-tail-continuum">
+        <ContourBackdrop variant="dark" />
+        <WorkedTelemetrySection reducedMotion={reducedMotion} />
 
-      <NextPageBanner
-        titlePlain="Kết quả"
-        titleSerif="thực nghiệm trên Python"
-        to="/thuc-nghiem"
-        ctaLabel="XEM KẾT QUẢ THỰC NGHIỆM"
-        accent="lime"
-        reducedMotion={reducedMotion}
-      />
+        <NextPageBanner
+          titlePlain="Kết quả"
+          titleSerif="thực nghiệm trên Python"
+          to="/thuc-nghiem"
+          ctaLabel="XEM KẾT QUẢ THỰC NGHIỆM"
+          accent="lime"
+          withContour={false}
+          reducedMotion={reducedMotion}
+        />
+      </div>
 
       <FooterSection reducedMotion={reducedMotion} />
     </div>

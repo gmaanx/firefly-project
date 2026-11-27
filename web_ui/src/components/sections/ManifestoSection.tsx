@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { useSectionReveal } from '../../lib/useEditorialMotion';
 import { BlockReveal } from '../shared/BlockReveal';
-import { ContourBackdrop } from '../shared/ContourBackdrop';
 import { MathFormula } from '../shared/MathFormula';
 
 export interface ManifestoSectionProps {
@@ -22,8 +21,6 @@ export function ManifestoSection({ reducedMotion }: ManifestoSectionProps) {
       aria-labelledby="manifesto-heading"
     >
       <div className="manifesto-solid-backdrop">
-        <ContourBackdrop variant="olive" />
-
         <div className="section-container manifesto-statement-stage">
         <div className="manifesto-center">
           <h2 id="manifesto-heading" tabIndex={-1} className="manifesto-headline">

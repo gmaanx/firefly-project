@@ -677,7 +677,9 @@ export function FlowchartTrackSection({
   );
 
   return (
-    <>
+    <div className="flowchart-continuum surface-light">
+      <ContourBackdrop variant="light" />
+
       {/* 2A. Split Sticky 5-Step Scrollytelling Section (`#so-do`) */}
       <section
         id="so-do"
@@ -686,8 +688,6 @@ export function FlowchartTrackSection({
         data-surface="light"
         aria-labelledby="flowchart-heading"
       >
-        <ContourBackdrop variant="light" />
-
         <div
           ref={runwayRef}
           className={!reducedMotion ? 'flowchart-scroll-runway' : 'flowchart-static-stage'}
@@ -924,8 +924,6 @@ export function FlowchartTrackSection({
         data-surface="light"
         aria-labelledby="pseudocode-heading"
       >
-        <ContourBackdrop variant="light" />
-
         <div className="section-container flowchart-stack">
           <div className="flowchart-header">
             <div className="flowchart-header__titles">
@@ -1034,6 +1032,6 @@ export function FlowchartTrackSection({
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
