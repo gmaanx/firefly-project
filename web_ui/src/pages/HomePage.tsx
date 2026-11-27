@@ -54,6 +54,7 @@ export function HomePage({
   const heroHudFrameRef = useRef<HTMLDivElement>(null);
   const heroCrtOverlayRef = useRef<HTMLDivElement>(null);
   const heroEyebrowRef = useRef<HTMLDivElement>(null);
+  const heroMarqueeRef = useRef<HTMLDivElement>(null);
   const heroScrollProgressRef = useRef<number>(0);
   const [heroStageActive, setHeroStageActive] = useState<boolean>(isActive);
 
@@ -70,6 +71,7 @@ export function HomePage({
   useEffect(() => {
     if (!isActive) {
       setHeroStageActive(false);
+      heroMarqueeRef.current?.classList.add('lando-bridge-marquee--paused');
       return;
     }
 
@@ -77,7 +79,8 @@ export function HomePage({
     if (!stageEl) return;
 
     let vh = Math.max(1, window.innerHeight);
-    let lastActive = true;
+    let lastActive: boolean | null = null;
+    let lastMarqueePaused: boolean | null = null;
 
     const applyHeroScroll = () => {
       const sy = window.scrollY;
@@ -92,6 +95,16 @@ export function HomePage({
       if (shouldBeActive !== lastActive) {
         lastActive = shouldBeActive;
         setHeroStageActive(shouldBeActive);
+      }
+
+      // Pause marquee CSS animation when Hero canvas is 100% full-bleed (p < 0.015) or offscreen
+      const shouldPauseMarquee = !shouldBeActive || p < 0.015;
+      if (shouldPauseMarquee !== lastMarqueePaused) {
+        lastMarqueePaused = shouldPauseMarquee;
+        heroMarqueeRef.current?.classList.toggle(
+          'lando-bridge-marquee--paused',
+          shouldPauseMarquee
+        );
       }
     };
 
@@ -158,10 +171,12 @@ export function HomePage({
     }
 
     applyHeroScroll();
+    const wakeRaf = window.requestAnimationFrame(applyHeroScroll);
     window.addEventListener('scroll', applyHeroScroll, { passive: true });
     window.addEventListener('resize', onResize, { passive: true });
 
     return () => {
+      window.cancelAnimationFrame(wakeRaf);
       io?.disconnect();
       showcaseIo?.disconnect();
       heroSecEl.removeEventListener('contentvisibilityautostatechange', onHeroContentVisibility);
@@ -293,9 +308,8 @@ export function HomePage({
 
           {/* 2-Row Full-Bleed Horizontal Band: Row 1 glides Left->Right, Row 2 glides Right->Left; scrolls UP together on scroll! */}
           <div
-            className={`lando-bridge-marquee ${
-              !(isActive && heroStageActive) ? 'lando-bridge-marquee--paused' : ''
-            }`.trim()}
+            ref={heroMarqueeRef}
+            className="lando-bridge-marquee lando-bridge-marquee--paused"
             aria-hidden="true"
           >
             <div className="lando-bridge-marquee__row">

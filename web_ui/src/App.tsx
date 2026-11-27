@@ -278,19 +278,31 @@ function AppInner({
       syncActiveSurface();
     };
 
+    let rebindRaf = 0;
+    const scheduleBindSections = () => {
+      if (rebindRaf) return;
+      rebindRaf = window.requestAnimationFrame(() => {
+        rebindRaf = 0;
+        bindSections();
+      });
+    };
+
     bindSections();
 
-    const mo = new MutationObserver(() => {
-      bindSections();
-    });
+    const subpageOutlet = mainEl.querySelector('.route-subpage-outlet');
+    const mo = new MutationObserver(scheduleBindSections);
+    if (subpageOutlet) {
+      mo.observe(subpageOutlet, { childList: true, subtree: false });
+    }
     mo.observe(mainEl, {
       childList: true,
-      subtree: true,
+      subtree: false,
       attributes: true,
       attributeFilter: ['data-route-active'],
     });
 
     return () => {
+      if (rebindRaf) window.cancelAnimationFrame(rebindRaf);
       mo.disconnect();
       io.disconnect();
       intersecting.clear();
@@ -360,7 +372,7 @@ function AppInner({
             data-route-active={isHomeActive ? 'true' : 'false'}
             hidden={!isHomeActive}
             aria-hidden={!isHomeActive}
-            {...(!isHomeActive ? ({ inert: '' } as Record<string, string>) : {})}
+            inert={!isHomeActive}
             style={{ display: isHomeActive ? 'block' : 'none' }}
           >
             <HomePage

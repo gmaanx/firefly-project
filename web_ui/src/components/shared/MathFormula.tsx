@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import katex from 'katex';
 
 export interface MathFormulaProps {
@@ -8,7 +8,7 @@ export interface MathFormulaProps {
   ariaLabel?: string;
 }
 
-export function MathFormula({
+export const MathFormula = memo(function MathFormula({
   tex,
   display = false,
   className = '',
@@ -45,4 +45,4 @@ export function MathFormula({
       <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
     </Tag>
   );
-}
+});

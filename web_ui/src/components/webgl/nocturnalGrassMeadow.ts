@@ -27,8 +27,8 @@ export const MEADOW_V_MAX = 7.2;  // wz = +7.2 (right under camera lens)
 const U_SPAN = MEADOW_U_MAX - MEADOW_U_MIN;
 const V_SPAN = MEADOW_V_MAX - MEADOW_V_MIN;
 
-const DESKTOP_TUFT_COUNT = 30000; // 60,000 lush wide 3D V-ribbed blades (locked 60/120fps on laptop iGPUs!)
-const MOBILE_TUFT_COUNT = 14000;  // 28,000 3D V-ribbed blades!
+const DESKTOP_TUFT_COUNT = 18000; // 36,000 lush wide 3D V-ribbed blades (locked 60fps on laptop iGPUs!)
+const MOBILE_TUFT_COUNT = 10000;  // 20,000 3D V-ribbed blades!
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
