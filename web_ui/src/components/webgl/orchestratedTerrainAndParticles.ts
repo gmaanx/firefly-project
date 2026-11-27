@@ -400,8 +400,8 @@ export function createOrchestratedTerrainAndParticles(
         - `6` continuous shutter subsamples across `screen0 -> screen1` + crisp
           `uHardness = 0.80` circular lens bokeh discs!
      ------------------------------------------------------------------------ */
-  const gridX = isMobile ? 20 : 24;
-  const gridY = isMobile ? 16 : 20;
+  const gridX = isMobile ? 16 : 20;
+  const gridY = isMobile ? 12 : 16;
   const fireflyCount = gridX * gridY;
 
   let prng = 0x9e3779b9;

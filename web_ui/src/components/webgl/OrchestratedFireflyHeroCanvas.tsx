@@ -171,6 +171,7 @@ export function OrchestratedFireflyHeroCanvas({
   eyebrowRefLatest.current = eyebrowRef;
 
   const [webglFailed, setWebglFailed] = useState<boolean>(false);
+  const wakeStageRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     markSanctuaryBootMounted();
@@ -208,7 +209,7 @@ export function OrchestratedFireflyHeroCanvas({
     renderer.setClearColor(0x010204, 1);
 
     const isMobile = window.innerWidth < 768;
-    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.0 : 1.15);
+    const dpr = 1.0;
     let vw = Math.max(2, window.innerWidth);
     let vh = Math.max(2, window.innerHeight);
     let pixelH = Math.max(2, Math.floor(vh * dpr));
@@ -360,11 +361,14 @@ export function OrchestratedFireflyHeroCanvas({
     let running = false;
     let elapsed = 0;
     let introProgress = 0;
+    let lastRenderTs = 0;
     let smoothScrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
 
-    const stepFrame = (timestamp: number) => {
-      if (!running) return;
-      rafId = window.requestAnimationFrame(stepFrame);
+    const renderSingleStep = (timestamp: number, forceRender = false) => {
+      if (!forceRender && timestamp - lastRenderTs < 15.2) {
+        return;
+      }
+      lastRenderTs = timestamp;
 
       timer.update(timestamp);
       const dt = clamp(timer.getDelta(), 0.004, 0.033);
@@ -578,11 +582,20 @@ export function OrchestratedFireflyHeroCanvas({
       composer.render(dt);
     };
 
+    const stepFrame = (timestamp: number) => {
+      if (!running) return;
+      rafId = window.requestAnimationFrame(stepFrame);
+      renderSingleStep(timestamp, false);
+    };
+
     const syncRunState = () => {
       const shouldRun = stageActiveRef.current && !document.hidden;
       if (shouldRun && !running) {
+        handleResize();
+        smoothScrollP = clamp(scrollProgressRef.current, 0.0, 1.0);
         running = true;
         timer.reset();
+        renderSingleStep(performance.now(), true);
         rafId = window.requestAnimationFrame(stepFrame);
       } else if (!shouldRun && running) {
         running = false;
@@ -590,10 +603,13 @@ export function OrchestratedFireflyHeroCanvas({
       }
     };
 
+    wakeStageRef.current = syncRunState;
+
     document.addEventListener('visibilitychange', syncRunState);
     syncRunState();
 
     return () => {
+      wakeStageRef.current = null;
       running = false;
       window.cancelAnimationFrame(rafId);
       timer.dispose();
@@ -615,7 +631,7 @@ export function OrchestratedFireflyHeroCanvas({
   }, [scrollProgressRef]);
 
   useEffect(() => {
-    document.dispatchEvent(new Event('visibilitychange'));
+    wakeStageRef.current?.();
   }, [stageActive]);
 
   if (webglFailed) {

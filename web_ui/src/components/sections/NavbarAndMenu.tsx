@@ -488,7 +488,7 @@ export function NavbarAndMenu({
                 ref={closeBtnRef}
                 type="button"
                 className="hamburger-btn"
-                data-menu-open={btnVisualOpen ? 'true' : 'false'}
+                data-menu-open="true"
                 aria-label="Đóng menu (Esc)"
                 aria-expanded={menuOpen}
                 onClick={() => onMenuToggle(false)}

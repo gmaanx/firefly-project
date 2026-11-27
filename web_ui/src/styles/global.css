@@ -63,7 +63,7 @@ body {
   line-height: 1.64;
   text-align: start;
   color: var(--ink-dark);
-  background-color: var(--bg-alabaster);
+  background-color: var(--bg-obsidian);
   overflow-x: clip;
   overflow-wrap: break-word;
 }
@@ -298,7 +298,7 @@ h3[id] {
   z-index: 5;
   width: 100%;
   height: clamp(50px, 6.4vw, 84px);
-  margin-block: -1px;
+  margin-block: -2px;
   pointer-events: none;
   overflow: hidden;
 }
@@ -321,7 +321,7 @@ h3[id] {
 
 .lando-visor-bridge__arch {
   position: absolute;
-  inset: -1px 0 0;
+  inset: -2px 0 0;
   clip-path: ellipse(72% 76% at 50% 0%);
   will-change: clip-path;
 }
@@ -585,30 +585,11 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   background-color: #ffffff;
   border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0);
-  transform: scale(0.5);
+  transform: translate3d(-100px, -100px, 0) scale(0.5);
   pointer-events: none;
-  will-change: transform;
-}
-
-.orch-cursor-cross-wrap {
-  position: fixed;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  visibility: hidden;
-  opacity: 0;
-  transform: scale(0.5);
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-
-.orch-cursor-cross {
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
-  display: block;
+  transition:
+    background-color 0.22s var(--ease-out),
+    border-color 0.22s var(--ease-out);
 }
 
 .orch-cursor-arrow {
@@ -620,7 +601,7 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   display: grid;
   place-items: center end;
   pointer-events: none;
-  will-change: transform, opacity;
+  transition: opacity 0.22s var(--ease-out);
 }
 
 .orch-cursor-arrow__svg {
@@ -1074,7 +1055,8 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   scale: 0.94;
 }
 
-.top-nav--on-dark .hamburger-btn {
+.top-nav--on-dark .hamburger-btn,
+.split-menu__topbar .hamburger-btn {
   background: rgba(16, 17, 16, 0.86);
   color: var(--ink-light);
   border-color: var(--line-on-dark-strong);
@@ -1095,7 +1077,6 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   background: currentColor;
   border-radius: 2px;
   transform-origin: center center;
-  will-change: transform, width;
   transition:
     transform 0.58s cubic-bezier(0.625, 0.05, 0, 1),
     width 0.42s cubic-bezier(0.625, 0.05, 0, 1);
@@ -1113,7 +1094,8 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   transform: translate3d(0, 0, 0) rotate(0.001deg);
 }
 
-.hamburger-btn[data-menu-open='true'] {
+.hamburger-btn[data-menu-open='true'],
+.split-menu__topbar .hamburger-btn[data-menu-open='true'] {
   background: var(--ink-light);
   color: var(--ink-dark);
   border-color: transparent;
@@ -1134,7 +1116,8 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
     color: var(--ink-light);
     border-color: var(--ink-dark);
   }
-  .top-nav--on-dark .hamburger-btn[data-menu-open='false']:hover {
+  .top-nav--on-dark .hamburger-btn[data-menu-open='false']:hover,
+  .split-menu__topbar .hamburger-btn[data-menu-open='false']:hover {
     background: #d2ff00;
     color: var(--ink-dark);
     border-color: #d2ff00;
@@ -1142,7 +1125,8 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   .hamburger-btn[data-menu-open='false']:hover .hamburger-btn__bar--bottom {
     width: 18px;
   }
-  .hamburger-btn[data-menu-open='true']:hover {
+  .hamburger-btn[data-menu-open='true']:hover,
+  .split-menu__topbar .hamburger-btn[data-menu-open='true']:hover {
     background: #d2ff00;
     color: var(--ink-dark);
     border-color: #d2ff00;
@@ -1233,7 +1217,6 @@ html:not([data-pointer-seen]) .orch-custom-cursor {
   overflow: hidden;
   opacity: 0.64;
   transform: scale(0.985);
-  will-change: clip-path, transform, opacity;
   transition:
     opacity 0.28s var(--ease-out),
     transform 0.32s var(--ease-out),
@@ -2903,8 +2886,6 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
   color: var(--ink-light);
   padding: clamp(2.4rem, 4.8dvh, 4rem) 0 clamp(2.8rem, 5.5dvh, 4.4rem);
   overflow: hidden;
-  content-visibility: auto;
-  contain-intrinsic-size: auto none auto 620px;
 }
 
 .route-showcase-head {
@@ -4589,9 +4570,12 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 .next-page-banner {
+  position: relative;
+  z-index: 5;
   background: var(--bg-obsidian);
   color: var(--ink-light);
-  padding: 2.2rem 0;
+  margin-block: -2px;
+  padding: calc(2.2rem + 2px) 0;
 }
 
 .next-page-banner__inner {
@@ -6053,29 +6037,29 @@ input[type='range']::-moz-range-thumb {
 .lando-footer-frame {
   --footer-lead-bg: var(--bg-obsidian);
   position: relative;
-  z-index: 5;
-  content-visibility: auto;
-  contain-intrinsic-size: auto none auto 34rem;
-  padding: clamp(6.6rem, 13.5dvh, 8.8rem) 12px 12px;
+  z-index: 6;
+  margin-top: -2px;
+  padding: calc(clamp(6.6rem, 13.5dvh, 8.8rem) + 2px) 12px 12px;
   color: var(--ink-light);
   background:
     radial-gradient(
-      ellipse 72% 112px at 50% 0%,
+      ellipse 72% 116px at 50% 0%,
       var(--footer-lead-bg) 0%,
-      var(--footer-lead-bg) 32%,
+      var(--footer-lead-bg) 34%,
       transparent 100%
     ),
     linear-gradient(
       to bottom var(--in-oklab),
       var(--footer-lead-bg) 0px,
-      #d2ff00 102px,
+      var(--footer-lead-bg) 4px,
+      #d2ff00 108px,
       #d2ff00 100%
-    );
+    )
+    var(--footer-lead-bg);
 }
 
 .lando-footer-frame--compact {
-  contain-intrinsic-size: auto none auto 22rem;
-  padding-top: clamp(5.6rem, 11.5dvh, 7.6rem);
+  padding-top: calc(clamp(5.6rem, 11.5dvh, 7.6rem) + 2px);
 }
 
 .lando-footer-chamber {
@@ -6219,7 +6203,6 @@ input[type='range']::-moz-range-thumb {
   color: #d2ff00;
   transform: scale(0) rotate(0.001deg);
   transform-origin: left center;
-  will-change: transform;
   transition: transform 0.58s cubic-bezier(0.625, 0.05, 0, 1);
 }
 
@@ -6278,7 +6261,6 @@ input[type='range']::-moz-range-thumb {
   align-items: baseline;
   gap: 0.48rem;
   transform: translateX(-1.08rem) rotate(0.001deg);
-  will-change: transform;
   transition: transform 0.58s cubic-bezier(0.625, 0.05, 0, 1);
 }
 

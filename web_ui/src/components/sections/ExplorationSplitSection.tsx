@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -88,43 +88,16 @@ export function ExplorationSplitSection({
 
   const idPrefix = useId();
 
-  // Raw UI slider values + GSAP-smoothed physical values for silky interactive glide
+  // Raw UI slider values (coalesced directly without 60fps React full-section state thrash)
   const [distR, setDistR] = useState<number>(1.65);
   const [gammaVal, setGammaVal] = useState<number>(0.28);
-  const [animDistR, setAnimDistR] = useState<number>(1.65);
-  const [animGamma, setAnimGamma] = useState<number>(0.28);
   const [thetaVal, setThetaVal] = useState<number>(0.97);
   const [exploreEntered, setExploreEntered] = useState<boolean>(false);
 
-  const smoothStateRef = useRef({ r: 1.65, g: 0.28 });
+  const animDistR = distR;
+  const animGamma = gammaVal;
 
   useSectionReveal(continuumRef, reducedMotion);
-
-  // GSAP-smoothed physical interpolation when dragging r or gamma sliders
-  useEffect(() => {
-    if (reducedMotion) {
-      smoothStateRef.current.r = distR;
-      smoothStateRef.current.g = gammaVal;
-      setAnimDistR(distR);
-      setAnimGamma(gammaVal);
-      return;
-    }
-
-    const tween = gsap.to(smoothStateRef.current, {
-      r: distR,
-      g: gammaVal,
-      duration: 0.36,
-      ease: 'power3.out',
-      overwrite: true,
-      onUpdate: () => {
-        setAnimDistR(smoothStateRef.current.r);
-        setAnimGamma(smoothStateRef.current.g);
-      },
-    });
-    return () => {
-      tween.kill();
-    };
-  }, [distR, gammaVal, reducedMotion]);
 
   /* ========================================================================
      CHAPTER 01 COMPUTATIONS: FRAMELESS INK-ON-PAPER RADIAL TOPOGRAPHY
