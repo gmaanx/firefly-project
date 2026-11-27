@@ -18,6 +18,35 @@ export interface FooterSectionProps {
 
 const DEFAULT_PREVIEW_SLUG = 'gia-man';
 
+function WingSlotText({
+  text,
+  arrow,
+}: {
+  text: string;
+  arrow: '→' | '↗';
+}) {
+  return (
+    <>
+      <span className="lando-wing-link__slot" aria-hidden="true">
+        <span className="lando-wing-link__track">
+          <span className="lando-wing-link__line">{text}</span>
+          <span className="lando-wing-link__line lando-wing-link__line--accent">
+            {text}
+          </span>
+        </span>
+      </span>
+      <span className="lando-wing-link__arrow" aria-hidden="true">
+        <span className="lando-wing-link__arrow-glyph lando-wing-link__arrow-glyph--primary">
+          {arrow}
+        </span>
+        <span className="lando-wing-link__arrow-glyph lando-wing-link__arrow-glyph--clone">
+          {arrow}
+        </span>
+      </span>
+    </>
+  );
+}
+
 export function FooterSection({ reducedMotion }: FooterSectionProps) {
   const footerRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -25,6 +54,10 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
   const { navigateWithCurtain, navigateWithDarkZoom } = useRouteCurtain();
 
   const isOnAssignmentRoute = location.pathname.startsWith('/phan-cong');
+  const isOnSubpageDetail =
+    isOnAssignmentRoute ||
+    (location.pathname.startsWith('/thuc-nghiem/') &&
+      location.pathname !== '/thuc-nghiem/');
 
   const [activeSlug, setActiveSlug] = useState<string>(DEFAULT_PREVIEW_SLUG);
   const activeMember =
@@ -62,7 +95,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
     { scope: footerRef, dependencies: [reducedMotion] }
   );
 
-  const handleOpenAssignment = (
+  const handleOpenSubpage = (
     toPath: string,
     origin?: HTMLElement | MouseEvent<HTMLElement> | null
   ) => {
@@ -74,7 +107,20 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
       return;
     }
 
-    if (isOnAssignmentRoute) {
+    if (location.pathname === toPath) {
+      if (origin && 'preventDefault' in origin) {
+        origin.preventDefault();
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+      window.dispatchEvent(
+        new CustomEvent('app:lenis-scroll', {
+          detail: { top: 0, immediate: reducedMotion },
+        })
+      );
+      return;
+    }
+
+    if (isOnSubpageDetail) {
       if (origin && 'preventDefault' in origin) {
         origin.preventDefault();
       }
@@ -89,6 +135,28 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
     navigateWithDarkZoom(toPath, origin ?? null, {
       returnPath: location.pathname,
     });
+  };
+
+  const handleJumpCompression = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      return;
+    }
+    if (location.pathname === '/demo') {
+      e.preventDefault();
+      const el = document.getElementById('nen-anh-fa');
+      if (el) {
+        const top = Math.max(0, window.scrollY + el.getBoundingClientRect().top - 68);
+        if (reducedMotion) {
+          window.scrollTo({ top, left: 0, behavior: 'auto' });
+        } else {
+          window.dispatchEvent(
+            new CustomEvent('app:lenis-scroll', { detail: { top, duration: 0.9 } })
+          );
+        }
+      }
+      return;
+    }
+    navigateWithCurtain('/demo', e, 'nen-anh-fa');
   };
 
   return (
@@ -173,33 +241,35 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
         </div>
 
         {/* 2. Single-Viewport 3-Column Lando Chamber:
-               Left Wing (`CÁC TRANG`) | Center Swiss Hairline Roster + Live Dossier | Right Wing (`ĐIỂM NHẤN`) */}
+               Left Architectural Wing (`MỤC LỤC`) | Center Swiss Hairline Roster | Right Architectural Wing (`MỞ NHANH`) */}
         <div className="lando-footer-lower-grid reveal-fade">
-          <nav className="lando-footer-side-col" aria-label="Điều hướng các trang">
-            <span className="lando-footer-side-col__label">CÁC TRANG</span>
-            <ul className="lando-footer-side-col__list">
-              {APP_ROUTES.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className="lando-footer-big-link"
-                    onClick={(e) => navigateWithCurtain(item.path, e)}
-                  >
-                    {item.title.toUpperCase()}
-                  </Link>
-                </li>
-              ))}
-              {!isOnAssignmentRoute ? (
-                <li>
-                  <Link
-                    to="/phan-cong"
-                    className="lando-footer-big-link lando-footer-big-link--lime"
-                    onClick={(e) => handleOpenAssignment('/phan-cong', e)}
-                  >
-                    PHÂN CÔNG NHÓM
-                  </Link>
-                </li>
-              ) : null}
+          <nav className="lando-wing lando-wing--left" aria-label="Mục lục các chương">
+            <div className="lando-wing__header">
+              <span className="lando-wing__eyebrow">MỤC LỤC</span>
+              <span className="lando-wing__count" aria-hidden="true">
+                01—04
+              </span>
+            </div>
+            <ul className="lando-wing__list">
+              {APP_ROUTES.map((item) => {
+                const isCurrent = !isOnSubpageDetail && location.pathname === item.path;
+                return (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      aria-label={item.title}
+                      aria-current={isCurrent ? 'page' : undefined}
+                      className="lando-wing-link"
+                      onClick={(e) => navigateWithCurtain(item.path, e)}
+                    >
+                      <span className="lando-wing-link__index" aria-hidden="true">
+                        {item.numLabel}
+                      </span>
+                      <WingSlotText text={item.title.toUpperCase()} arrow="→" />
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 
@@ -218,7 +288,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                         className={`lando-roster-item ${isFocused ? 'lando-roster-item--active' : ''}`}
                         onMouseEnter={() => setActiveSlug(m.slug)}
                         onFocus={() => setActiveSlug(m.slug)}
-                        onClick={(ev) => handleOpenAssignment(`/phan-cong/${m.slug}`, ev)}
+                        onClick={(ev) => handleOpenSubpage(`/phan-cong/${m.slug}`, ev)}
                       >
                         <span className="lando-roster-item__num">
                           {String(m.memberNumber).padStart(2, '0')}
@@ -236,7 +306,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                     to="/phan-cong"
                     role="listitem"
                     className="lando-roster-item lando-roster-item--all"
-                    onClick={(ev) => handleOpenAssignment('/phan-cong', ev)}
+                    onClick={(ev) => handleOpenSubpage('/phan-cong', ev)}
                   >
                     <span className="lando-roster-item__num" aria-hidden="true">∑</span>
                     <span className="lando-roster-item__name">Đủ 6 giai đoạn</span>
@@ -289,7 +359,7 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                 to="/phan-cong"
                 aria-label="XEM CHI TIẾT PHÂN CÔNG"
                 className="lando-footer-cta-btn"
-                onClick={(e) => handleOpenAssignment('/phan-cong', e)}
+                onClick={(e) => handleOpenSubpage('/phan-cong', e)}
               >
                 <SplitHoverText text="XEM CHI TIẾT PHÂN CÔNG" />
                 <span className="lando-footer-cta-btn__icon" aria-hidden="true">
@@ -304,34 +374,51 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
             )}
           </div>
 
-          <div className="lando-footer-side-col">
-            <span className="lando-footer-side-col__label">TÀI LIỆU &amp; MÃ NGUỒN</span>
-            <ul className="lando-footer-side-col__list">
+          <nav
+            className="lando-wing lando-wing--right"
+            aria-label="Lối tắt chuyên đề và mã nguồn"
+          >
+            <div className="lando-wing__header">
+              <span className="lando-wing__eyebrow">MỞ NHANH</span>
+              <span className="lando-wing__count" aria-hidden="true">
+                ↗
+              </span>
+            </div>
+            <ul className="lando-wing__list">
               <li>
                 <Link
                   to="/thuc-nghiem/hoi-tu"
-                  className="lando-footer-big-link"
-                  onClick={(e) => handleOpenAssignment('/thuc-nghiem/hoi-tu', e)}
+                  aria-label="Hội tụ 500 vòng"
+                  aria-current={
+                    location.pathname === '/thuc-nghiem/hoi-tu' ? 'page' : undefined
+                  }
+                  className="lando-wing-link lando-wing-link--right"
+                  onClick={(e) => handleOpenSubpage('/thuc-nghiem/hoi-tu', e)}
                 >
-                  HỘI TỤ 500 VÒNG
+                  <WingSlotText text="HỘI TỤ 500 VÒNG" arrow="↗" />
                 </Link>
               </li>
               <li>
                 <Link
                   to="/thuc-nghiem/da-cuc-tri"
-                  className="lando-footer-big-link"
-                  onClick={(e) => handleOpenAssignment('/thuc-nghiem/da-cuc-tri', e)}
+                  aria-label="Đa cực trị 2D"
+                  aria-current={
+                    location.pathname === '/thuc-nghiem/da-cuc-tri' ? 'page' : undefined
+                  }
+                  className="lando-wing-link lando-wing-link--right"
+                  onClick={(e) => handleOpenSubpage('/thuc-nghiem/da-cuc-tri', e)}
                 >
-                  ĐA CỰC TRỊ 2D
+                  <WingSlotText text="ĐA CỰC TRỊ 2D" arrow="↗" />
                 </Link>
               </li>
               <li>
                 <Link
-                  to="/demo"
-                  className="lando-footer-big-link"
-                  onClick={(e) => navigateWithCurtain('/demo', e)}
+                  to="/demo#nen-anh-fa"
+                  aria-label="Nén ảnh 24-bit"
+                  className="lando-wing-link lando-wing-link--right"
+                  onClick={handleJumpCompression}
                 >
-                  NÉN ẢNH RGB
+                  <WingSlotText text="NÉN ẢNH 24-BIT" arrow="↗" />
                 </Link>
               </li>
               <li>
@@ -339,16 +426,17 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
                   href="https://github.com/gmaanx/firefly-project"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="lando-footer-big-link lando-footer-big-link--lime"
+                  aria-label="Mã nguồn GitHub (mở tab mới)"
+                  className="lando-wing-link lando-wing-link--right lando-wing-link--external"
                 >
-                  GITHUB REPO
+                  <WingSlotText text="MÃ NGUỒN GITHUB" arrow="↗" />
                 </a>
               </li>
             </ul>
-          </div>
+          </nav>
         </div>
 
-        {/* 3. Iconic Lando Bottom-Left & Bottom-Right Raised Neon-Lime Trapezoid Ears */}
+        {/* 3. Lando Bottom-Left Raised Neon-Lime Copyright Ear (Clean Bottom-Right Edge) */}
         <div className="lando-footer-ears">
           <div className="lando-footer-ear lando-footer-ear--left">
             <span className="lando-footer-ear__copy">
@@ -362,32 +450,6 @@ export function FooterSection({ reducedMotion }: FooterSectionProps) {
             >
               <path d="M0,0 C10,0 15,4 22,14 L34,30 C37,34 40,36 42,36 H0 Z" fill="#d2ff00" />
             </svg>
-          </div>
-
-          <div className="lando-footer-ear lando-footer-ear--right">
-            <svg
-              viewBox="0 0 42 36"
-              preserveAspectRatio="none"
-              className="lando-footer-ear__ramp lando-footer-ear__ramp--left"
-              aria-hidden="true"
-            >
-              <path d="M42,0 C32,0 27,4 20,14 L8,30 C5,34 2,36 0,36 H42 Z" fill="#d2ff00" />
-            </svg>
-            <div className="lando-footer-ear__links">
-              <Link
-                to="/phan-cong"
-                onClick={(e) => handleOpenAssignment('/phan-cong', e)}
-              >
-                11 THÀNH VIÊN
-              </Link>
-              <a
-                href="https://github.com/gmaanx/firefly-project"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GITHUB
-              </a>
-            </div>
           </div>
         </div>
       </div>

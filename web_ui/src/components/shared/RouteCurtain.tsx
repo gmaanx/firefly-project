@@ -91,10 +91,16 @@ function focusRevealedHeading() {
 
 function suspendOrKillRouteScrollTriggers() {
   const keepAliveRoot = document.querySelector('[data-keepalive-root="home"]');
-  ScrollTrigger.getAll().forEach((st) => {
+  // Snapshot array before mutating so GSAP's internal trigger list never shifts mid-iteration
+  const allTriggers = [...ScrollTrigger.getAll()];
+  allTriggers.forEach((st) => {
     const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
     if (keepAliveRoot && trig instanceof Node && keepAliveRoot.contains(trig)) {
-      st.disable(false);
+      if (st.vars.once && st.progress >= 1) {
+        st.kill(false);
+      } else {
+        st.disable(false);
+      }
       return;
     }
     st.kill();
@@ -212,12 +218,14 @@ export function RouteTransitionProvider({
         await waitOrTimeout(preloadTask, 650);
         options?.onBeforeSwap?.();
         suspendOrKillRouteScrollTriggers();
+        // Reset scroll to 0 BEFORE mounting incoming route so once:true ScrollTriggers never self-kill mid-refresh
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         startTransition(() => {
           navigate(hash ? `${to}#${hash}` : to);
         });
-        onResetScroll(hash);
 
         await nextDoubleFrame();
+        onResetScroll(hash);
 
         centerLockup?.animate(
           [

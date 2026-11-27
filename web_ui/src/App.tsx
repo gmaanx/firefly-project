@@ -139,10 +139,14 @@ function AppInner({
     if (!keepRoot) return;
 
     if (!isHomeActive) {
-      ScrollTrigger.getAll().forEach((st) => {
+      [...ScrollTrigger.getAll()].forEach((st) => {
         const trig = st.trigger ?? (st.vars.trigger as Element | null | undefined);
         if (trig instanceof Node && keepRoot.contains(trig)) {
-          st.disable(false);
+          if (st.vars.once && st.progress >= 1) {
+            st.kill(false);
+          } else {
+            st.disable(false);
+          }
         }
       });
       return;
@@ -504,33 +508,47 @@ export function App() {
   }, []);
 
   const handleResetScroll = useCallback((hash?: string) => {
-    if (hash) {
-      window.requestAnimationFrame(() => {
-        const el = document.getElementById(hash);
-        if (el) {
-          if (lenisRef.current) {
-            const targetTop = Math.max(
-              0,
-              window.scrollY +
-                el.getBoundingClientRect().top +
-                getSectionScrollOffset(hash)
-            );
-            lenisRef.current.scrollTo(targetTop, {
-              immediate: true,
-              force: true,
-            });
-          } else {
-            el.scrollIntoView({ behavior: 'auto', block: 'start' });
-          }
-        }
-      });
-      return;
-    }
-
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (lenisRef.current) {
       lenisRef.current.scrollTo(0, { immediate: true, force: true });
     }
+
+    if (!hash) return;
+
+    let attempts = 0;
+    const seekHashTarget = () => {
+      const el = document.getElementById(hash);
+      if (el && el.getBoundingClientRect().height > 0) {
+        const targetTop = Math.max(
+          0,
+          window.scrollY + el.getBoundingClientRect().top + getSectionScrollOffset(hash)
+        );
+        window.scrollTo({ top: targetTop, left: 0, behavior: 'auto' });
+        if (lenisRef.current) {
+          lenisRef.current.scrollTo(targetTop, {
+            immediate: true,
+            force: true,
+          });
+        }
+        return;
+      }
+      if (attempts < 24) {
+        attempts += 1;
+        window.requestAnimationFrame(seekHashTarget);
+      }
+    };
+    window.requestAnimationFrame(seekHashTarget);
+  }, []);
+
+  // Support direct initial page loads with a URL hash (e.g. `/demo#nen-anh-fa`)
+  useEffect(() => {
+    const rawHash = location.hash.replace(/^#/, '');
+    if (!rawHash) return;
+    const timer = window.setTimeout(() => {
+      handleResetScroll(rawHash);
+    }, 120);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleScrollToSection = useCallback(
