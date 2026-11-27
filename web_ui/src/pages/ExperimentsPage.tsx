@@ -6,6 +6,7 @@ import { ExperimentsGridSection } from '../components/sections/ExperimentsGridSe
 import { FooterSection } from '../components/sections/FooterSection';
 import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
+import { LandoSectionBlend } from '../components/shared/LandoSectionBlend';
 import { LandoSignatureFlourish } from '../components/shared/LandoSignatureFlourish';
 import { MathFormula } from '../components/shared/MathFormula';
 import { NextPageBanner } from '../components/shared/NextPageBanner';
@@ -208,10 +209,22 @@ export function ExperimentsPage({ reducedMotion }: ExperimentsPageProps) {
         </div>
       </section>
 
+      <LandoSectionBlend
+        from="olive"
+        to="alabaster"
+        reducedMotion={reducedMotion}
+      />
+
       {/* 2. Spacious 2-Column Bento Showcase (#F3F2EC Museum Alabaster — 0% Neon on Light!) */}
       <ExperimentsGridSection
         reducedMotion={reducedMotion}
         viewMode={viewMode}
+      />
+
+      <LandoSectionBlend
+        from="alabaster"
+        to="obsidian"
+        reducedMotion={reducedMotion}
       />
 
       <NextPageBanner

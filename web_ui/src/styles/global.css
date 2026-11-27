@@ -290,20 +290,56 @@ h3[id] {
   background-position: center center;
   background-size: cover;
   background-attachment: scroll;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 68px,
-    #000 calc(100% - 68px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 68px,
-    #000 calc(100% - 68px),
-    transparent 100%
-  );
+}
+
+/* Authentic Lando Norris `.exe-top-visor` Sculpted Elliptical Section Bridge (Zero Muddy Blur!) */
+.lando-visor-bridge {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  height: clamp(50px, 6.4vw, 84px);
+  margin-block: -1px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lando-visor-bridge--to-alabaster {
+  background-color: var(--bg-alabaster);
+}
+
+.lando-visor-bridge--to-obsidian {
+  background-color: var(--bg-obsidian);
+}
+
+.lando-visor-bridge--to-olive {
+  background-color: var(--bg-olive);
+}
+
+.lando-visor-bridge--to-olive-dark {
+  background-color: #1c2017;
+}
+
+.lando-visor-bridge__arch {
+  position: absolute;
+  inset: -1px 0 0;
+  clip-path: ellipse(72% 76% at 50% 0%);
+  will-change: clip-path;
+}
+
+.lando-visor-bridge__arch--from-olive {
+  background-color: var(--bg-olive);
+}
+
+.lando-visor-bridge__arch--from-olive-dark {
+  background-color: #1c2017;
+}
+
+.lando-visor-bridge__arch--from-alabaster {
+  background-color: var(--bg-alabaster);
+}
+
+.lando-visor-bridge__arch--from-obsidian {
+  background-color: var(--bg-obsidian);
 }
 
 /* ==========================================================================
@@ -2081,13 +2117,8 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 
 .manifesto-solid-backdrop {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-olive) 0%,
-    var(--bg-olive) calc(100% - 96px),
-    var(--bg-alabaster) 100%
-  );
-  padding: clamp(2.4rem, 4.8dvh, 3.8rem) 0 clamp(6.6rem, 12.5dvh, 8.2rem);
+  background-color: var(--bg-olive);
+  padding: clamp(2.4rem, 4.8dvh, 3.8rem) 0 clamp(2.6rem, 5dvh, 4rem);
   overflow: hidden;
 }
 
@@ -2194,13 +2225,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 .dynamics-continuum {
   position: relative;
   z-index: 5;
-  background: linear-gradient(
-    180deg var(--in-oklab),
-    var(--bg-alabaster) 0%,
-    #f0efe7 52%,
-    var(--bg-stone) calc(100% - 96px),
-    var(--bg-obsidian) 100%
-  );
+  background-color: var(--bg-alabaster);
   color: var(--ink-dark);
   overflow: clip;
 }
@@ -2211,11 +2236,11 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 }
 
 .dynamics-chapter--exploit {
-  padding-block: clamp(1.8rem, 3.6dvh, 3.2rem) 0;
+  padding-block: clamp(1.6rem, 3.2dvh, 2.8rem) 0;
 }
 
 .dynamics-chapter--explore {
-  padding-block: 0 clamp(6.6rem, 13dvh, 8.2rem);
+  padding-block: 0 clamp(2.4rem, 4.8dvh, 3.8rem);
 }
 
 /* Shared Architectural Numeral + Chapter Metadata Lockup */
@@ -3093,14 +3118,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 .algo-olive-hero {
   position: relative;
   min-height: auto;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-olive) 0%,
-    var(--bg-olive) calc(100% - 88px),
-    var(--bg-alabaster) 100%
-  );
+  background-color: var(--bg-olive);
   color: var(--ink-light);
-  padding: calc(var(--nav-height) + clamp(0.35rem, 0.9dvh, 0.85rem)) 0 clamp(5.6rem, 10.5dvh, 7rem);
+  padding: calc(var(--nav-height) + clamp(0.35rem, 0.9dvh, 0.85rem)) 0 clamp(1.6rem, 3.2dvh, 2.6rem);
   display: flex;
   align-items: center;
   overflow-x: clip;
@@ -3397,14 +3417,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 
 .section-pseudocode {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-alabaster) 0%,
-    var(--bg-stone) calc(100% - 92px),
-    var(--bg-obsidian) 100%
-  );
+  background-color: var(--bg-alabaster);
   color: var(--ink-dark);
-  padding: clamp(1.6rem, 3.2dvh, 2.8rem) 0 clamp(6.4rem, 12dvh, 7.8rem);
+  padding: clamp(1.6rem, 3.2dvh, 2.8rem) 0 clamp(2.2rem, 4.4dvh, 3.4rem);
 }
 
 .flowchart-scroll-runway {
@@ -4601,14 +4616,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
    ========================================================================== */
 .exp-olive-hero {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-olive) 0%,
-    var(--bg-olive) calc(100% - 88px),
-    var(--bg-alabaster) 100%
-  );
+  background-color: var(--bg-olive);
   color: var(--ink-light);
-  padding: calc(var(--nav-height) + clamp(0.85rem, 1.8dvh, 1.4rem)) 0 clamp(5.8rem, 11dvh, 7.2rem);
+  padding: calc(var(--nav-height) + clamp(0.85rem, 1.8dvh, 1.4rem)) 0 clamp(1.8rem, 3.6dvh, 2.8rem);
   overflow: hidden;
 }
 
@@ -4717,14 +4727,9 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 /* Museum Alabaster `#F3F2EC` Experiments Grid Section (Seamless Blend, Zero Hard Dividers!) */
 .section-experiments {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-alabaster) 0%,
-    var(--bg-stone) calc(100% - 92px),
-    var(--bg-obsidian) 100%
-  );
+  background-color: var(--bg-alabaster);
   color: var(--ink-dark);
-  padding: clamp(1.4rem, 2.8dvh, 2.4rem) 0 clamp(6.4rem, 12dvh, 7.8rem);
+  padding: clamp(1.4rem, 2.8dvh, 2.4rem) 0 clamp(2.4rem, 4.8dvh, 3.8rem);
   overflow: hidden;
 }
 
@@ -5310,11 +5315,7 @@ html[data-reduced-motion='true'] .lando-bridge-marquee__track--sans {
 /* Lab 1: Live Mathematical Sandbox (#101110 Obsidian — Single-Screen Fit, Zero Divider Lines!) */
 .section-sandbox {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    var(--bg-obsidian) 0%,
-    #131511 100%
-  );
+  background-color: #1c2017;
   color: var(--ink-light);
   padding: calc(var(--nav-height) + clamp(0.45rem, 1.1dvh, 0.95rem)) 0 clamp(1.8rem, 3.8dvh, 3rem);
   overflow: hidden;
@@ -5679,12 +5680,7 @@ input[type='range']::-moz-range-thumb {
 /* Lab 2: FA Image Compression Lab (#101110 + #161815 cards — Seamless Blend & Single-Screen Fit!) */
 .compression-lab-section {
   position: relative;
-  background: linear-gradient(
-    to bottom var(--in-oklab),
-    #131511 0%,
-    var(--bg-obsidian) 96px,
-    var(--bg-obsidian) 100%
-  );
+  background-color: var(--bg-obsidian);
   color: var(--ink-light);
   padding: clamp(1.2rem, 2.5dvh, 2.2rem) 0 clamp(1.8rem, 3.8dvh, 3rem);
   overflow: hidden;
@@ -6054,49 +6050,32 @@ input[type='range']::-moz-range-thumb {
 /* ==========================================================================
    LANDO NORRIS NEON-LIME SCULPTED FOOTER & ASSIGNMENT MATRIX
    ========================================================================== */
-.section-route-showcase > .contour-backdrop-clip,
-.compression-lab-section > .contour-backdrop-clip,
-.detail-subpage > .contour-backdrop-clip {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 calc(100% - 40px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 calc(100% - 40px),
-    transparent 100%
-  );
-}
-
 .lando-footer-frame {
+  --footer-lead-bg: var(--bg-obsidian);
   position: relative;
   z-index: 5;
   content-visibility: auto;
-  contain-intrinsic-size: auto none auto 38rem;
-  padding: clamp(7.2rem, 15vh, 10.5rem) 11px 11px;
+  contain-intrinsic-size: auto none auto 34rem;
+  padding: clamp(6.6rem, 13.5dvh, 8.8rem) 12px 12px;
   color: var(--ink-light);
   background:
     radial-gradient(
-      ellipse 76% 200px at 50% 0%,
-      var(--bg-obsidian) 0%,
-      rgba(16, 17, 16, 0.85) 30%,
-      rgba(16, 17, 16, 0.42) 64%,
-      rgba(16, 17, 16, 0) 100%
+      ellipse 72% 112px at 50% 0%,
+      var(--footer-lead-bg) 0%,
+      var(--footer-lead-bg) 32%,
+      transparent 100%
     ),
     linear-gradient(
       to bottom var(--in-oklab),
-      var(--bg-obsidian) 0px,
-      #d2ff00 240px,
+      var(--footer-lead-bg) 0px,
+      #d2ff00 102px,
       #d2ff00 100%
     );
 }
 
 .lando-footer-frame--compact {
-  contain-intrinsic-size: auto none auto 24rem;
-  padding-top: clamp(5.5rem, 11vh, 8rem);
+  contain-intrinsic-size: auto none auto 22rem;
+  padding-top: clamp(5.6rem, 11.5dvh, 7.6rem);
 }
 
 .lando-footer-chamber {
@@ -6104,11 +6083,11 @@ input[type='range']::-moz-range-thumb {
   background: linear-gradient(
     to bottom var(--in-oklab),
     #26291f 0px,
-    #1e2119 280px,
+    #1e2119 260px,
     #141513 100%
   );
   border-radius: 16px 16px 12px 12px;
-  padding: clamp(1.1rem, 2.2dvh, 1.75rem) clamp(1.15rem, 2.6vw, 2.4rem) 2.55rem;
+  padding: clamp(1.25rem, 2.5dvh, 1.9rem) clamp(1.15rem, 2.6vw, 2.4rem) 2.55rem;
 }
 
 .lando-footer-raised-tab {
@@ -6167,27 +6146,16 @@ input[type='range']::-moz-range-thumb {
   position: relative;
   z-index: 2;
   max-width: 980px;
-  margin: 0 auto 0.72rem;
+  margin: 0 auto 0.95rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-.lando-footer-sig {
-  width: clamp(110px, 9.8vw, 148px);
-  height: auto;
-  color: #d2ff00;
-  margin-bottom: -0.92rem;
-  transform: rotate(-6deg);
-  position: relative;
-  z-index: 3;
-  pointer-events: none;
-}
-
 .lando-footer-headline {
   margin: 0;
-  font-size: clamp(1.85rem, 3.3vw, 3.2rem);
+  font-size: clamp(1.95rem, 3.5vw, 3.35rem);
   line-height: 1.06;
   letter-spacing: -0.028em;
   text-transform: uppercase;
@@ -6223,10 +6191,10 @@ input[type='range']::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.68rem;
+  gap: 1.05rem;
 }
 
-/* Compact 6x2 Swiss Typographic Roster (Zero SaaS Table / Zero Badge Soup!) */
+/* Compact Swiss Typographic Roster (11 Members) */
 .lando-roster-ledger {
   inline-size: 100%;
   max-inline-size: 860px;
@@ -6267,7 +6235,7 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  padding: 0.3rem 0.2rem;
+  padding: 0.36rem 0.2rem;
   border-block-end: 1px solid rgba(239, 239, 232, 0.09);
   color: var(--ink-light);
   text-decoration: none;
@@ -6287,7 +6255,6 @@ input[type='range']::-moz-range-thumb {
   transition: transform 0.46s cubic-bezier(0.625, 0.05, 0, 1);
 }
 
-.lando-roster-grid:not(:hover) .lando-roster-item--active::after,
 .lando-roster-item:hover::after,
 .lando-roster-item:focus-visible::after {
   transform: scaleX(1);
@@ -6344,18 +6311,11 @@ input[type='range']::-moz-range-thumb {
   transition: color 0.22s var(--ease-out);
 }
 
-.lando-roster-item--all .lando-roster-item__name,
-.lando-roster-item--all .lando-roster-item__num {
-  color: #b8cc4d;
-}
-
-.lando-roster-grid:not(:hover) .lando-roster-item--active .lando-roster-item__num,
 .lando-roster-item:hover .lando-roster-item__num,
 .lando-roster-item:focus-visible .lando-roster-item__num {
   color: #d2ff00;
 }
 
-.lando-roster-grid:not(:hover) .lando-roster-item--active .lando-roster-item__role,
 .lando-roster-item:hover .lando-roster-item__role,
 .lando-roster-item:focus-visible .lando-roster-item__role {
   color: #e4e6dd;
@@ -6379,47 +6339,6 @@ input[type='range']::-moz-range-thumb {
   .lando-roster-item:hover .lando-roster-item__who {
     transform: translateX(0.28rem) rotate(0.001deg);
   }
-}
-
-.lando-roster-spotlight {
-  padding: 0.44rem 0.2rem 0.05rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.16rem;
-  text-align: left;
-}
-
-.lando-roster-spotlight__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.38rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: #9ba091;
-}
-
-.lando-roster-spotlight__who {
-  font-weight: 600;
-  color: #d2ff00;
-}
-
-.lando-roster-spotlight__sep {
-  opacity: 0.4;
-}
-
-.lando-roster-spotlight__meta code {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: #f4f4ed;
-}
-
-.lando-roster-spotlight__summary {
-  margin: 0;
-  min-block-size: 2.2rem;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: #dcdfd5;
 }
 
 .lando-footer-cta-btn {

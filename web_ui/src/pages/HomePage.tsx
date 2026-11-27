@@ -9,6 +9,7 @@ import { HeroSection } from '../components/sections/HeroSection';
 import { ManifestoSection } from '../components/sections/ManifestoSection';
 import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
+import { LandoSectionBlend } from '../components/shared/LandoSectionBlend';
 import { LandoSignatureFlourish } from '../components/shared/LandoSignatureFlourish';
 import { MathFormula } from '../components/shared/MathFormula';
 import { useRouteCurtain } from '../components/shared/RouteCurtain';
@@ -354,8 +355,20 @@ export function HomePage({
       {/* 2. Matte-Olive Editorial Manifesto (`#24281E`) rising cleanly right underneath the sticky stage */}
       <ManifestoSection reducedMotion={reducedMotion} />
 
+      <LandoSectionBlend
+        from="olive"
+        to="alabaster"
+        reducedMotion={reducedMotion}
+      />
+
       {/* 3. Lando Navier-Stokes Hard-Cutout Fluid-Ribbon Split Duality (#F3F2EC) */}
       <ExplorationSplitSection reducedMotion={reducedMotion} />
+
+      <LandoSectionBlend
+        from="alabaster"
+        to="obsidian"
+        reducedMotion={reducedMotion}
+      />
 
       {/* 4. Refined Gallery Slate Chamfered Route Showcase (#101110 -> #161815 cards) */}
       <section

@@ -7,6 +7,7 @@ import { FooterSection } from '../components/sections/FooterSection';
 import { WorkedTelemetrySection } from '../components/sections/WorkedTelemetrySection';
 import { BlockReveal } from '../components/shared/BlockReveal';
 import { ContourBackdrop } from '../components/shared/ContourBackdrop';
+import { LandoSectionBlend } from '../components/shared/LandoSectionBlend';
 import { MathFormula } from '../components/shared/MathFormula';
 import { NextPageBanner } from '../components/shared/NextPageBanner';
 import { AlgorithmFieldCanvas } from '../components/webgl/AlgorithmFieldCanvas';
@@ -231,8 +232,20 @@ export function AlgorithmPage({ reducedMotion }: AlgorithmPageProps) {
         </div>
       </section>
 
+      <LandoSectionBlend
+        from="olive"
+        to="alabaster"
+        reducedMotion={reducedMotion}
+      />
+
       {/* 2. Split Sticky 5-Step Scrollytelling Deck (#so-do) + Standalone Pseudocode (#ma-gia) */}
       <FlowchartTrackSection reducedMotion={reducedMotion} />
+
+      <LandoSectionBlend
+        from="alabaster"
+        to="obsidian"
+        reducedMotion={reducedMotion}
+      />
 
       {/* 3. Worked Step-by-Step 3D Telemetry & Constrained Optimization (#101110 Obsidian) */}
       <WorkedTelemetrySection reducedMotion={reducedMotion} />
